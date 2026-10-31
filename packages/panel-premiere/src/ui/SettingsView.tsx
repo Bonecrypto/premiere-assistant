@@ -72,12 +72,15 @@ export function SettingsView(props: {
           <div className="row-main">
             <div className="row-label">Порт помощника</div>
           </div>
-          <input
-            className="text-input port-input"
-            type="text"
-            value={value}
-            onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ""))}
-          />
+          {/* Ширина задаётся обёрткой: UXP растягивает поле ввода и игнорирует его width. */}
+          <div className="port-box">
+            <input
+              className="text-input port-input"
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ""))}
+            />
+          </div>
           <Button variant="primary" size="small" disabled={!valid || n === props.port} onClick={() => props.onChangePort(n)}>
             Применить
           </Button>

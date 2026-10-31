@@ -1,6 +1,6 @@
 import path from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
-import { parsePanelMessage, type HelperToPanel } from "@pa/core";
+import { parsePanelMessage, PING_INTERVAL_MS, type HelperToPanel } from "@pa/core";
 import { config, envCreated, HELPER_DIR, HELPER_VERSION } from "./config.ts";
 import { checkProviderSetup, createProvider } from "./providers/index.ts";
 import { ToolRegistry } from "./registry.ts";
@@ -82,26 +82,24 @@ async function main(): Promise<void> {
     };
     const session = new Session(provider, registry, send, plog);
 
-    // Пинг, чтобы замечать «зависшие» подключения.
-    let alive = true;
-    ws.on("pong", () => (alive = true));
+    // «Зависшее» подключение: панель долго ничего не присылала (даже ping).
+    // Служебные ping-кадры WebSocket не используем — UXP на них не отвечает.
+    let lastSeen = Date.now();
     const ping = setInterval(() => {
-      if (!alive) {
-        plog("нет ответа на ping — закрываю подключение");
+      if (Date.now() - lastSeen > PING_INTERVAL_MS * 4) {
+        plog("панель давно не отвечает — закрываю подключение");
         ws.terminate();
-        return;
       }
-      alive = false;
-      ws.ping();
-    }, 15_000);
+    }, PING_INTERVAL_MS);
 
     ws.on("message", (data) => {
+      lastSeen = Date.now();
       const msg = parsePanelMessage(data.toString());
       if (!msg) {
         send({ type: "error", message: "Помощник получил непонятное сообщение." });
         return;
       }
-      session.handle(msg);
+      if (msg.type !== "ping") session.handle(msg);
     });
 
     ws.on("close", () => {

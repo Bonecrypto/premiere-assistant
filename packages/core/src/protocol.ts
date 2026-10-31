@@ -6,6 +6,8 @@ import type { ToolSpec } from "./tool.ts";
 
 export const PROTOCOL_VERSION = 1;
 export const DEFAULT_HELPER_PORT = 8765;
+/** Как часто панель шлёт ping (мс). Помощник считает панель пропавшей после 4 пропусков. */
+export const PING_INTERVAL_MS = 10_000;
 
 // ───────────── Панель → помощник ─────────────
 
@@ -49,13 +51,22 @@ export interface ResetMsg {
   type: "reset";
 }
 
+/**
+ * «Я на связи» — панель шлёт раз в несколько секунд. Нужен потому, что WebSocket в UXP
+ * не отвечает на служебные ping-кадры, и по ним нельзя понять, жива ли панель.
+ */
+export interface PingMsg {
+  type: "ping";
+}
+
 export type PanelToHelper =
   | HelloMsg
   | UserMessageMsg
   | ConfirmResponseMsg
   | ToolResultMsg
   | CancelMsg
-  | ResetMsg;
+  | ResetMsg
+  | PingMsg;
 
 // ───────────── Помощник → панель ─────────────
 
@@ -148,6 +159,7 @@ const PANEL_TYPES = new Set<PanelToHelper["type"]>([
   "tool_result",
   "cancel",
   "reset",
+  "ping",
 ]);
 
 const HELPER_TYPES = new Set<HelperToPanel["type"]>([

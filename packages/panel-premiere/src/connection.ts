@@ -1,6 +1,7 @@
 import {
   DEFAULT_HELPER_PORT,
   parseHelperMessage,
+  PING_INTERVAL_MS,
   PROTOCOL_VERSION,
   type HelperToPanel,
   type PanelToHelper,
@@ -25,6 +26,7 @@ export function savePort(port: number): void {
 export class HelperConnection {
   private ws: WebSocket | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private pingTimer: ReturnType<typeof setInterval> | null = null;
   private retryDelay = 1000;
   private stopped = false;
   status: ConnectionStatus = "disconnected";
@@ -50,6 +52,7 @@ export class HelperConnection {
 
   stop(): void {
     this.stopped = true;
+    this.stopPing();
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = null;
     this.ws?.close();
@@ -105,6 +108,7 @@ export class HelperConnection {
     ws.onopen = () => {
       this.retryDelay = 1000;
       this.setStatus("connected");
+      this.startPing();
       this.send({
         type: "hello",
         protocolVersion: PROTOCOL_VERSION,
@@ -120,6 +124,7 @@ export class HelperConnection {
     };
     ws.onclose = () => {
       if (this.ws !== ws) return;
+      this.stopPing();
       this.ws = null;
       this.setStatus("disconnected");
       this.scheduleRetry();
@@ -127,6 +132,16 @@ export class HelperConnection {
     ws.onerror = () => {
       /* onclose придёт следом */
     };
+  }
+
+  private startPing(): void {
+    this.stopPing();
+    this.pingTimer = setInterval(() => this.send({ type: "ping" }), PING_INTERVAL_MS);
+  }
+
+  private stopPing(): void {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = null;
   }
 
   private scheduleRetry(): void {

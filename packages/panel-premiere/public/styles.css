@@ -397,9 +397,14 @@ code {
   padding: 4px 8px;
   font-size: var(--fs);
 }
-.port-input {
-  width: 64px;
+.port-box {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
   margin-right: 8px;
+}
+.port-input {
+  width: 100%;
   text-align: center;
 }
 .progress {
