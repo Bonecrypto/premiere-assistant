@@ -24,17 +24,20 @@ export function TasksView(props: { tasks: TaskEntry[]; onClear(): void }) {
   if (props.tasks.length === 0) {
     return (
       <div className="page page-center">
+      <div className="scroll-inner">
         <div className="empty">
           <div className="empty-mark empty-mark-muted">✓</div>
           <div className="empty-title">Задач нет</div>
           <div className="empty-text">Здесь появятся действия ассистента и долгие фоновые задачи с прогрессом.</div>
         </div>
       </div>
+    </div>
     );
   }
 
   return (
     <div className="page">
+      <div className="scroll-inner">
       {active.length > 0 ? (
         <Section title="Сейчас">
           {active.map((t) => (
@@ -56,6 +59,7 @@ export function TasksView(props: { tasks: TaskEntry[]; onClear(): void }) {
           ))}
         </Section>
       ) : null}
+    </div>
     </div>
   );
 }

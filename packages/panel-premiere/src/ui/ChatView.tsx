@@ -34,6 +34,7 @@ export function ChatView(props: {
 
   return (
     <div className="chat" ref={scrollRef}>
+      <div className="scroll-inner">
       {props.items.length === 0 ? (
         <EmptyState health={props.health} onSuggestion={props.onSuggestion} onOpenSettings={props.onOpenSettings} />
       ) : null}
@@ -75,6 +76,7 @@ export function ChatView(props: {
           </div>
         </div>
       ) : null}
+    </div>
     </div>
   );
 }

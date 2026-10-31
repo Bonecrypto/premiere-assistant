@@ -22,6 +22,7 @@ export function SettingsView(props: {
 
   return (
     <div className="page">
+      <div className="scroll-inner">
       <Section
         title="Помощник"
         footer={
@@ -98,6 +99,7 @@ export function SettingsView(props: {
         <Row label="Помощник" value={props.helper ? `v${props.helper.helperVersion}` : "—"} />
         <Row label="Инструментов" value={props.helper ? String(props.helper.tools.length) : "—"} />
       </Section>
+    </div>
     </div>
   );
 }

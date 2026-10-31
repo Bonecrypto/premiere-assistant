@@ -16,6 +16,7 @@ export function PresetsView() {
 
   return (
     <div className="page">
+      <div className="scroll-inner">
       <Section
         title="Выравнивание в кадре"
         aside={<Badge tone="accent">Скоро</Badge>}
@@ -76,6 +77,7 @@ export function PresetsView() {
           </Button>
         </div>
       </Section>
+    </div>
     </div>
   );
 }

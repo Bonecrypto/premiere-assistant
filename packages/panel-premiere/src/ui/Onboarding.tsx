@@ -57,6 +57,7 @@ export function Onboarding(props: {
 
   return (
     <div className="onboarding">
+      <div className="scroll-inner">
       <div className="onb-hero">
         <Logo size={64} className="onb-logo" />
         <div className="onb-title">Ассистент для Premiere</div>
@@ -100,6 +101,7 @@ export function Onboarding(props: {
           Пропустить
         </Button>
       </div>
+    </div>
     </div>
   );
 }
