@@ -35,8 +35,12 @@ export class HelperConnection {
     private readonly onStatus: (status: ConnectionStatus) => void,
   ) {}
 
+  /**
+   * Именно 127.0.0.1, а не localhost: в Windows localhost часто означает IPv6 (::1),
+   * а помощник слушает только IPv4-адрес 127.0.0.1.
+   */
   get url(): string {
-    return `ws://localhost:${this.port}`;
+    return `ws://127.0.0.1:${this.port}`;
   }
 
   start(): void {

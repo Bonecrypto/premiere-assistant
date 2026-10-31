@@ -208,13 +208,8 @@ code {
   align-items: center;
   padding: 10px 12px 6px 12px;
 }
-/* Логотип: CSS-градиент (в UXP градиенты внутри SVG не рисуются) + белая кость */
-.logo-tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #5a10d0;
-  background-image: linear-gradient(160deg, #9f18ec 0%, #6a12dc 50%, #3a0a96 100%);
+.logo {
+  display: block;
 }
 .app-mark {
   margin-right: 8px;

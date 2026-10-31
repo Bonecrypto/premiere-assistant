@@ -1,15 +1,14 @@
 /**
  * Логотип плагина: белая кость на фиолетовой плитке.
- * Плитка рисуется CSS-градиентом: UXP не отображает градиенты внутри SVG.
+ * Именно PNG: UXP рисует SVG-картинки на чёрном фоне и без градиентов.
  */
 export function Logo(props: { size: number; className?: string }) {
-  const { size } = props;
   return (
-    <div
-      className={`logo-tile ${props.className ?? ""}`}
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.26) }}
-    >
-      <img src="icons/bone-white.svg" alt="" style={{ width: size * 0.66, height: size * 0.66 }} />
-    </div>
+    <img
+      src="icons/logo.png"
+      alt=""
+      className={`logo ${props.className ?? ""}`}
+      style={{ width: props.size, height: props.size }}
+    />
   );
 }
