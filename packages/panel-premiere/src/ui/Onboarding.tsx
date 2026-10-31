@@ -4,6 +4,7 @@ import type { ConnectionStatus } from "../connection.ts";
 import { isUXP } from "../env.ts";
 import { getHostTool } from "../hostTools/index.ts";
 import { Button, IconTile } from "./Button.tsx";
+import { Logo } from "./Logo.tsx";
 
 type Check = "ok" | "fail" | "pending" | "optional";
 
@@ -57,7 +58,7 @@ export function Onboarding(props: {
   return (
     <div className="onboarding">
       <div className="onb-hero">
-        <div className="onb-mark">✦</div>
+        <Logo size={64} className="onb-logo" />
         <div className="onb-title">Ассистент для Premiere</div>
         <div className="onb-subtitle">Ваш помощник по монтажу — прямо в панели</div>
       </div>

@@ -1,5 +1,6 @@
 import type { HelloAckMsg } from "@pa/core";
 import type { ConnectionStatus } from "../connection.ts";
+import { Logo } from "./Logo.tsx";
 
 export type HealthState = "ok" | "warn" | "connecting" | "off";
 
@@ -25,7 +26,7 @@ export function Header(props: {
 }) {
   return (
     <div className="header">
-      <div className="app-mark">✦</div>
+      <Logo size={22} className="app-mark" />
       <div className="app-title">Ассистент</div>
       <div className="spacer" />
       {props.action ? (

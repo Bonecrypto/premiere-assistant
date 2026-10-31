@@ -49,7 +49,7 @@ export function SettingsView(props: {
           sublabel={props.helper && !props.helper.apiKeyConfigured ? "Впишите ANTHROPIC_API_KEY в packages/helper/.env" : undefined}
           value={props.helper ? (props.helper.apiKeyConfigured ? "Задан" : "Не задан") : "—"}
         />
-        <Row icon={<IconTile glyph="✦" tone="purple" />} label="Модель" value={props.helper?.model ?? "—"} />
+        <Row icon={<IconTile glyph="AI" tone="purple" />} label="Модель" value={props.helper?.model ?? "—"} />
       </Section>
 
       <Section

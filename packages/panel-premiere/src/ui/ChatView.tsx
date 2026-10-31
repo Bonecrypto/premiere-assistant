@@ -2,6 +2,7 @@ import type { HelloAckMsg } from "@pa/core";
 import { useEffect, useRef } from "react";
 import type { ChatItem } from "../state.ts";
 import { IconTile } from "./Button.tsx";
+import { Logo } from "./Logo.tsx";
 import { ConfirmCard } from "./ConfirmCard.tsx";
 import type { HealthState } from "./Header.tsx";
 import { RichText } from "./RichText.tsx";
@@ -92,7 +93,7 @@ function EmptyState(props: { health: HealthState; onSuggestion(t: string): void;
   const ready = props.health === "ok";
   return (
     <div className="empty">
-      <div className="empty-mark">✦</div>
+      <Logo size={48} className="empty-logo" />
       <div className="empty-title">Чем помочь?</div>
       <div className="empty-text">
         Спросите о монтаже, звуке или Premiere — или поручите действие. Всё, что меняет проект, я сначала покажу вам.
