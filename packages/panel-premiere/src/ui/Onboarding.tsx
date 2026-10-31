@@ -86,7 +86,7 @@ export function Onboarding(props: {
               ? "Всё в порядке"
               : keyCheck === "pending"
                 ? "Станет известно после подключения"
-                : "Впишите ANTHROPIC_API_KEY в packages/helper/.env и перезапустите помощника"
+                : `Впишите ${props.helper?.apiKeyVar ?? "ключ"} в packages/helper/.env и перезапустите помощника`
           }
         />
         <CheckRow state={project.state} title="Проект открыт" text={project.text} />

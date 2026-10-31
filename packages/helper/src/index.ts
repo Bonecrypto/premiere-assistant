@@ -1,8 +1,8 @@
 import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
 import { WebSocketServer, type WebSocket } from "ws";
 import { parsePanelMessage, type HelperToPanel } from "@pa/core";
 import { config, envCreated, HELPER_DIR, HELPER_VERSION } from "./config.ts";
+import { createProvider } from "./providers/index.ts";
 import { ToolRegistry } from "./registry.ts";
 import { Session } from "./session.ts";
 
@@ -28,19 +28,19 @@ async function main(): Promise<void> {
   console.log(`\nPremiere Assistant — помощник v${HELPER_VERSION}`);
 
   if (envCreated) {
-    console.warn(`ℹ Создан файл настроек ${config.envPath}\n  Впишите в него ANTHROPIC_API_KEY и перезапустите помощника.`);
+    console.warn(`ℹ Создан файл настроек ${config.envPath}\n  Впишите в него ключ и перезапустите помощника.`);
   } else if (!config.envFileFound) {
     console.warn(`⚠ Файл .env не найден: ${config.envPath}\n  Скопируйте .env.example в .env и заполните.`);
   }
-  if (!config.apiKeyConfigured) console.warn("⚠ ANTHROPIC_API_KEY не задан — ассистент не сможет отвечать.");
-  if (!config.model) console.warn("⚠ CLAUDE_MODEL не задан — укажите модель в .env.");
+  const provider = createProvider();
+  if (!provider.apiKeyConfigured) {
+    console.warn(`⚠ ${provider.apiKeyVar} не задан — ассистент не сможет отвечать. Впишите ключ в .env и перезапустите.`);
+  }
 
   const registry = new ToolRegistry();
   const loaded = await registry.loadFromDir(path.join(HELPER_DIR, "src", "tools"));
-  console.log(`Модель: ${config.model || "(не задана)"}${config.effort ? `, effort: ${config.effort}` : ""}`);
+  console.log(`Модель: ${provider.title} · ${provider.model}`);
   console.log(`Инструменты помощника: ${loaded.join(", ") || "нет"}`);
-
-  const client = new Anthropic();
 
   const wss = new WebSocketServer({
     host: "127.0.0.1",
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
     const send = (msg: HelperToPanel) => {
       if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
     };
-    const session = new Session(client, registry, send, plog);
+    const session = new Session(provider, registry, send, plog);
 
     // Пинг, чтобы замечать «зависшие» подключения.
     let alive = true;

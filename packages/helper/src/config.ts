@@ -40,13 +40,34 @@ function readPort(): number {
   return n;
 }
 
+export type ProviderId = "claude" | "gemini";
+
+const has = (v: string | undefined) => Boolean(v?.trim());
+
+/** Какая модель отвечает: AI_PROVIDER, иначе — та, для которой задан ключ (Gemini, если ключей нет вовсе). */
+function readProvider(): ProviderId {
+  const v = process.env.AI_PROVIDER?.trim().toLowerCase();
+  if (v === "claude" || v === "anthropic") return "claude";
+  if (v === "gemini" || v === "google") return "gemini";
+  if (v) console.warn(`⚠ AI_PROVIDER="${v}" не распознан (нужно gemini или claude).`);
+  if (has(process.env.ANTHROPIC_API_KEY) && !has(process.env.GEMINI_API_KEY)) return "claude";
+  return "gemini";
+}
+
 export const config = {
   envFileFound: fs.existsSync(envPath),
   envPath,
-  apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY?.trim()),
-  model: process.env.CLAUDE_MODEL?.trim() ?? "",
-  effort: readEffort(),
-  fallbacks: (process.env.CLAUDE_FALLBACKS?.trim().toLowerCase() ?? "default") !== "off",
+  provider: readProvider(),
+  claude: {
+    apiKeyConfigured: has(process.env.ANTHROPIC_API_KEY),
+    model: process.env.CLAUDE_MODEL?.trim() || "claude-opus-5-5",
+    effort: readEffort(),
+    fallbacks: (process.env.CLAUDE_FALLBACKS?.trim().toLowerCase() ?? "default") !== "off",
+  },
+  gemini: {
+    apiKeyConfigured: has(process.env.GEMINI_API_KEY),
+    model: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
+  },
   port: readPort(),
   allowedOrigins: (process.env.HELPER_ALLOWED_ORIGINS ?? "http://localhost:5173")
     .split(",")

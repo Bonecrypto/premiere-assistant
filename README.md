@@ -1,6 +1,6 @@
 # Premiere Assistant
 
-ИИ-ассистент внутри Adobe Premiere Pro: панель-чат + локальный помощник с Claude.
+ИИ-ассистент внутри Adobe Premiere Pro: панель-чат + локальный помощник. Модель на выбор: Gemini (бесплатный тариф) или Claude (платно).
 Подробное описание проекта и план — в [CLAUDE.md](CLAUDE.md).
 
 ```
@@ -12,7 +12,8 @@ knowledge/               база знаний (заметки, рецепты)
 
 ## Первый запуск (Windows)
 
-Нужны: Node.js LTS (20.12+), Premiere Pro 25.6+, UXP Developer Tool (через Creative Cloud).
+Нужны: Node.js LTS (20.12+), Premiere Pro 25.6+, UXP Developer Tool (через Creative Cloud) и ключ модели:
+бесплатный ключ Gemini — aistudio.google.com → Get API key.
 
 1. Установить зависимости (в папке проекта):
    ```bash
@@ -22,7 +23,7 @@ knowledge/               база знаний (заметки, рецепты)
    ```bash
    npm start
    ```
-   При первом запуске создастся `packages/helper/.env`. Впишите туда `ANTHROPIC_API_KEY=...`
+   При первом запуске создастся `packages/helper/.env`. Впишите туда `GEMINI_API_KEY=...`
    и перезапустите помощника. Ключ хранится только в этом файле, в панель он не попадает.
 3. Собрать панель:
    ```bash
@@ -62,8 +63,11 @@ knowledge/               база знаний (заметки, рецепты)
 
 | Переменная | Что это |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | ключ Anthropic API |
-| `CLAUDE_MODEL` | модель (по умолчанию в шаблоне `claude-opus-5-5`) |
+| `AI_PROVIDER` | `gemini` (бесплатный тариф) или `claude` (платно) |
+| `GEMINI_API_KEY` | ключ Gemini (aistudio.google.com) |
+| `GEMINI_MODEL` | модель Gemini (по умолчанию `gemini-2.5-flash`) |
+| `ANTHROPIC_API_KEY` | ключ Anthropic API (platform.claude.com) |
+| `CLAUDE_MODEL` | модель Claude (по умолчанию `claude-opus-5-5`) |
 | `CLAUDE_EFFORT` | глубина рассуждений: `low` … `max` |
 | `CLAUDE_FALLBACKS` | `default` — при отказе модели запрос повторяется на запасной модели; `off` — выключить |
 | `HELPER_PORT` | порт (по умолчанию 8765) |

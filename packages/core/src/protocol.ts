@@ -64,6 +64,10 @@ export interface HelloAckMsg {
   protocolVersion: number;
   helperVersion: string;
   model: string;
+  /** Кто отвечает: «Claude», «Gemini». */
+  provider?: string;
+  /** Как называется переменная с ключом в .env — для подсказок. */
+  apiKeyVar?: string;
   /** Есть ли API-ключ (сам ключ никогда не передаётся). */
   apiKeyConfigured: boolean;
   tools: Array<Pick<ToolSpec, "name" | "runsIn" | "mutates">>;

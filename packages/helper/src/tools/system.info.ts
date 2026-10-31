@@ -19,7 +19,7 @@ const tool: ToolDef<Record<string, never>> = {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       os: `${os.type()} ${os.release()} (${os.arch()})`,
       helperVersion: HELPER_VERSION,
-      model: config.model,
+      model: config.provider === "claude" ? config.claude.model : config.gemini.model,
     };
   },
 };

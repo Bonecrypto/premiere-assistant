@@ -1,9 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import {
-  fromApiToolName,
   makeId,
   PROTOCOL_VERSION,
-  toApiToolName,
   type HelperToPanel,
   type PanelToHelper,
   type TaskStatus,
@@ -11,13 +8,11 @@ import {
   type ToolSpec,
 } from "@pa/core";
 import { config, HELPER_VERSION } from "./config.ts";
+import type { ChatProvider } from "./providers/index.ts";
+import type { Conversation, ToolCall, ToolCallResult } from "./providers/types.ts";
 import { checkHostToolSpec, type ToolRegistry } from "./registry.ts";
 import { SYSTEM_PROMPT } from "./systemPrompt.ts";
 import { validateInput } from "./validate.ts";
-
-type MessageParam = Anthropic.Beta.BetaMessageParam;
-type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
-type ToolUseBlock = Anthropic.Beta.BetaToolUseBlock;
 
 const MAX_RESULT_CHARS = 100_000;
 
@@ -34,11 +29,11 @@ interface PendingHostCall {
 }
 
 /**
- * Одна подключённая панель = одна сессия: история диалога, host-инструменты панели,
- * ожидающие подтверждения и вызовы.
+ * Одна подключённая панель = одна сессия: диалог с моделью, host-инструменты панели,
+ * ожидающие подтверждения и вызовы. С какой моделью идёт диалог — решает провайдер.
  */
 export class Session {
-  private history: MessageParam[] = [];
+  private conversation: Conversation;
   private registry: ToolRegistry;
   private ready = false;
   private busy = false;
@@ -47,16 +42,13 @@ export class Session {
   private pendingHostCalls = new Map<string, PendingHostCall>();
 
   constructor(
-    private readonly client: Anthropic,
+    private readonly provider: ChatProvider,
     baseRegistry: ToolRegistry,
-    private readonly sendRaw: (msg: HelperToPanel) => void,
+    private readonly send: (msg: HelperToPanel) => void,
     private readonly log: (text: string) => void,
   ) {
     this.registry = baseRegistry.clone();
-  }
-
-  private send(msg: HelperToPanel): void {
-    this.sendRaw(msg);
+    this.conversation = provider.createConversation(SYSTEM_PROMPT);
   }
 
   handle(msg: PanelToHelper): void {
@@ -92,7 +84,7 @@ export class Session {
         if (this.busy) {
           this.send({ type: "error", message: "Сначала остановите текущий ответ, затем начните новый диалог." });
         } else {
-          this.history = [];
+          this.conversation.reset();
           this.log("диалог очищен");
         }
         break;
@@ -136,8 +128,10 @@ export class Session {
       type: "hello_ack",
       protocolVersion: PROTOCOL_VERSION,
       helperVersion: HELPER_VERSION,
-      model: config.model || "(не задана)",
-      apiKeyConfigured: config.apiKeyConfigured,
+      model: this.provider.model,
+      provider: this.provider.title,
+      apiKeyVar: this.provider.apiKeyVar,
+      apiKeyConfigured: this.provider.apiKeyConfigured,
       tools: tools.map(({ name, runsIn, mutates }) => ({ name, runsIn, mutates })),
     });
   }
@@ -199,17 +193,10 @@ export class Session {
       this.send({ type: "error", message: "Ассистент ещё отвечает. Дождитесь ответа или нажмите «Стоп»." });
       return;
     }
-    if (!config.apiKeyConfigured) {
+    if (!this.provider.apiKeyConfigured) {
       this.send({
         type: "error",
-        message: `Не задан ANTHROPIC_API_KEY. Укажите его в ${config.envPath} и перезапустите помощника.`,
-      });
-      return;
-    }
-    if (!config.model) {
-      this.send({
-        type: "error",
-        message: `Не задана модель CLAUDE_MODEL. Укажите её в ${config.envPath} и перезапустите помощника.`,
+        message: `Не задан ${this.provider.apiKeyVar}. Укажите его в ${config.envPath} и перезапустите помощника.`,
       });
       return;
     }
@@ -218,12 +205,13 @@ export class Session {
     const abort = new AbortController();
     this.abort = abort;
     const turnId = makeId("t_");
-    const historyStart = this.history.length;
+    const conv = this.conversation;
+    const turnStart = conv.checkpoint();
     let stopReason = "end_turn";
     let wroteText = false;
 
     this.send({ type: "assistant_start", turnId });
-    this.history.push({ role: "user", content: text });
+    conv.addUserText(text);
     this.log(`→ ${truncate(text, 120)}`);
 
     const emit = (delta: string) => {
@@ -240,65 +228,57 @@ export class Session {
         }
         // Абзац между текстом до и после вызова инструментов.
         let separatorPending = step > 0 && wroteText;
+        const result = await conv.step(
+          this.registry.list(),
+          (delta) => {
+            if (separatorPending) {
+              separatorPending = false;
+              emit("\n\n");
+            }
+            emit(delta);
+          },
+          abort.signal,
+        );
 
-        const stream = this.client.beta.messages.stream(this.buildRequest(), { signal: abort.signal });
-        stream.on("text", (delta) => {
-          if (separatorPending) {
-            separatorPending = false;
-            emit("\n\n");
-          }
-          emit(delta);
-        });
-        const message = await stream.finalMessage();
-        stopReason = message.stop_reason ?? "end_turn";
-
-        if (message.stop_reason === "refusal") {
+        if (result.stop === "refusal") {
+          stopReason = "refusal";
           // Отказ мог оборвать ответ на середине — откатываем весь ход.
-          this.history.length = historyStart;
-          emit(
-            (wroteText ? "\n\n" : "") +
-              "Модель отказалась отвечать на этот запрос. Попробуйте переформулировать.",
-          );
+          conv.rollback(turnStart);
+          emit((wroteText ? "\n\n" : "") + "Модель отказалась отвечать на этот запрос. Попробуйте переформулировать.");
           break;
         }
-
-        this.history.push({ role: "assistant", content: message.content });
-
-        if (message.stop_reason === "pause_turn") continue;
-
-        const toolUses = message.content.filter((b): b is ToolUseBlock => b.type === "tool_use");
-        if (message.stop_reason !== "tool_use" || toolUses.length === 0) {
-          if (message.stop_reason === "max_tokens") {
-            emit("\n\n_(Ответ обрезан: достигнут лимит длины.)_");
-          }
-          if (toolUses.length > 0) {
+        if (result.stop === "continue") continue;
+        if (result.stop === "max_tokens") {
+          stopReason = "max_tokens";
+          emit("\n\n_(Ответ обрезан: достигнут лимит длины.)_");
+          if (result.toolCalls.length > 0) {
             // Вход инструмента мог оборваться — не выполняем, но история должна оставаться корректной.
-            this.history.push({
-              role: "user",
-              content: toolUses.map((t) => errorResult(t.id, "Вызов не выполнен: ответ модели был обрезан.")),
-            });
+            conv.addToolResults(
+              result.toolCalls.map((call) => ({ call, isError: true, content: "Вызов не выполнен: ответ модели был обрезан." })),
+            );
           }
           break;
         }
+        if (result.stop === "done") break;
 
-        // Все результаты — одним сообщением.
-        const results: ToolResult[] = [];
-        for (const block of toolUses) {
-          results.push(await this.executeTool(block, abort.signal));
+        // Инструменты выполняем по очереди (подтверждения — по одному), результаты отдаём разом.
+        const results: ToolCallResult[] = [];
+        for (const call of result.toolCalls) {
+          results.push(await this.executeTool(call, abort.signal));
         }
-        this.history.push({ role: "user", content: results });
+        conv.addToolResults(results);
 
         if (abort.signal.aborted) throw new CancelledError();
       }
     } catch (err) {
-      if (abort.signal.aborted || err instanceof CancelledError || err instanceof Anthropic.APIUserAbortError) {
+      if (abort.signal.aborted || err instanceof CancelledError || this.provider.isAbort(err)) {
         stopReason = "cancelled";
         this.log("ответ остановлен пользователем");
       } else {
         stopReason = "error";
         // Ход не завершился — откатываем его, чтобы история оставалась корректной.
-        this.history.length = historyStart;
-        const message = describeApiError(err);
+        conv.rollback(turnStart);
+        const message = this.provider.describeError(err);
         this.log(`✖ ${message}`);
         this.send({ type: "error", message });
       }
@@ -309,44 +289,23 @@ export class Session {
     }
   }
 
-  private buildRequest(): Anthropic.Beta.MessageCreateParamsNonStreaming {
-    const tools: Anthropic.Beta.BetaToolUnion[] = this.registry.list().map((t) => ({
-      name: toApiToolName(t.name),
-      description: t.description,
-      input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema,
-    }));
-    return {
-      model: config.model,
-      max_tokens: config.maxTokens,
-      system: SYSTEM_PROMPT,
-      // Автоматическое кеширование стабильного префикса (инструменты + системный промпт + история).
-      cache_control: { type: "ephemeral" },
-      tools,
-      messages: this.history,
-      ...(config.effort ? { output_config: { effort: config.effort } } : {}),
-      ...(config.fallbacks
-        ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
-        : {}),
-    };
-  }
-
   private progress(taskId: string, title: string, status: TaskStatus, detail?: string, progress?: number) {
     this.send({ type: "task_progress", taskId, title, status, detail, progress });
   }
 
-  private async executeTool(block: ToolUseBlock, signal: AbortSignal): Promise<ToolResult> {
-    const name = fromApiToolName(block.name);
+  private async executeTool(call: ToolCall, signal: AbortSignal): Promise<ToolCallResult> {
+    const fail = (content: string): ToolCallResult => ({ call, content, isError: true });
+    const { name, input } = call;
     const tool = this.registry.get(name);
-    const taskId = block.id;
+    const taskId = call.id;
 
-    if (signal.aborted) return errorResult(block.id, "Отменено пользователем.");
-    if (!tool) return errorResult(block.id, `Инструмент "${name}" не найден.`);
+    if (signal.aborted) return fail("Отменено пользователем.");
+    if (!tool) return fail(`Инструмент "${name}" не найден.`);
 
-    const input = block.input;
     const invalid = validateInput(tool.inputSchema, input);
     if (invalid) {
       this.progress(taskId, name, "error", `Некорректные параметры: ${invalid}`);
-      return errorResult(block.id, `Некорректные параметры: ${invalid}`);
+      return fail(`Некорректные параметры: ${invalid}`);
     }
 
     if (tool.mutates) {
@@ -356,7 +315,7 @@ export class Session {
       if (!approved) {
         this.progress(taskId, name, "cancelled", "Пользователь отклонил действие");
         this.log(`✋ ${name}: отклонено`);
-        return errorResult(block.id, "Пользователь отклонил это действие. Не повторяй его без новой просьбы.");
+        return fail("Пользователь отклонил это действие. Не повторяй его без новой просьбы.");
       }
     }
 
@@ -368,16 +327,16 @@ export class Session {
         progress: (detail, p) => this.progress(taskId, name, "running", detail, p),
       });
       this.progress(taskId, name, "done");
-      return { type: "tool_result", tool_use_id: block.id, content: stringifyResult(result) };
+      return { call, content: stringifyResult(result), isError: false };
     } catch (err) {
       if (err instanceof CancelledError || signal.aborted) {
         this.progress(taskId, name, "cancelled", "Отменено");
-        return errorResult(block.id, "Отменено пользователем.");
+        return fail("Отменено пользователем.");
       }
       const message = (err as Error)?.message || String(err);
       this.progress(taskId, name, "error", message);
       this.log(`✖ ${name}: ${message}`);
-      return errorResult(block.id, message);
+      return fail(message);
     }
   }
 
@@ -392,10 +351,6 @@ export class Session {
 }
 
 // ───────────── Утилиты ─────────────
-
-function errorResult(toolUseId: string, message: string): ToolResult {
-  return { type: "tool_result", tool_use_id: toolUseId, is_error: true, content: message };
-}
 
 function safeDescribe(tool: ToolDef, input: unknown): string {
   try {
@@ -418,29 +373,4 @@ function stringifyResult(result: unknown): string {
 
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n) + "…" : s;
-}
-
-function describeApiError(err: unknown): string {
-  if (err instanceof Anthropic.AuthenticationError) {
-    return "Неверный API-ключ (ANTHROPIC_API_KEY). Проверьте .env помощника.";
-  }
-  if (err instanceof Anthropic.PermissionDeniedError) {
-    return "Нет доступа к модели или функции с этим ключом. Проверьте CLAUDE_MODEL и права ключа.";
-  }
-  if (err instanceof Anthropic.NotFoundError) {
-    return `Модель "${config.model}" не найдена. Проверьте CLAUDE_MODEL в .env.`;
-  }
-  if (err instanceof Anthropic.RateLimitError) {
-    return "Превышен лимит запросов к API. Подождите немного и повторите.";
-  }
-  if (err instanceof Anthropic.BadRequestError) {
-    return `API отклонил запрос: ${err.message}`;
-  }
-  if (err instanceof Anthropic.APIConnectionError) {
-    return "Нет связи с Anthropic API. Проверьте интернет/прокси.";
-  }
-  if (err instanceof Anthropic.APIError) {
-    return `Ошибка API (${err.status ?? "?"}): ${err.message}`;
-  }
-  return `Внутренняя ошибка помощника: ${(err as Error)?.message || String(err)}`;
 }

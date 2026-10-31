@@ -26,7 +26,7 @@ export function SettingsView(props: {
         title="Помощник"
         footer={
           connected
-            ? "Помощник — программа на вашем компьютере, которая общается с Claude. Ключ API хранится только в ней."
+            ? `Помощник — программа на вашем компьютере, которая общается с ИИ (${props.helper?.provider ?? "модель"}). Ключ API хранится только в ней. Сменить модель — AI_PROVIDER в packages/helper/.env.`
             : "Запустите start-helper.cmd в папке проекта (или npm start) — панель подключится сама."
         }
       >
@@ -46,10 +46,14 @@ export function SettingsView(props: {
         <Row
           icon={<IconTile glyph="⚿" tone={props.helper?.apiKeyConfigured ? "green" : "orange"} />}
           label="API-ключ"
-          sublabel={props.helper && !props.helper.apiKeyConfigured ? "Впишите ANTHROPIC_API_KEY в packages/helper/.env" : undefined}
+          sublabel={props.helper && !props.helper.apiKeyConfigured ? `Впишите ${props.helper.apiKeyVar ?? "ключ"} в packages/helper/.env` : undefined}
           value={props.helper ? (props.helper.apiKeyConfigured ? "Задан" : "Не задан") : "—"}
         />
-        <Row icon={<IconTile glyph="AI" tone="purple" />} label="Модель" value={props.helper?.model ?? "—"} />
+        <Row
+          icon={<IconTile glyph="AI" tone="purple" />}
+          label="Модель"
+          value={props.helper ? `${props.helper.provider ?? ""} · ${props.helper.model}` : "—"}
+        />
       </Section>
 
       <Section
