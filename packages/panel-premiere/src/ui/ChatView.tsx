@@ -1,16 +1,27 @@
 import type { HelloAckMsg } from "@pa/core";
 import { useEffect, useRef } from "react";
-import type { ConnectionStatus } from "../connection.ts";
 import type { ChatItem } from "../state.ts";
+import { IconTile } from "./Button.tsx";
 import { ConfirmCard } from "./ConfirmCard.tsx";
+import type { HealthState } from "./Header.tsx";
 import { RichText } from "./RichText.tsx";
+import { Typing } from "./Typing.tsx";
+
+/** Примеры запросов: узнавание вместо припоминания — не нужно гадать, что умеет ассистент. */
+const SUGGESTIONS = [
+  "Что за проект и секвенция открыты?",
+  "Как выставить громкость на −14 LUFS для YouTube?",
+  "Запомни: мой стандарт — true peak −1 dBTP",
+];
 
 export function ChatView(props: {
   items: ChatItem[];
   helper: HelloAckMsg | null;
-  connection: ConnectionStatus;
+  health: HealthState;
   busy: boolean;
   onConfirm(requestId: string, approved: boolean): void;
+  onSuggestion(text: string): void;
+  onOpenSettings(): void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -22,21 +33,26 @@ export function ChatView(props: {
 
   return (
     <div className="chat" ref={scrollRef}>
-      {props.items.length === 0 ? <Welcome connection={props.connection} helper={props.helper} /> : null}
-      {props.items.map((it) => {
+      {props.items.length === 0 ? (
+        <EmptyState health={props.health} onSuggestion={props.onSuggestion} onOpenSettings={props.onOpenSettings} />
+      ) : null}
+      {props.items.map((it, idx) => {
+        const prev = props.items[idx - 1];
+        // Подряд идущие сообщения одного автора — без лишнего отступа (как в iMessage).
+        const grouped = prev && prev.kind === it.kind && (it.kind === "user" || it.kind === "assistant");
         switch (it.kind) {
           case "user":
             return (
-              <div key={it.id} className="msg msg-user">
+              <div key={it.id} className={`msg msg-user${grouped ? " is-grouped" : ""}`}>
                 <div className="bubble bubble-user">{it.text}</div>
               </div>
             );
           case "assistant":
             return (
-              <div key={it.id} className="msg msg-assistant">
+              <div key={it.id} className={`msg msg-assistant${grouped ? " is-grouped" : ""}`}>
                 <div className="bubble bubble-assistant">
                   <RichText text={it.text} />
-                  {it.stopReason === "cancelled" ? <div className="meta">остановлено</div> : null}
+                  {it.stopReason === "cancelled" ? <div className="bubble-meta">Остановлено</div> : null}
                 </div>
               </div>
             );
@@ -45,21 +61,24 @@ export function ChatView(props: {
           case "notice":
             return (
               <div key={it.id} className={`notice notice-${it.tone}`}>
-                {it.text}
+                <span className="notice-icon">{it.tone === "error" ? "!" : "i"}</span>
+                <span className="notice-text">{it.text}</span>
               </div>
             );
         }
       })}
       {showTyping(props) ? (
         <div className="msg msg-assistant">
-          <div className="bubble bubble-assistant typing">Думаю…</div>
+          <div className="bubble bubble-assistant bubble-typing">
+            <Typing />
+          </div>
         </div>
       ) : null}
     </div>
   );
 }
 
-/** «Думаю…» — пока ответ идёт, а последний элемент не пишущийся текст и не ждущая карточка. */
+/** «Печатает…» — пока ответ идёт, а последний элемент не пишущийся текст и не ждущая карточка. */
 function showTyping(props: { busy: boolean; items: ChatItem[] }): boolean {
   if (!props.busy) return false;
   const last = props.items[props.items.length - 1];
@@ -69,29 +88,33 @@ function showTyping(props: { busy: boolean; items: ChatItem[] }): boolean {
   return true;
 }
 
-function Welcome(props: { connection: ConnectionStatus; helper: HelloAckMsg | null }) {
-  if (props.connection !== "connected") {
-    return (
-      <div className="welcome">
-        <div className="welcome-title">Помощник не запущен</div>
-        <div className="hint">
-          В папке проекта выполните <code>npm start</code> — панель подключится сама.
-        </div>
-      </div>
-    );
-  }
+function EmptyState(props: { health: HealthState; onSuggestion(t: string): void; onOpenSettings(): void }) {
+  const ready = props.health === "ok";
   return (
-    <div className="welcome">
-      <div className="welcome-title">Чем помочь?</div>
-      <div className="hint">
-        Спросите что угодно о монтаже, звуке или Premiere — или поручите действие. Всё, что меняет проект или
-        файлы, я сначала покажу на подтверждение.
+    <div className="empty">
+      <div className="empty-mark">✦</div>
+      <div className="empty-title">Чем помочь?</div>
+      <div className="empty-text">
+        Спросите о монтаже, звуке или Premiere — или поручите действие. Всё, что меняет проект, я сначала покажу вам.
       </div>
-      {props.helper && !props.helper.apiKeyConfigured ? (
-        <div className="notice notice-error">
-          В помощнике не задан ANTHROPIC_API_KEY. Укажите его в packages/helper/.env и перезапустите помощника.
+      {ready ? (
+        <div className="suggestions">
+          {SUGGESTIONS.map((s) => (
+            <div key={s} className="suggestion" onClick={() => props.onSuggestion(s)}>
+              {s}
+            </div>
+          ))}
         </div>
-      ) : null}
+      ) : (
+        <div className="empty-warning" onClick={props.onOpenSettings}>
+          <IconTile glyph="!" tone="orange" />
+          <div className="empty-warning-text">
+            {props.health === "warn"
+              ? "В помощнике не задан API-ключ. Открыть настройки"
+              : "Помощник не запущен. Запустите start-helper.cmd — панель подключится сама"}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

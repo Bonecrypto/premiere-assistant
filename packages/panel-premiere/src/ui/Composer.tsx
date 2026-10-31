@@ -1,9 +1,26 @@
-import { useState, type KeyboardEvent } from "react";
-import { Button } from "./Button.tsx";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-export function Composer(props: { disabled: boolean; busy: boolean; onSend(text: string): void; onStop(): void }) {
+/** Поле ввода-«пилюля» с круглой кнопкой отправки, как в «Сообщениях». */
+export function Composer(props: {
+  disabled: boolean;
+  busy: boolean;
+  draft: string | null;
+  onDraftConsumed(): void;
+  onSend(text: string): void;
+  onStop(): void;
+}) {
   const [text, setText] = useState("");
+  const ref = useRef<HTMLTextAreaElement>(null);
   const canSend = !props.disabled && !props.busy && text.trim().length > 0;
+
+  // Подсказка из пустого экрана подставляется в поле — пользователь может поправить перед отправкой.
+  useEffect(() => {
+    if (props.draft !== null) {
+      setText(props.draft);
+      props.onDraftConsumed();
+      ref.current?.focus();
+    }
+  }, [props.draft]);
 
   const submit = () => {
     if (!canSend) return;
@@ -21,24 +38,30 @@ export function Composer(props: { disabled: boolean; busy: boolean; onSend(text:
 
   return (
     <div className="composer">
-      <textarea
-        className="composer-input"
-        placeholder={props.disabled ? "Нет связи с помощником…" : "Спросите или поручите… (Enter — отправить)"}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKeyDown}
-      />
-      <div className="composer-actions">
+      <div className={`composer-field${props.disabled ? " is-disabled" : ""}`}>
+        <textarea
+          ref={ref}
+          className="composer-input"
+          placeholder={props.disabled ? "Нет связи с помощником" : "Сообщение"}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={onKeyDown}
+        />
         {props.busy ? (
-          <Button variant="danger" onClick={props.onStop}>
-            Стоп
-          </Button>
+          <div className="round-btn round-stop" title="Остановить" onClick={props.onStop}>
+            <span className="stop-square" />
+          </div>
         ) : (
-          <Button variant="primary" onClick={submit} disabled={!canSend}>
-            Отправить
-          </Button>
+          <div
+            className={`round-btn round-send${canSend ? "" : " is-disabled"}`}
+            title="Отправить (Enter)"
+            onClick={submit}
+          >
+            ↑
+          </div>
         )}
       </div>
+      <div className="composer-hint">Enter — отправить · Shift+Enter — новая строка</div>
     </div>
   );
 }

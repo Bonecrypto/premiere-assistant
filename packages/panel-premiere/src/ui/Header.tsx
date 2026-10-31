@@ -1,48 +1,46 @@
 import type { HelloAckMsg } from "@pa/core";
 import type { ConnectionStatus } from "../connection.ts";
-import { Button } from "./Button.tsx";
 
-const STATUS_TEXT: Record<ConnectionStatus, string> = {
-  connected: "Подключено",
-  connecting: "Подключаюсь…",
-  disconnected: "Нет связи",
+export type HealthState = "ok" | "warn" | "connecting" | "off";
+
+export function health(connection: ConnectionStatus, helper: HelloAckMsg | null): HealthState {
+  if (connection === "connecting") return "connecting";
+  if (connection !== "connected") return "off";
+  if (helper && !helper.apiKeyConfigured) return "warn";
+  return "ok";
+}
+
+const LABEL: Record<HealthState, string> = {
+  ok: "Готов",
+  warn: "Нет ключа",
+  connecting: "Подключение…",
+  off: "Не подключён",
 };
 
+/** Шапка: название плагина и «пилюля» статуса (видимость состояния системы). */
 export function Header(props: {
-  connection: ConnectionStatus;
-  helper: HelloAckMsg | null;
-  port: number;
-  busy: boolean;
-  activeTasks: number;
-  tasksOpen: boolean;
-  onToggleTasks(): void;
-  onToggleSettings(): void;
-  onNewChat(): void;
-  onReconnect(): void;
+  state: HealthState;
+  onStatusClick(): void;
+  action?: { label: string; title: string; onClick(): void; disabled?: boolean };
 }) {
-  const { connection, helper } = props;
-  const warn = connection === "connected" && helper && !helper.apiKeyConfigured;
-  const tooltip =
-    connection === "connected" && helper
-      ? `Помощник v${helper.helperVersion} · модель ${helper.model} · порт ${props.port}`
-      : `Помощник на ws://localhost:${props.port} — запустите: npm start`;
-
   return (
     <div className="header">
-      <div className="status" title={tooltip} onClick={connection !== "connected" ? props.onReconnect : undefined}>
-        <div className={`dot dot-${warn ? "warn" : connection}`} />
-        <span className="status-text">{warn ? "Нет API-ключа" : STATUS_TEXT[connection]}</span>
-      </div>
+      <div className="app-mark">✦</div>
+      <div className="app-title">Ассистент</div>
       <div className="spacer" />
-      <Button variant="ghost" onClick={props.onToggleTasks} title="Лог задач" className={props.tasksOpen ? "active" : ""}>
-        Задачи{props.activeTasks > 0 ? ` (${props.activeTasks})` : ""}
-      </Button>
-      <Button variant="ghost" onClick={props.onNewChat} disabled={props.busy} title="Начать новый диалог">
-        Новый
-      </Button>
-      <Button variant="ghost" onClick={props.onToggleSettings} title="Настройки">
-        ⚙
-      </Button>
+      {props.action ? (
+        <div
+          className={`header-action${props.action.disabled ? " is-disabled" : ""}`}
+          title={props.action.title}
+          onClick={() => !props.action!.disabled && props.action!.onClick()}
+        >
+          {props.action.label}
+        </div>
+      ) : null}
+      <div className={`status-pill pill-${props.state}`} onClick={props.onStatusClick} title="Подробнее — в настройках">
+        <span className="pill-dot" />
+        {LABEL[props.state]}
+      </div>
     </div>
   );
 }

@@ -48,8 +48,7 @@ export type Action =
   | { type: "confirm_answered"; requestId: string; approved: boolean }
   | { type: "notice"; text: string; tone: "error" | "info" }
   | { type: "reset" }
-  | { type: "clear_tasks" }
-  | { type: "local_task"; task: Omit<TaskEntry, "updatedAt"> };
+  | { type: "clear_tasks" };
 
 let noticeSeq = 0;
 const MAX_TASKS = 50;
@@ -118,9 +117,6 @@ export function reducer(state: State, action: Action): State {
 
     case "clear_tasks":
       return { ...state, tasks: state.tasks.filter((t) => t.status === "running" || t.status === "waiting_confirm") };
-
-    case "local_task":
-      return { ...state, tasks: upsertTask(state.tasks, action.task) };
 
     case "helper":
       return onHelperMessage(state, action.msg);
@@ -205,7 +201,7 @@ function onHelperMessage(state: State, msg: HelperToPanel): State {
       };
 
     case "tool_call":
-      // Выполняется в App (side effect), в состоянии отражается через local_task.
+      // Выполняется в App (side effect); статус приходит отдельным task_progress.
       return state;
   }
 }
