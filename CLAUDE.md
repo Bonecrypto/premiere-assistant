@@ -57,7 +57,7 @@ interface ToolDef {
 ## Стек
 - **Панель**: UXP plugin для Premiere Pro 25.6+, manifest v5, React + TypeScript, сборка Vite (или рекомендованный Adobe шаблон — сверить с официальными starters).
 - **Помощник**: Node.js (LTS) + TypeScript, WebSocket (`ws`), Anthropic SDK, ffmpeg.
-- **Модель**: на выбор через `AI_PROVIDER` в `.env` — Gemini (REST API, бесплатный тариф; по умолчанию) или Claude (Anthropic SDK, платно). Оба с tool use; имена моделей — в `.env`. Провайдеры — `packages/helper/src/providers/` за общим интерфейсом `Conversation` (история в родном формате провайдера, наружу — шаги «текст + вызовы инструментов»); агентный цикл, подтверждения и инструменты общие.
+- **Модель**: на выбор через `AI_PROVIDER` в `.env` — OpenRouter (бесплатные модели, автовыбор умеющих инструменты; по умолчанию), Ollama (локально), Gemini (REST, бесплатный тариф) или Claude (Anthropic SDK, платно). OpenRouter и Ollama — один модуль `openaiCompat.ts` (формат OpenAI Chat Completions). Оба с tool use; имена моделей — в `.env`. Провайдеры — `packages/helper/src/providers/` за общим интерфейсом `Conversation` (история в родном формате провайдера, наружу — шаги «текст + вызовы инструментов»); агентный цикл, подтверждения и инструменты общие.
 - **Монорепозиторий** (pnpm или npm workspaces):
 
 ```
@@ -81,7 +81,7 @@ interface ToolDef {
 2. Установить **UXP Developer Tool** (через Creative Cloud) — загрузка/перезагрузка/отладка панели.
 3. Node.js LTS, git.
 4. ffmpeg: `winget install Gyan.FFmpeg` (проверить `ffmpeg -version` в новом терминале).
-5. `.env` в `/packages/helper` (создаётся сам из `.env.example` при первом запуске): `AI_PROVIDER`, `GEMINI_API_KEY`/`GEMINI_MODEL` или `ANTHROPIC_API_KEY`/`CLAUDE_MODEL`, `HELPER_PORT`. `.env` — в `.gitignore`.
+5. `.env` в `/packages/helper` (создаётся сам из `.env.example` при первом запуске): `AI_PROVIDER`, ключ и модель выбранного провайдера (`OPENROUTER_*`, `OLLAMA_*`, `GEMINI_*`, `ANTHROPIC_API_KEY`/`CLAUDE_*`), `HELPER_PORT`. `.env` — в `.gitignore`.
 6. Пути на Windows — через `path`, без хардкода `/`; учитывать пробелы и кириллицу в путях.
 
 ## План

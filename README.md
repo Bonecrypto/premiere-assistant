@@ -1,6 +1,6 @@
 # Premiere Assistant
 
-ИИ-ассистент внутри Adobe Premiere Pro: панель-чат + локальный помощник. Модель на выбор: Gemini (бесплатный тариф) или Claude (платно).
+ИИ-ассистент внутри Adobe Premiere Pro: панель-чат + локальный помощник. Модель на выбор: OpenRouter (бесплатные модели), Ollama (локально), Gemini (бесплатный тариф) или Claude (платно).
 Подробное описание проекта и план — в [CLAUDE.md](CLAUDE.md).
 
 ```
@@ -13,7 +13,7 @@ knowledge/               база знаний (заметки, рецепты)
 ## Первый запуск (Windows)
 
 Нужны: Node.js LTS (20.12+), Premiere Pro 25.6+, UXP Developer Tool (через Creative Cloud) и ключ модели:
-бесплатный ключ Gemini — aistudio.google.com → Get API key.
+бесплатный ключ OpenRouter — openrouter.ai → Keys → Create Key (или локальная Ollama без ключа).
 
 1. Установить зависимости (в папке проекта):
    ```bash
@@ -23,7 +23,7 @@ knowledge/               база знаний (заметки, рецепты)
    ```bash
    npm start
    ```
-   При первом запуске создастся `packages/helper/.env`. Впишите туда `GEMINI_API_KEY=...`
+   При первом запуске создастся `packages/helper/.env`. Впишите туда `OPENROUTER_API_KEY=...`
    и перезапустите помощника. Ключ хранится только в этом файле, в панель он не попадает.
 3. Собрать панель:
    ```bash
@@ -63,7 +63,10 @@ knowledge/               база знаний (заметки, рецепты)
 
 | Переменная | Что это |
 | --- | --- |
-| `AI_PROVIDER` | `gemini` (бесплатный тариф) или `claude` (платно) |
+| `AI_PROVIDER` | `openrouter`, `ollama`, `gemini` или `claude` |
+| `OPENROUTER_API_KEY` | ключ OpenRouter (openrouter.ai/keys) |
+| `OPENROUTER_MODEL` | пусто — бесплатные модели выбираются автоматически |
+| `OLLAMA_MODEL` | локальная модель Ollama (по умолчанию `qwen3:8b`) |
 | `GEMINI_API_KEY` | ключ Gemini (aistudio.google.com) |
 | `GEMINI_MODEL` | модель Gemini (по умолчанию `gemini-2.5-flash`) |
 | `ANTHROPIC_API_KEY` | ключ Anthropic API (platform.claude.com) |

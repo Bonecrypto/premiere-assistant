@@ -40,18 +40,22 @@ function readPort(): number {
   return n;
 }
 
-export type ProviderId = "claude" | "gemini";
+export type ProviderId = "openrouter" | "ollama" | "gemini" | "claude";
 
 const has = (v: string | undefined) => Boolean(v?.trim());
 
-/** Какая модель отвечает: AI_PROVIDER, иначе — та, для которой задан ключ (Gemini, если ключей нет вовсе). */
+/** Какая модель отвечает: AI_PROVIDER, иначе — та, для которой задан ключ (OpenRouter, если ключей нет вовсе). */
 function readProvider(): ProviderId {
   const v = process.env.AI_PROVIDER?.trim().toLowerCase();
   if (v === "claude" || v === "anthropic") return "claude";
   if (v === "gemini" || v === "google") return "gemini";
-  if (v) console.warn(`⚠ AI_PROVIDER="${v}" не распознан (нужно gemini или claude).`);
-  if (has(process.env.ANTHROPIC_API_KEY) && !has(process.env.GEMINI_API_KEY)) return "claude";
-  return "gemini";
+  if (v === "openrouter") return "openrouter";
+  if (v === "ollama") return "ollama";
+  if (v) console.warn(`⚠ AI_PROVIDER="${v}" не распознан (нужно openrouter, ollama, gemini или claude).`);
+  if (has(process.env.OPENROUTER_API_KEY)) return "openrouter";
+  if (has(process.env.GEMINI_API_KEY)) return "gemini";
+  if (has(process.env.ANTHROPIC_API_KEY)) return "claude";
+  return "openrouter";
 }
 
 export const config = {
@@ -67,6 +71,18 @@ export const config = {
   gemini: {
     apiKeyConfigured: has(process.env.GEMINI_API_KEY),
     model: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
+  },
+  openrouter: {
+    apiKeyConfigured: has(process.env.OPENROUTER_API_KEY),
+    /** Пусто — помощник сам выберет бесплатные модели с поддержкой инструментов. */
+    models: (process.env.OPENROUTER_MODEL ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  },
+  ollama: {
+    url: process.env.OLLAMA_URL?.trim() || "http://localhost:11434",
+    model: process.env.OLLAMA_MODEL?.trim() || "qwen3:8b",
   },
   port: readPort(),
   allowedOrigins: (process.env.HELPER_ALLOWED_ORIGINS ?? "http://localhost:5173")

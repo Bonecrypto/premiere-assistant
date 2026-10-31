@@ -2,7 +2,7 @@ import path from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import { parsePanelMessage, type HelperToPanel } from "@pa/core";
 import { config, envCreated, HELPER_DIR, HELPER_VERSION } from "./config.ts";
-import { createProvider } from "./providers/index.ts";
+import { checkProviderSetup, createProvider } from "./providers/index.ts";
 import { ToolRegistry } from "./registry.ts";
 import { Session } from "./session.ts";
 
@@ -39,7 +39,9 @@ async function main(): Promise<void> {
 
   const registry = new ToolRegistry();
   const loaded = await registry.loadFromDir(path.join(HELPER_DIR, "src", "tools"));
+  const setupNote = await checkProviderSetup(provider);
   console.log(`Модель: ${provider.title} · ${provider.model}`);
+  if (setupNote) console.log(setupNote);
   console.log(`Инструменты помощника: ${loaded.join(", ") || "нет"}`);
 
   const wss = new WebSocketServer({
