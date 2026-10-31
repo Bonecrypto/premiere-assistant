@@ -1,0 +1,26 @@
+{
+  "name": "@pa/panel-premiere",
+  "private": true,
+  "version": "0.1.0",
+  "description": "UXP-панель для Premiere Pro: чат, подтверждения, лог задач, host-инструменты",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "dev:browser": "vite",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@pa/core": "0.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@adobe/cc-ext-uxp-types": "^7.3.1",
+    "@adobe/premierepro": "^26.5.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0"
+  }
+}

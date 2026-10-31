@@ -1,0 +1,21 @@
+{
+  "name": "premiere-assistant",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ИИ-ассистент внутри Adobe Premiere Pro: UXP-панель + локальный помощник",
+  "workspaces": [
+    "packages/core",
+    "packages/helper",
+    "packages/panel-premiere"
+  ],
+  "scripts": {
+    "start": "npm run start -w @pa/helper",
+    "dev:helper": "npm run dev -w @pa/helper",
+    "build:panel": "npm run build -w @pa/panel-premiere",
+    "watch:panel": "npm run watch -w @pa/panel-premiere",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.12"
+  }
+}

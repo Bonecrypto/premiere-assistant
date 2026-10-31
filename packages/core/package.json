@@ -1,0 +1,18 @@
+{
+  "name": "@pa/core",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Общие типы: контракт инструментов и протокол панель ↔ помощник",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

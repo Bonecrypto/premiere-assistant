@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "types": ["vite/client", "@adobe/cc-ext-uxp-types", "@adobe/premierepro"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

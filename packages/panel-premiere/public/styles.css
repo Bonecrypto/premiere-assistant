@@ -1,0 +1,357 @@
+/*
+ * Стили панели. UXP поддерживает не весь CSS: используем flex (без grid и gap),
+ * цвета темы Premiere — через переменные --uxp-host-* с запасными значениями для браузера.
+ */
+:root {
+  --bg: var(--uxp-host-background-color, #232323);
+  --text: var(--uxp-host-text-color, #e6e6e6);
+  --text-dim: var(--uxp-host-text-color-secondary, #a8a8a8);
+  --border: var(--uxp-host-border-color, #3d3d3d);
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.09);
+  --accent: #6e6cff;
+  --accent-text: #ffffff;
+  --ok: #3fbf6f;
+  --warn: #e0a030;
+  --err: #e5534b;
+  --font: var(--uxp-host-font-size, 12px);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--bg);
+  color: var(--text);
+  font-size: var(--font);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+#root {
+  height: 100%;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.hint {
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.label {
+  color: var(--text-dim);
+  font-weight: bold;
+}
+
+code {
+  font-family: Consolas, Menlo, monospace;
+  background-color: var(--surface-2);
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.link {
+  color: var(--accent);
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+/* ───── Кнопки ───── */
+.btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: 4px;
+  border: 1px solid transparent;
+}
+.btn-primary {
+  background-color: var(--accent);
+  color: var(--accent-text);
+}
+.btn-secondary {
+  background-color: var(--surface-2);
+  border-color: var(--border);
+}
+.btn-danger {
+  background-color: var(--err);
+  color: #fff;
+}
+.btn-ghost {
+  color: var(--text-dim);
+}
+.btn-ghost:hover,
+.btn-ghost.active {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+.btn-disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ───── Шапка ───── */
+.header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.status {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  cursor: default;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+}
+.dot-connected {
+  background-color: var(--ok);
+}
+.dot-connecting {
+  background-color: var(--warn);
+}
+.dot-disconnected {
+  background-color: var(--err);
+}
+.dot-warn {
+  background-color: var(--warn);
+}
+.status-text {
+  color: var(--text-dim);
+}
+
+/* ───── Настройки и лог задач ───── */
+.settings,
+.tasklog {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--surface);
+}
+.settings-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.port-input {
+  width: 70px;
+  margin-left: 8px;
+}
+.tasklog-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.tasklog-list {
+  max-height: 160px;
+  overflow-y: auto;
+}
+.task {
+  padding: 3px 0;
+  border-top: 1px solid var(--border);
+}
+.task-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.task-time {
+  color: var(--text-dim);
+  font-family: Consolas, Menlo, monospace;
+  margin-right: 6px;
+}
+.task-title {
+  flex: 1;
+  overflow: hidden;
+}
+.task-status {
+  color: var(--text-dim);
+  margin-left: 6px;
+}
+.task-running .task-status,
+.task-waiting_confirm .task-status {
+  color: var(--warn);
+}
+.task-done .task-status {
+  color: var(--ok);
+}
+.task-error .task-status {
+  color: var(--err);
+}
+.task-detail {
+  color: var(--text-dim);
+  margin-left: 58px;
+  white-space: pre-wrap;
+}
+
+/* ───── Чат ───── */
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.welcome {
+  padding: 16px 8px;
+}
+.welcome-title {
+  font-size: 15px;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+.msg {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 8px;
+}
+.msg-user {
+  justify-content: flex-end;
+}
+.bubble {
+  padding: 6px 9px;
+  border-radius: 8px;
+  line-height: 1.45;
+  max-width: 90%;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.bubble-user {
+  background-color: var(--accent);
+  color: var(--accent-text);
+}
+.bubble-assistant {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+.typing {
+  color: var(--text-dim);
+}
+.meta {
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-style: italic;
+}
+.rt-p {
+  margin: 0;
+}
+.rt-gap {
+  height: 6px;
+}
+.rt-li {
+  display: flex;
+  flex-direction: row;
+}
+.rt-marker {
+  width: 18px;
+  color: var(--text-dim);
+}
+.rt-li-text {
+  flex: 1;
+}
+
+.notice {
+  padding: 6px 9px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+.notice-error {
+  background-color: rgba(229, 83, 75, 0.15);
+  border: 1px solid rgba(229, 83, 75, 0.5);
+}
+.notice-info {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* ───── Карточка подтверждения ───── */
+.confirm {
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background-color: rgba(224, 160, 48, 0.08);
+}
+.confirm-approved {
+  border-color: var(--ok);
+  background-color: transparent;
+}
+.confirm-rejected,
+.confirm-expired {
+  border-color: var(--border);
+  background-color: transparent;
+  opacity: 0.75;
+}
+.confirm-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.confirm-title {
+  font-weight: bold;
+  flex: 1;
+}
+.confirm-tool {
+  font-family: Consolas, Menlo, monospace;
+  color: var(--text-dim);
+}
+.confirm-summary {
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+.confirm-input {
+  font-family: Consolas, Menlo, monospace;
+  background-color: var(--surface-2);
+  padding: 6px;
+  border-radius: 4px;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: 6px 0 0 0;
+}
+.confirm-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.confirm-state {
+  margin-top: 6px;
+  color: var(--text-dim);
+}
+
+/* ───── Ввод ───── */
+.composer {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+.composer-input {
+  height: 60px;
+  width: 100%;
+  resize: none;
+  font-size: var(--font);
+}
+.composer-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
