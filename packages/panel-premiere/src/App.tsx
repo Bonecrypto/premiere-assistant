@@ -9,18 +9,19 @@ import { Composer } from "./ui/Composer.tsx";
 import { TopBar, health } from "./ui/Header.tsx";
 import { StatusBar } from "./ui/StatusBar.tsx";
 import { Onboarding } from "./ui/Onboarding.tsx";
+import { AutoView } from "./ui/AutoView.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
-type Tab = "chat" | "presets" | "tasks" | "settings";
+type Tab = "chat" | "auto" | "presets" | "tasks" | "settings";
 
 const ONBOARDING_KEY = "onboardingDone";
 const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return t === "presets" || t === "tasks" || t === "settings" ? t : "chat";
+  return t === "auto" || t === "presets" || t === "tasks" || t === "settings" ? t : "chat";
 }
 
 export function App() {
@@ -142,6 +143,7 @@ export function App() {
       <TopBar<Tab>
         tabs={[
           { id: "chat", icon: "chat", label: "Чат" },
+          { id: "auto", icon: "bolt", label: "Авто" },
           { id: "presets", icon: "presets", label: "Пресеты" },
           { id: "tasks", icon: "tasks", label: "Задачи", badge: activeTasks },
           { id: "settings", icon: "settings", label: "Настройки" },
@@ -176,6 +178,7 @@ export function App() {
           />
         </>
       ) : null}
+      {tab === "auto" ? <AutoView /> : null}
       {tab === "presets" ? <PresetsView /> : null}
       {tab === "tasks" ? <TasksView tasks={state.tasks} onClear={() => dispatch({ type: "clear_tasks" })} /> : null}
       {tab === "settings" ? (

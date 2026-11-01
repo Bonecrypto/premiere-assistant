@@ -144,6 +144,7 @@ export class Session {
       inputSchema: spec.inputSchema,
       runsIn: "host",
       mutates: spec.mutates,
+      describe: spec.confirmText ? () => spec.confirmText! : undefined,
       run: (input, ctx) =>
         new Promise((resolve, reject) => {
           const callId = makeId("c_");

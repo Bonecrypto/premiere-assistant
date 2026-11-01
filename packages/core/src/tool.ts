@@ -30,6 +30,11 @@ export interface ToolSpec {
   runsIn: ToolRunsIn;
   /** Меняет проект/файлы? Тогда перед запуском обязательно подтверждение пользователя. */
   mutates: boolean;
+  /**
+   * Для host-инструментов: текст карточки подтверждения (что именно изменится).
+   * Задаётся панелью — модель его не пишет и подменить не может.
+   */
+  confirmText?: string;
 }
 
 export interface ToolContext {
