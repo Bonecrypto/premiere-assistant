@@ -1304,3 +1304,26 @@ code {
 .plan-select {
   margin-left: 10px;
 }
+
+/* Подключение ИИ без помощника */
+.ai-card {
+  padding: 12px;
+}
+.ai-gap {
+  margin-top: 10px;
+}
+.input-box {
+  width: 100%;
+}
+.ai-input {
+  width: 100%;
+}
+.ai-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 12px;
+}
+.ai-status {
+  margin-top: 0;
+}

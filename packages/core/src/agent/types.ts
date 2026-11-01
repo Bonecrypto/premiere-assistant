@@ -1,4 +1,4 @@
-import type { ToolDef } from "@pa/core";
+import type { ToolDef } from "../tool.ts";
 
 /** Вызов инструмента, который запросила модель. */
 export interface ToolCall {
@@ -61,4 +61,6 @@ export interface ChatProvider {
   describeError(err: unknown): string;
   /** Это отмена пользователем, а не ошибка? */
   isAbort(err: unknown): boolean;
+  /** Проверка настроек (модель скачана, список бесплатных моделей и т. п.). Строка — для показа человеку. */
+  setup?(): Promise<string | null>;
 }

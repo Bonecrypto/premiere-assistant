@@ -1,6 +1,8 @@
 import { makeId, type ToolCallMsg } from "@pa/core";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { HelperConnection, getSavedPort, savePort } from "./connection.ts";
+import { EmbeddedTransport } from "./agent/embedded.ts";
+import { loadAiSettings, saveAiSettings, type AiSettings } from "./agent/settings.ts";
+import { HelperConnection, getSavedPort, savePort, type Transport } from "./connection.ts";
 import { isUXP, storageGet, storageSet } from "./env.ts";
 import { getHostTool } from "./hostTools/index.ts";
 import { initialState, reducer } from "./state.ts";
@@ -31,7 +33,17 @@ export function App() {
   const [onboarding, setOnboarding] = useState(() => storageGet(ONBOARDING_KEY) !== "1");
   const [draft, setDraft] = useState<string | null>(null);
   const [sequence, setSequence] = useState<string | null>(null);
-  const connRef = useRef<HelperConnection | null>(null);
+  const connRef = useRef<Transport | null>(null);
+  const [ai, setAi] = useState<AiSettings | null>(null);
+
+  useEffect(() => {
+    void loadAiSettings().then(setAi);
+  }, []);
+
+  const saveAi = async (next: AiSettings) => {
+    const saved = await saveAiSettings(next);
+    setAi(saved);
+  };
 
   const setTab = (t: Tab) => {
     setTabState(t);
@@ -54,21 +66,23 @@ export function App() {
     }
   }, []);
 
+  // «Мозг»: встроенный ИИ прямо в панели (по умолчанию) или отдельный помощник.
   useEffect(() => {
-    const conn = new HelperConnection(
-      getSavedPort(),
-      (msg) => {
-        dispatch({ type: "helper", msg });
-        if (msg.type === "tool_call") void runHostTool(msg);
-        // Запрос подтверждения важнее текущей вкладки — показываем чат, чтобы его не пропустить.
-        if (msg.type === "confirm_request") setTab("chat");
-      },
-      (status) => dispatch({ type: "status", status }),
-    );
+    if (!ai) return;
+    const onMessage = (msg: Parameters<ConstructorParameters<typeof HelperConnection>[1]>[0]) => {
+      dispatch({ type: "helper", msg });
+      if (msg.type === "tool_call") void runHostTool(msg);
+      // Запрос подтверждения важнее текущей вкладки — показываем чат, чтобы его не пропустить.
+      if (msg.type === "confirm_request") setTab("chat");
+    };
+    const onStatus = (status: Transport["status"]) => dispatch({ type: "status", status });
+    dispatch({ type: "transport_switch" });
+    const conn: Transport =
+      ai.mode === "embedded" ? new EmbeddedTransport(ai, onMessage, onStatus) : new HelperConnection(port, onMessage, onStatus);
     connRef.current = conn;
     conn.start();
     return () => conn.stop();
-  }, [runHostTool]);
+  }, [runHostTool, ai, port]);
 
   // Активная секвенция для строки статуса (только чтение, раз в 5 с).
   useEffect(() => {
@@ -95,7 +109,11 @@ export function App() {
   const send = (text: string) => {
     const conn = connRef.current;
     if (!conn || state.connection !== "connected") {
-      dispatch({ type: "notice", text: "Нет связи с помощником. Запустите start-helper.cmd", tone: "error" });
+      dispatch({
+        type: "notice",
+        text: ai?.mode === "helper" ? "Нет связи с помощником. Запустите start-helper.cmd" : "ИИ ещё подключается — подождите пару секунд.",
+        tone: "error",
+      });
       return;
     }
     dispatch({ type: "user", id: makeId("u_"), text });
@@ -118,7 +136,6 @@ export function App() {
   const changePort = (p: number) => {
     savePort(p);
     setPort(p);
-    connRef.current?.setPort(p);
   };
 
   const finishOnboarding = () => {
@@ -133,7 +150,7 @@ export function App() {
   if (onboarding) {
     return (
       <div className="app">
-        <Onboarding connection={state.connection} helper={state.helper} onDone={finishOnboarding} />
+        <Onboarding connection={state.connection} helper={state.helper} onDone={finishOnboarding} ai={ai} onSaveAi={saveAi} />
       </div>
     );
   }
@@ -167,6 +184,7 @@ export function App() {
             onConfirm={answerConfirm}
             onSuggestion={setDraft}
             onOpenSettings={() => setTab("settings")}
+            embedded={ai?.mode !== "helper"}
           />
           <Composer
             disabled={state.connection !== "connected"}
@@ -190,6 +208,8 @@ export function App() {
           onChangePort={changePort}
           onReconnect={() => connRef.current?.reconnectNow()}
           onShowOnboarding={() => setOnboarding(true)}
+          ai={ai}
+          onSaveAi={saveAi}
         />
       ) : null}
       <StatusBar state={hs} helper={state.helper} sequence={sequence} onClick={() => setTab("settings")} />

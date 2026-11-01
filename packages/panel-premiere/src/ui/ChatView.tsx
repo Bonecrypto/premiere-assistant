@@ -23,6 +23,7 @@ export function ChatView(props: {
   onConfirm(requestId: string, approved: boolean): void;
   onSuggestion(text: string): void;
   onOpenSettings(): void;
+  embedded: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +37,7 @@ export function ChatView(props: {
     <div className="chat" ref={scrollRef}>
       <div className="scroll-inner">
       {props.items.length === 0 ? (
-        <EmptyState health={props.health} onSuggestion={props.onSuggestion} onOpenSettings={props.onOpenSettings} />
+        <EmptyState health={props.health} embedded={props.embedded} onSuggestion={props.onSuggestion} onOpenSettings={props.onOpenSettings} />
       ) : null}
       {props.items.map((it, idx) => {
         const prev = props.items[idx - 1];
@@ -91,7 +92,7 @@ function showTyping(props: { busy: boolean; items: ChatItem[] }): boolean {
   return true;
 }
 
-function EmptyState(props: { health: HealthState; onSuggestion(t: string): void; onOpenSettings(): void }) {
+function EmptyState(props: { health: HealthState; embedded: boolean; onSuggestion(t: string): void; onOpenSettings(): void }) {
   const ready = props.health === "ok";
   return (
     <div className="empty">
@@ -113,8 +114,14 @@ function EmptyState(props: { health: HealthState; onSuggestion(t: string): void;
           <IconTile glyph="!" tone="orange" />
           <div className="empty-warning-text">
             {props.health === "warn"
-              ? "В помощнике не задан API-ключ. Открыть настройки"
-              : "Помощник не запущен. Запустите start-helper.cmd (или один раз autostart-on.cmd — и он будет стартовать сам с Windows)"}
+              ? props.embedded
+                ? "Вставьте ключ ИИ в Настройках — один раз. Открыть настройки"
+                : "В помощнике не задан API-ключ. Открыть настройки"
+              : props.health === "connecting"
+                ? "Подключаю ИИ…"
+                : props.embedded
+                  ? "ИИ не подключён. Открыть настройки"
+                  : "Помощник не запущен. Запустите start-helper.cmd (или один раз autostart-on.cmd — и он будет стартовать сам с Windows)"}
           </div>
         </div>
       )}

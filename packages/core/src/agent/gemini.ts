@@ -1,5 +1,6 @@
-import { fromApiToolName, makeId, toApiToolName, type JSONSchema, type ToolDef } from "@pa/core";
-import { config } from "../config.ts";
+import { makeId } from "../protocol.ts";
+import { fromApiToolName, toApiToolName, type JSONSchema, type ToolDef } from "../tool.ts";
+import { readSse, SseAbortError } from "./sse.ts";
 import type { ChatProvider, Conversation, StepResult, ToolCall, ToolCallResult } from "./types.ts";
 
 /**
@@ -40,32 +41,54 @@ export class GeminiApiError extends Error {
 
 class GeminiAbortError extends Error {}
 
-const BASE_URL = (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com").replace(/\/$/, "");
+export interface GeminiOptions {
+  apiKey?: string;
+  model?: string;
+  baseUrl?: string;
+  maxTokens?: number;
+  settingsHint?: string;
+  apiKeyVar?: string;
+}
 
-export function createGeminiProvider(): ChatProvider {
-  const model = config.gemini.model;
+interface GeminiCfg {
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+  maxTokens: number;
+  hint: string;
+}
+
+export function createGeminiProvider(opts: GeminiOptions): ChatProvider {
+  const cfg: GeminiCfg = {
+    apiKey: opts.apiKey?.trim() ?? "",
+    model: opts.model?.trim() || "gemini-2.5-flash",
+    baseUrl: (opts.baseUrl || "https://generativelanguage.googleapis.com").replace(/\/$/, ""),
+    maxTokens: opts.maxTokens ?? 8192,
+    hint: opts.settingsHint || "настройках",
+  };
   return {
     id: "gemini",
     title: "Gemini",
-    model,
-    apiKeyConfigured: config.gemini.apiKeyConfigured,
-    apiKeyVar: "GEMINI_API_KEY",
-    createConversation: (systemPrompt) => new GeminiConversation(model, systemPrompt),
-    isAbort: (err) => err instanceof GeminiAbortError || (err as Error)?.name === "AbortError",
-    describeError: (err) => describeError(err, model),
+    model: cfg.model,
+    apiKeyConfigured: Boolean(cfg.apiKey),
+    apiKeyVar: opts.apiKeyVar || "ключ Gemini",
+    createConversation: (systemPrompt) => new GeminiConversation(cfg, systemPrompt),
+    isAbort: (err) => err instanceof GeminiAbortError || err instanceof SseAbortError || (err as Error)?.name === "AbortError",
+    describeError: (err) => describeError(err, cfg),
   };
 }
 
-function describeError(err: unknown, model: string): string {
+function describeError(err: unknown, cfg: GeminiCfg): string {
+  const model = cfg.model;
   if (err instanceof GeminiApiError) {
     if (err.httpStatus === 429 || err.status === "RESOURCE_EXHAUSTED") {
       return "Достигнут лимит бесплатного тарифа Gemini. Подождите минуту (или до завтра, если исчерпан дневной лимит) и повторите.";
     }
     if (/API key not valid|API_KEY_INVALID/i.test(err.message)) {
-      return "Неверный ключ GEMINI_API_KEY. Скопируйте ключ заново на aistudio.google.com и перезапустите помощника.";
+      return `Неверный ключ Gemini. Скопируйте ключ заново на aistudio.google.com и вставьте его в ${cfg.hint}.`;
     }
     if (err.httpStatus === 404) {
-      return `Модель "${model}" не найдена. Проверьте GEMINI_MODEL в .env (список моделей — на aistudio.google.com).`;
+      return `Модель "${model}" не найдена. Проверьте модель в ${cfg.hint} (список моделей — на aistudio.google.com).`;
     }
     if (err.httpStatus === 403) {
       return `Нет доступа: ${err.message}. Возможно, Gemini API недоступен в вашем регионе или ключ ограничен.`;
@@ -76,7 +99,7 @@ function describeError(err: unknown, model: string): string {
   if (err instanceof TypeError && /fetch failed/i.test(err.message)) {
     return "Нет связи с Gemini API. Проверьте интернет/прокси.";
   }
-  return `Внутренняя ошибка помощника: ${(err as Error)?.message || String(err)}`;
+  return `Внутренняя ошибка: ${(err as Error)?.message || String(err)}`;
 }
 
 /** Схема для Gemini: пустой объект без полей лучше не передавать вовсе. */
@@ -93,7 +116,7 @@ class GeminiConversation implements Conversation {
   private history: Content[] = [];
 
   constructor(
-    private readonly model: string,
+    private readonly cfg: GeminiCfg,
     private readonly systemPrompt: string,
   ) {}
 
@@ -106,7 +129,7 @@ class GeminiConversation implements Conversation {
       systemInstruction: { parts: [{ text: this.systemPrompt }] },
       contents: this.history,
       tools: tools.length ? [{ functionDeclarations: tools.map(toolDeclaration) }] : undefined,
-      generationConfig: { maxOutputTokens: config.maxTokens },
+      generationConfig: { maxOutputTokens: this.cfg.maxTokens },
     };
 
     const res = await this.request(body, signal);
@@ -116,7 +139,7 @@ class GeminiConversation implements Conversation {
     let finishReason = "";
     let blockReason = "";
 
-    for await (const chunk of readSse(res, signal)) {
+    for await (const chunk of readSse<StreamChunk>(res, signal)) {
       if (chunk.error) {
         throw new GeminiApiError(chunk.error.code ?? 500, chunk.error.status ?? "", chunk.error.message ?? "ошибка");
       }
@@ -184,14 +207,14 @@ class GeminiConversation implements Conversation {
 
   /** Запрос с повтором при временных сбоях сервера (500/503). */
   private async request(body: unknown, signal: AbortSignal): Promise<Response> {
-    const url = `${BASE_URL}/v1beta/models/${encodeURIComponent(this.model)}:streamGenerateContent?alt=sse`;
+    const url = `${this.cfg.baseUrl}/v1beta/models/${encodeURIComponent(this.cfg.model)}:streamGenerateContent?alt=sse`;
     for (let attempt = 0; ; attempt++) {
       if (signal.aborted) throw new GeminiAbortError("aborted");
       let res: Response;
       try {
         res = await fetch(url, {
           method: "POST",
-          headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY ?? "" },
+          headers: { "content-type": "application/json", "x-goog-api-key": this.cfg.apiKey },
           body: JSON.stringify(body),
           signal,
         });
@@ -228,39 +251,4 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
       reject(new GeminiAbortError("aborted"));
     }, { once: true });
   });
-}
-
-/** Читает поток Server-Sent Events и отдаёт JSON каждого события. */
-async function* readSse(res: Response, signal: AbortSignal): AsyncGenerator<StreamChunk> {
-  if (!res.body) return;
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  try {
-    for (;;) {
-      if (signal.aborted) throw new GeminiAbortError("aborted");
-      let chunk: ReadableStreamReadResult<Uint8Array>;
-      try {
-        chunk = await reader.read();
-      } catch (err) {
-        if (signal.aborted) throw new GeminiAbortError("aborted");
-        throw err;
-      }
-      if (chunk.done) break;
-      buf += decoder.decode(chunk.value, { stream: true }).replace(/\r\n/g, "\n");
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const event = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        const data = event
-          .split("\n")
-          .filter((l) => l.startsWith("data:"))
-          .map((l) => l.slice(5).trimStart())
-          .join("\n");
-        if (data) yield JSON.parse(data) as StreamChunk;
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
 }

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { fromApiToolName, toApiToolName, type ToolDef } from "@pa/core";
 import { config } from "../config.ts";
-import type { ChatProvider, Conversation, StepResult, ToolCallResult } from "./types.ts";
+import type { ChatProvider, Conversation, StepResult, ToolCallResult } from "@pa/core";
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 

@@ -1,4 +1,4 @@
-import type { JSONSchema } from "@pa/core";
+import type { JSONSchema } from "../tool.ts";
 
 /**
  * Простая проверка входа инструмента по схеме: объект, обязательные поля, базовые типы.

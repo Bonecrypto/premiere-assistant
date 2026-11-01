@@ -1,4 +1,7 @@
 import type { HelloAckMsg } from "@pa/core";
+import type { AiMode, AiSettings } from "../agent/settings.ts";
+import { AiKeyCard } from "./AiKeyCard.tsx";
+import { Segmented } from "./Segmented.tsx";
 import { useState } from "react";
 import { ACCENTS, applyAccent, savedAccent } from "../theme.ts";
 import type { ConnectionStatus } from "../connection.ts";
@@ -15,6 +18,8 @@ export function SettingsView(props: {
   onChangePort(p: number): void;
   onReconnect(): void;
   onShowOnboarding(): void;
+  ai: AiSettings | null;
+  onSaveAi(next: AiSettings): Promise<void>;
 }) {
   const [value, setValue] = useState(String(props.port));
   const n = Number(value);
@@ -26,6 +31,38 @@ export function SettingsView(props: {
   return (
     <div className="page">
       <div className="scroll-inner">
+      <Section
+        title="ИИ"
+        footer={
+          props.ai?.mode === "helper"
+            ? "Через помощника: отдельная программа на компьютере (start-helper.cmd), ключ — в её .env."
+            : "Встроенный режим: ИИ работает прямо из панели, ничего запускать не нужно. Ключ хранится в защищённом хранилище Premiere."
+        }
+      >
+        <div className="row">
+          <div className="row-main">
+            <div className="row-label">Режим</div>
+          </div>
+          {props.ai ? (
+            <Segmented<AiMode>
+              className="segmented-small mode-switch"
+              items={[
+                { id: "embedded", label: "Встроенный" },
+                { id: "helper", label: "Помощник" },
+              ]}
+              value={props.ai.mode}
+              onChange={(mode) => void props.onSaveAi({ ...props.ai!, mode })}
+            />
+          ) : null}
+        </div>
+        {props.ai && props.ai.mode === "embedded" ? <AiKeyCard ai={props.ai} onSave={props.onSaveAi} /> : null}
+        {props.ai ? (
+          <Row icon={<IconTile glyph="AI" tone="purple" />} label="Модель" value={props.helper ? props.helper.model : "—"} />
+        ) : null}
+      </Section>
+
+{props.ai?.mode === "helper" ? (
+        <>
       <Section
         title="Помощник"
         footer={
@@ -52,11 +89,6 @@ export function SettingsView(props: {
           label="API-ключ"
           sublabel={props.helper && !props.helper.apiKeyConfigured ? `Впишите ${props.helper.apiKeyVar ?? "ключ"} в packages/helper/.env` : undefined}
           value={props.helper ? (props.helper.apiKeyConfigured ? "Задан" : "Не задан") : "—"}
-        />
-        <Row
-          icon={<IconTile glyph="AI" tone="purple" />}
-          label="Модель"
-          value={props.helper ? `${props.helper.provider ?? ""} · ${props.helper.model}` : "—"}
         />
       </Section>
 
@@ -87,6 +119,9 @@ export function SettingsView(props: {
           </Button>
         </div>
       </Section>
+
+        </>
+      ) : null}
 
       <Section title="Оформление">
         <div className="row">

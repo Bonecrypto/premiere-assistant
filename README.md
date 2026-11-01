@@ -10,7 +10,16 @@ packages/panel-premiere  UXP-панель (React): чат, подтвержде�
 knowledge/               база знаний (заметки, рецепты)
 ```
 
-## Первый запуск (Windows)
+## Самый простой вариант (без помощника)
+
+1. `npm install`, затем `npm run build:panel`.
+2. UXP Developer Tool → **Add Plugin** → `packages/panel-premiere/dist/manifest.json` → **⋯ → Package** — получится файл `.ccx`.
+3. Дважды кликните по `.ccx` — Creative Cloud установит плагин в Premiere насовсем (UDT и режим разработчика больше не нужны).
+4. Откройте панель (меню **Window**), на экране приветствия вставьте бесплатный ключ OpenRouter (openrouter.ai → Keys) — один раз.
+
+Всё: ИИ работает прямо из панели. Помощник (ниже) нужен только для будущих тяжёлых функций.
+
+## Первый запуск с помощником (Windows)
 
 Нужны: Node.js LTS (20.12+), Premiere Pro 25.6+, UXP Developer Tool (через Creative Cloud) и ключ модели:
 бесплатный ключ OpenRouter — openrouter.ai → Keys → Create Key (или локальная Ollama без ключа).

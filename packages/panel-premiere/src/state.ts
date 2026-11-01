@@ -48,7 +48,8 @@ export type Action =
   | { type: "confirm_answered"; requestId: string; approved: boolean }
   | { type: "notice"; text: string; tone: "error" | "info" }
   | { type: "reset" }
-  | { type: "clear_tasks" };
+  | { type: "clear_tasks" }
+  | { type: "transport_switch" };
 
 let noticeSeq = 0;
 const MAX_TASKS = 50;
@@ -114,6 +115,10 @@ export function reducer(state: State, action: Action): State {
 
     case "reset":
       return { ...state, items: [], tasks: [] };
+
+    case "transport_switch":
+      // Смена режима ИИ (встроенный/помощник) — без уведомления «связь потеряна».
+      return { ...state, connection: "connecting", helper: null, busy: false, currentTurn: null };
 
     case "clear_tasks":
       return { ...state, tasks: state.tasks.filter((t) => t.status === "running" || t.status === "waiting_confirm") };

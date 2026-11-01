@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import type { ConnectionStatus } from "../connection.ts";
 import { isUXP } from "../env.ts";
 import { getHostTool } from "../hostTools/index.ts";
+import { isAiConfigured, type AiSettings } from "../agent/settings.ts";
+import { AiKeyCard } from "./AiKeyCard.tsx";
 import { Button, IconTile } from "./Button.tsx";
 import { Logo } from "./Logo.tsx";
 
@@ -36,7 +38,10 @@ export function Onboarding(props: {
   connection: ConnectionStatus;
   helper: HelloAckMsg | null;
   onDone(): void;
+  ai: AiSettings | null;
+  onSaveAi(next: AiSettings): Promise<void>;
 }) {
+  const embedded = props.ai?.mode !== "helper";
   const [project, setProject] = useState<ProjectInfo>({ state: "pending", text: "Проверяю…" });
 
   useEffect(() => {
@@ -53,7 +58,7 @@ export function Onboarding(props: {
   const helperCheck: Check =
     props.connection === "connected" ? "ok" : props.connection === "connecting" ? "pending" : "fail";
   const keyCheck: Check = !props.helper ? "pending" : props.helper.apiKeyConfigured ? "ok" : "fail";
-  const ready = helperCheck === "ok" && keyCheck === "ok";
+  const ready = embedded ? (props.ai ? isAiConfigured(props.ai) : false) && helperCheck === "ok" : helperCheck === "ok" && keyCheck === "ok";
 
   return (
     <div className="onboarding">
@@ -74,22 +79,41 @@ export function Onboarding(props: {
         <span className="section-title">Готовность</span>
       </div>
       <div className="group">
+        {embedded ? (
+          <>
+            <CheckRow
+              state={props.ai && isAiConfigured(props.ai) ? (helperCheck === "ok" ? "ok" : "pending") : "fail"}
+              title="ИИ подключён"
+              text={
+                props.ai && isAiConfigured(props.ai)
+                  ? helperCheck === "ok"
+                    ? "Всё в порядке"
+                    : "Подключаюсь…"
+                  : "Вставьте бесплатный ключ ниже — один раз, он запомнится"
+              }
+            />
+            {props.ai && !isAiConfigured(props.ai) ? <AiKeyCard ai={props.ai} onSave={props.onSaveAi} compact /> : null}
+          </>
+        ) : (
+          <>
         <CheckRow
-          state={helperCheck}
-          title="Помощник запущен"
-          text={helperCheck === "ok" ? "Связь есть" : "Запустите start-helper.cmd в папке проекта. Чтобы не делать это каждый раз — один раз запустите autostart-on.cmd"}
-        />
-        <CheckRow
-          state={keyCheck}
-          title="API-ключ задан"
-          text={
-            keyCheck === "ok"
-              ? "Всё в порядке"
-              : keyCheck === "pending"
-                ? "Станет известно после подключения"
-                : `Впишите ${props.helper?.apiKeyVar ?? "ключ"} в packages/helper/.env и перезапустите помощника`
-          }
-        />
+            state={helperCheck}
+            title="Помощник запущен"
+            text={helperCheck === "ok" ? "Связь есть" : "Запустите start-helper.cmd в папке проекта. Чтобы не делать это каждый раз — один раз запустите autostart-on.cmd"}
+          />
+          <CheckRow
+            state={keyCheck}
+            title="API-ключ задан"
+            text={
+              keyCheck === "ok"
+                ? "Всё в порядке"
+                : keyCheck === "pending"
+                  ? "Станет известно после подключения"
+                  : `Впишите ${props.helper?.apiKeyVar ?? "ключ"} в packages/helper/.env и перезапустите помощника`
+            }
+          />
+            </>
+        )}
         <CheckRow state={project.state} title="Проект открыт" text={project.text} />
       </div>
 

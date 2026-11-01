@@ -25,8 +25,17 @@ export function savePort(port: number): void {
   storageSet(PORT_KEY, String(port));
 }
 
+/** Связь интерфейса с «мозгом»: помощником (WebSocket) или встроенным режимом. */
+export interface Transport {
+  status: ConnectionStatus;
+  start(): void;
+  stop(): void;
+  send(msg: PanelToHelper): boolean;
+  reconnectNow(): void;
+}
+
 /** Подключение к локальному помощнику с автоматическим переподключением. */
-export class HelperConnection {
+export class HelperConnection implements Transport {
   private ws: WebSocket | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;

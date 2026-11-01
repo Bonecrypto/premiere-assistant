@@ -1,5 +1,5 @@
-import { fromApiToolName, toApiToolName, type ToolDef } from "@pa/core";
-import { config } from "../config.ts";
+import { fromApiToolName, toApiToolName, type ToolDef } from "../tool.ts";
+import { readSse, SseAbortError } from "./sse.ts";
 import type { ChatProvider, Conversation, StepResult, ToolCall, ToolCallResult } from "./types.ts";
 
 /**
@@ -40,8 +40,24 @@ export class CompatApiError extends Error {
 
 class CompatAbortError extends Error {}
 
+export interface CompatOptions {
+  kind: "openrouter" | "ollama";
+  apiKey?: string;
+  /** OpenRouter: модели по порядку (пусто — выбрать бесплатные автоматически). */
+  models?: string[];
+  ollamaUrl?: string;
+  ollamaModel?: string;
+  /** Где пользователь меняет настройки — для подсказок в ошибках («.env», «настройках панели»). */
+  settingsHint?: string;
+  /** Название переменной/поля с ключом — для подсказок. */
+  apiKeyVar?: string;
+}
+
 interface Flavor {
   id: "openrouter" | "ollama";
+  ollamaUrl: string;
+  ollamaModel: string;
+  hint: string;
   title: string;
   baseUrl: string;
   apiKey?: string;
@@ -51,29 +67,36 @@ interface Flavor {
   models: string[];
 }
 
-export function createOpenRouterProvider(): ChatProvider {
-  const flavor: Flavor = {
+export function createCompatProvider(opts: CompatOptions): ChatProvider {
+  const ollamaUrl = (opts.ollamaUrl || "http://localhost:11434").replace(/\/$/, "");
+  const ollamaModel = opts.ollamaModel || "qwen3:8b";
+  const hint = opts.settingsHint || "настройках";
+  if (opts.kind === "ollama") {
+    return makeProvider({
+      id: "ollama",
+      title: "Ollama",
+      baseUrl: `${ollamaUrl}/v1`,
+      apiKeyVar: "(ключ не нужен)",
+      apiKeyConfigured: true,
+      models: [ollamaModel],
+      ollamaUrl,
+      ollamaModel,
+      hint,
+    });
+  }
+  const apiKey = opts.apiKey?.trim();
+  return makeProvider({
     id: "openrouter",
     title: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY?.trim(),
-    apiKeyVar: "OPENROUTER_API_KEY",
-    apiKeyConfigured: config.openrouter.apiKeyConfigured,
-    models: config.openrouter.models,
-  };
-  return makeProvider(flavor);
-}
-
-export function createOllamaProvider(): ChatProvider {
-  const flavor: Flavor = {
-    id: "ollama",
-    title: "Ollama",
-    baseUrl: `${config.ollama.url.replace(/\/$/, "")}/v1`,
-    apiKeyVar: "(ключ не нужен)",
-    apiKeyConfigured: true,
-    models: [config.ollama.model],
-  };
-  return makeProvider(flavor);
+    apiKey,
+    apiKeyVar: opts.apiKeyVar || "ключ OpenRouter",
+    apiKeyConfigured: Boolean(apiKey),
+    models: [...(opts.models ?? [])],
+    ollamaUrl,
+    ollamaModel,
+    hint,
+  });
 }
 
 function makeProvider(flavor: Flavor): ChatProvider {
@@ -84,21 +107,22 @@ function makeProvider(flavor: Flavor): ChatProvider {
     apiKeyConfigured: flavor.apiKeyConfigured,
     apiKeyVar: flavor.apiKeyVar,
     createConversation: (systemPrompt) => new CompatConversation(flavor, systemPrompt, provider),
-    isAbort: (err) => err instanceof CompatAbortError || (err as Error)?.name === "AbortError",
+    setup: () => checkSetup(flavor, provider),
+    isAbort: (err) => err instanceof CompatAbortError || err instanceof SseAbortError || (err as Error)?.name === "AbortError",
     describeError: (err) => describeError(flavor, err),
   };
   return provider;
 }
 
-/** Проверка при запуске: что модель доступна. Возвращает строку для лога. */
-export async function checkCompatSetup(provider: ChatProvider): Promise<string | null> {
-  if (provider.id === "ollama") {
-    const url = config.ollama.url.replace(/\/$/, "");
+/** Проверка при запуске: что модель доступна. Возвращает строку для лога/интерфейса. */
+async function checkSetup(flavor: Flavor, provider: ChatProvider): Promise<string | null> {
+  if (flavor.id === "ollama") {
+    const url = flavor.ollamaUrl;
     try {
       const res = await fetch(`${url}/api/tags`);
       const data = (await res.json()) as { models?: Array<{ name: string }> };
       const names = (data.models ?? []).map((m) => m.name);
-      const want = config.ollama.model;
+      const want = flavor.ollamaModel;
       const found = names.some((n) => n === want || n === `${want}:latest` || n.split(":")[0] === want);
       if (!found) {
         return `⚠ Модель ${want} не скачана. Выполните в терминале: ollama pull ${want}` +
@@ -109,11 +133,11 @@ export async function checkCompatSetup(provider: ChatProvider): Promise<string |
       return `⚠ Ollama не отвечает на ${url}. Установите Ollama (ollama.com) и запустите её.`;
     }
   }
-  if (provider.id === "openrouter" && provider.apiKeyConfigured && config.openrouter.models.length === 0) {
+  if (flavor.id === "openrouter" && flavor.apiKeyConfigured && flavor.models.length === 0) {
     try {
       const models = await pickFreeModels();
-      if (models.length === 0) return "⚠ Не нашёл бесплатных моделей с инструментами на OpenRouter. Укажите OPENROUTER_MODEL в .env.";
-      config.openrouter.models.push(...models);
+      if (models.length === 0) return `⚠ Не нашёл бесплатных моделей с инструментами на OpenRouter. Укажите модель в ${flavor.hint}.`;
+      flavor.models.push(...models);
       provider.model = models[0];
       return `Бесплатные модели OpenRouter: ${models.join(", ")}`;
     } catch (err) {
@@ -124,7 +148,7 @@ export async function checkCompatSetup(provider: ChatProvider): Promise<string |
 }
 
 /** Бесплатные модели OpenRouter, которые умеют вызывать инструменты; сначала — известные сильные семейства. */
-async function pickFreeModels(): Promise<string[]> {
+export async function pickFreeModels(): Promise<string[]> {
   const res = await fetch("https://openrouter.ai/api/v1/models");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as {
@@ -145,28 +169,28 @@ function describeError(flavor: Flavor, err: unknown): string {
   if (err instanceof CompatApiError) {
     const m = err.message;
     if (flavor.id === "ollama") {
-      if (err.httpStatus === 404) return `Модель ${config.ollama.model} не найдена в Ollama. Выполните: ollama pull ${config.ollama.model}`;
+      if (err.httpStatus === 404) return `Модель ${flavor.ollamaModel} не найдена в Ollama. Выполните: ollama pull ${flavor.ollamaModel}`;
       if (/does not support tools/i.test(m)) {
-        return `Модель ${config.ollama.model} не умеет вызывать инструменты. Возьмите другую, например qwen3:8b (OLLAMA_MODEL в .env).`;
+        return `Модель ${flavor.ollamaModel} не умеет вызывать инструменты. Возьмите другую, например qwen3:8b (в ${flavor.hint}).`;
       }
       return `Ollama вернула ошибку (${err.httpStatus}): ${m}`;
     }
-    if (err.httpStatus === 401) return "Неверный OPENROUTER_API_KEY. Создайте ключ заново на openrouter.ai/keys и перезапустите помощника.";
-    if (err.httpStatus === 402) return "OpenRouter просит пополнить баланс: выбранная модель не бесплатная. Уберите OPENROUTER_MODEL из .env — помощник сам выберет бесплатные.";
+    if (err.httpStatus === 401) return `Неверный ключ OpenRouter. Создайте ключ заново на openrouter.ai/keys и вставьте его в ${flavor.hint}.`;
+    if (err.httpStatus === 402) return "OpenRouter просит пополнить баланс: выбранная модель не бесплатная. Очистите поле модели в ${flavor.hint} — будут выбраны бесплатные.";
     if (err.httpStatus === 429) return "Достигнут лимит бесплатных запросов OpenRouter. Подождите немного (дневной лимит обновляется раз в сутки).";
     if (/data policy|privacy/i.test(m)) {
       return "OpenRouter не даёт бесплатные модели из-за настроек приватности. Откройте openrouter.ai/settings/privacy и разрешите бесплатные модели (Free model publication / training), затем повторите.";
     }
-    if (err.httpStatus === 404) return `Модель не найдена на OpenRouter: ${m}. Уберите OPENROUTER_MODEL из .env — помощник выберет сам.`;
+    if (err.httpStatus === 404) return `Модель не найдена на OpenRouter: ${m}. Очистите поле модели в ${flavor.hint} — модель выберется сама.`;
     if (err.httpStatus >= 500) return "Сервис OpenRouter временно недоступен. Повторите через минуту.";
     return `OpenRouter отклонил запрос (${err.httpStatus}): ${m}`;
   }
   if (err instanceof TypeError && /fetch failed/i.test(err.message)) {
     return flavor.id === "ollama"
-      ? `Ollama не отвечает (${config.ollama.url}). Запустите приложение Ollama и повторите.`
+      ? `Ollama не отвечает (${flavor.ollamaUrl}). Запустите приложение Ollama и повторите.`
       : "Нет связи с OpenRouter. Проверьте интернет.";
   }
-  return `Внутренняя ошибка помощника: ${(err as Error)?.message || String(err)}`;
+  return `Внутренняя ошибка: ${(err as Error)?.message || String(err)}`;
 }
 
 class CompatConversation implements Conversation {
@@ -190,7 +214,7 @@ class CompatConversation implements Conversation {
       if (models[0]) this.provider.model = models[0];
     }
     if (models.length === 0) {
-      throw new CompatApiError(404, "не выбрана модель (OPENROUTER_MODEL пуст, автовыбор не удался)");
+      throw new CompatApiError(404, "не выбрана модель (поле модели пустое, а автовыбор бесплатных не удался — проверьте интернет)");
     }
     const body: Record<string, unknown> = {
       messages: [{ role: "system", content: this.systemPrompt }, ...this.history],
@@ -211,7 +235,7 @@ class CompatConversation implements Conversation {
     const calls: Array<{ id: string; name: string; args: string }> = [];
     const think = new ThinkFilter(onText);
 
-    for await (const chunk of readSse(res, signal)) {
+    for await (const chunk of readSse<Chunk>(res, signal)) {
       if (chunk.error) {
         const code = typeof chunk.error.code === "number" ? chunk.error.code : 500;
         throw new CompatApiError(code, chunk.error.message ?? "ошибка");
@@ -371,37 +395,4 @@ function partialTagSuffix(s: string, tag: string): number {
     if (tag.startsWith(s.slice(-n))) return n;
   }
   return 0;
-}
-
-async function* readSse(res: Response, signal: AbortSignal): AsyncGenerator<Chunk> {
-  if (!res.body) return;
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  try {
-    for (;;) {
-      let chunk: ReadableStreamReadResult<Uint8Array>;
-      try {
-        chunk = await reader.read();
-      } catch (err) {
-        if (signal.aborted) throw new CompatAbortError("aborted");
-        throw err;
-      }
-      if (chunk.done) break;
-      buf += decoder.decode(chunk.value, { stream: true }).replace(/\r\n/g, "\n");
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const event = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        for (const line of event.split("\n")) {
-          if (!line.startsWith("data:")) continue; // комментарии OpenRouter («: OPENROUTER PROCESSING») пропускаем
-          const data = line.slice(5).trim();
-          if (!data || data === "[DONE]") continue;
-          yield JSON.parse(data) as Chunk;
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
 }
