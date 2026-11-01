@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { applyMotion, OP_TITLE, type MotionOp, type MotionRequest } from "../automation/motion.ts";
 import { ALIGN_GRID, CLIP_ACTIONS, SAFE_MARGINS, type AlignAnchor, type SafeMargin } from "../presets/catalog.ts";
 import { Badge, Button } from "./Button.tsx";
 import { Icon } from "./Icon.tsx";
@@ -22,12 +23,24 @@ export function PresetsView() {
   const marginInfo = SAFE_MARGINS.find((m) => m.id === margin)!;
   const anchorLabel = ALIGN_GRID.flat().find((a) => a.id === anchor)!.label;
   const soon = <Badge tone="accent">Скоро</Badge>;
+  const [status, setStatus] = useState<{ tone: "ok" | "error" | "busy"; text: string } | null>(null);
+
+  const run = async (req: MotionRequest) => {
+    setStatus({ tone: "busy", text: `${capitalize(OP_TITLE[req.op])}…` });
+    try {
+      const r = await applyMotion(req);
+      const skip = r.skipped.length ? ` Пропущено ${r.skipped.length}: ${r.skipped[0].why}.` : "";
+      setStatus({ tone: "ok", text: `Готово: ${OP_TITLE[req.op]} — клипов ${r.changed}. Отменить: Ctrl+Z.${skip}` });
+    } catch (err) {
+      setStatus({ tone: "error", text: (err as Error)?.message || String(err) });
+    }
+  };
 
   return (
     <div className="page-with-footer">
       <div className="page">
         <div className="scroll-inner">
-          <Section title="Выравнивание в кадре" collapsible aside={soon}>
+          <Section title="Выравнивание в кадре" collapsible footer="Выберите положение и нажмите «Применить» внизу — выделенные клипы встанут туда с учётом отступа.">
             <div className="align-block">
               <div className="align-grid">
                 {ALIGN_GRID.map((row, r) => (
@@ -60,12 +73,12 @@ export function PresetsView() {
             </div>
           </Section>
 
-          <Section title="Клип" collapsible aside={soon} plain footer="Меняет Effect Controls → Motion у выделенных клипов. Перед изменением покажу, что именно поменяется.">
+          <Section title="Клип" collapsible plain footer="Работает с выделенными видеоклипами на таймлайне (Effect Controls → Motion). Всё отменяется одним Ctrl+Z.">
             <div className="tiles">
               {chunk(CLIP_ACTIONS, 3).map((row, i) => (
                 <div key={i} className="tiles-row">
                   {row.map((a) => (
-                    <div key={a.id} className="tile action-tile is-soon" title={`${a.hint} — скоро`}>
+                    <div key={a.id} className="tile action-tile" title={a.hint} onClick={() => run({ op: a.id as MotionOp })}>
                       <Icon name={a.icon} size={18} />
                       <span className="tile-label">{a.label}</span>
                     </div>
@@ -102,12 +115,18 @@ export function PresetsView() {
 
       {/* Нижняя панель действия — как в монтажных плагинах: контекст слева, главная кнопка справа. */}
       <div className="action-footer">
-        <span className="action-footer-text">Выделите клипы на таймлайне</span>
+        <span className={`action-footer-text${status ? ` status-${status.tone}` : ""}`}>
+          {status ? status.text : "Выделите клипы на таймлайне"}
+        </span>
         <div className="spacer" />
-        <Button variant="primary" size="small" disabled title="Появится на этапе 3">
+        <Button variant="primary" size="small" onClick={() => run({ op: "align", anchor, margin })} title="Выровнять выделенные клипы">
           Применить
         </Button>
       </div>
     </div>
   );
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

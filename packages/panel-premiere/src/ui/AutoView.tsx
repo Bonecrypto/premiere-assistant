@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { applyPlan, planColoring, type PlanWithRefs } from "../automation/coloring.ts";
+import { selectCategory } from "../automation/select.ts";
 import { LABEL_KEYS, LABELS, type LabelKey } from "../automation/labels.ts";
 import { loadRules, onRulesChange, resetRules, saveRules, type CategoryId, type ColorRules } from "../automation/rules.ts";
 import { Badge, Button } from "./Button.tsx";
@@ -77,7 +78,9 @@ export function AutoView() {
                   <div className="result result-ok">
                     {phase.changed > 0
                       ? `Готово: перекрашено файлов — ${phase.changed}. Отменить: Ctrl+Z в Premiere.`
-                      : "Всё уже покрашено по правилам — менять нечего."}
+                      : "Файлы в проекте уже покрашены по правилам."}
+                    {" "}Если клипы на таймлайне остались прежнего цвета — нажмите «Покрасить таймлайн» ещё раз и
+                    «Выделить» у категории, затем правый клик по выделению → Label → цвет.
                   </div>
                 ) : null}
                 {phase.kind === "error" ? <div className="result result-error">{phase.message}</div> : null}
@@ -91,6 +94,7 @@ export function AutoView() {
 
             {phase.kind === "preview" || phase.kind === "applying" ? (
               <PlanPreview
+                rules={rules}
                 planned={phase.planned}
                 busy={phase.kind === "applying"}
                 onCancel={() => setPhase({ kind: "idle" })}
@@ -214,8 +218,17 @@ export function AutoView() {
   );
 }
 
-function PlanPreview(props: { planned: PlanWithRefs; busy: boolean; onCancel(): void; onApply(): void }) {
+function PlanPreview(props: { rules: ColorRules; planned: PlanWithRefs; busy: boolean; onCancel(): void; onApply(): void }) {
   const { plan } = props.planned;
+  const [selected, setSelected] = useState<string | null>(null);
+  const select = async (cat: CategoryId, name: string) => {
+    try {
+      const n = await selectCategory(cat, props.rules);
+      setSelected(`Выделено «${name}»: ${n}. На таймлайне: правый клик → Label → цвет.`);
+    } catch (err) {
+      setSelected((err as Error)?.message || String(err));
+    }
+  };
   if (plan.items.length === 0) {
     return (
       <>
@@ -237,8 +250,12 @@ function PlanPreview(props: { planned: PlanWithRefs; busy: boolean; onCancel(): 
           <span className="plan-name">{c.name}</span>
           <div className="spacer" />
           <span className="plan-count">{c.clips} кл.</span>
+          <span className="link-small plan-select" onClick={() => select(c.category, c.name)}>
+            Выделить
+          </span>
         </div>
       ))}
+      {selected ? <div className="field-hint">{selected}</div> : null}
       {plan.items.some((i) => i.conflict) ? (
         <div className="field-hint">Один и тот же файл встречается в разных ролях — взят вариант, где его клипов больше.</div>
       ) : null}

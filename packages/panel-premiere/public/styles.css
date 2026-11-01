@@ -1288,3 +1288,19 @@ code {
   font-size: var(--fs-small);
   cursor: pointer;
 }
+.action-footer-text.status-ok {
+  color: var(--green);
+}
+.action-footer-text.status-error {
+  color: var(--red);
+}
+.action-footer-text.status-busy {
+  color: var(--label-2);
+}
+.action-footer-text {
+  flex: 1;
+  margin-right: 8px;
+}
+.plan-select {
+  margin-left: 10px;
+}

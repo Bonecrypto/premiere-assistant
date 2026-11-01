@@ -18,12 +18,15 @@ export interface TimelineClip extends ClipInfo {
   projectItem: ProjectItem | null;
   projectItemId: string | null;
   currentLabel: LabelKey | null;
+  /** Сам клип на таймлайне (для выделения). */
+  trackItem: unknown;
 }
 
 export interface TimelineData {
   projectName: string;
   sequenceName: string;
   clips: TimelineClip[];
+  sequence: any;
 }
 
 export function ppro() {
@@ -91,6 +94,7 @@ async function readItem(
     projectItem: projectItem ?? null,
     projectItemId,
     currentLabel,
+    trackItem: item,
   };
 }
 
@@ -121,5 +125,5 @@ export async function readTimeline(): Promise<TimelineData> {
     clips.push(...(await Promise.all(items.map((it: any) => readItem(it, "audio", i, name)))));
   }
 
-  return { projectName: project.name, sequenceName: sequence.name, clips };
+  return { projectName: project.name, sequenceName: sequence.name, clips, sequence };
 }
