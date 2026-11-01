@@ -12,7 +12,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s.TargetPath='wscript.exe';" ^
   "$s.Arguments='\"' + (Resolve-Path 'scripts\helper-hidden.vbs').Path + '\"';" ^
   "$s.WorkingDirectory=(Get-Location).Path;" ^
-  "$s.Description='Premiere Assistant: локальный помощник';" ^
+  "$s.Description='Premiere Assistant helper';" ^
   "$s.Save()"
 if errorlevel 1 (
   echo Не удалось создать ярлык автозапуска.
