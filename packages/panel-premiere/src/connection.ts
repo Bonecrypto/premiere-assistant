@@ -9,6 +9,9 @@ import {
 import { hostInfo, storageGet, storageSet } from "./env.ts";
 import { hostTools } from "./hostTools/index.ts";
 
+/** Сколько ждать установки соединения, прежде чем попробовать заново. */
+const CONNECT_TIMEOUT_MS = 4000;
+
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
 const PORT_KEY = "helperPort";
@@ -27,6 +30,7 @@ export class HelperConnection {
   private ws: WebSocket | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private retryDelay = 1000;
   private stopped = false;
   status: ConnectionStatus = "disconnected";
@@ -53,6 +57,7 @@ export class HelperConnection {
   stop(): void {
     this.stopped = true;
     this.stopPing();
+    this.clearConnectTimer();
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = null;
     this.ws?.close();
@@ -105,7 +110,25 @@ export class HelperConnection {
     }
     this.ws = ws;
 
+    // В UXP попытка подключиться к незапущенному помощнику может «висеть» бесконечно,
+    // не вызывая ни onopen, ни onclose. Поэтому ограничиваем её по времени и пробуем снова.
+    this.clearConnectTimer();
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = null;
+      if (this.ws !== ws || ws.readyState === WebSocket.OPEN) return;
+      this.ws = null;
+      ws.onopen = ws.onclose = ws.onmessage = ws.onerror = null;
+      try {
+        ws.close();
+      } catch {
+        /* уже закрыт */
+      }
+      this.setStatus("disconnected");
+      this.scheduleRetry();
+    }, CONNECT_TIMEOUT_MS);
+
     ws.onopen = () => {
+      this.clearConnectTimer();
       this.retryDelay = 1000;
       this.setStatus("connected");
       this.startPing();
@@ -124,6 +147,7 @@ export class HelperConnection {
     };
     ws.onclose = () => {
       if (this.ws !== ws) return;
+      this.clearConnectTimer();
       this.stopPing();
       this.ws = null;
       this.setStatus("disconnected");
@@ -132,6 +156,11 @@ export class HelperConnection {
     ws.onerror = () => {
       /* onclose придёт следом */
     };
+  }
+
+  private clearConnectTimer(): void {
+    if (this.connectTimer) clearTimeout(this.connectTimer);
+    this.connectTimer = null;
   }
 
   private startPing(): void {
@@ -150,6 +179,6 @@ export class HelperConnection {
       this.retryTimer = null;
       this.open();
     }, this.retryDelay);
-    this.retryDelay = Math.min(this.retryDelay * 2, 10_000);
+    this.retryDelay = Math.min(this.retryDelay * 2, 5_000);
   }
 }

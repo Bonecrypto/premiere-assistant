@@ -46,6 +46,13 @@
   --fs-title: 15px;
 }
 
+/* Ширина с учётом отступов: иначе UXP растягивает блоки шире панели (обрезается правый край). */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
@@ -66,6 +73,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  overflow: hidden;
   background-color: var(--bg);
 }
 

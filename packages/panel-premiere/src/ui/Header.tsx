@@ -7,7 +7,9 @@ export type HealthState = "ok" | "warn" | "connecting" | "off";
 export function health(connection: ConnectionStatus, helper: HelloAckMsg | null): HealthState {
   if (connection === "connecting") return "connecting";
   if (connection !== "connected") return "off";
-  if (helper && !helper.apiKeyConfigured) return "warn";
+  // Подключились, но помощник ещё не прислал свои данные (ключ, модель) — рано говорить «Готов».
+  if (!helper) return "connecting";
+  if (!helper.apiKeyConfigured) return "warn";
   return "ok";
 }
 
