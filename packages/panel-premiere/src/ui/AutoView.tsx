@@ -8,6 +8,7 @@ import { Badge, Button } from "./Button.tsx";
 import { Icon } from "./Icon.tsx";
 import { Section } from "./Section.tsx";
 import { TrackNamesCard } from "./TrackNamesCard.tsx";
+import { BinsCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
 
 type Phase =
   | { kind: "idle" }
@@ -116,8 +117,16 @@ export function AutoView() {
           </div>
         </Section>
 
-        <Section title="Дорожки" plain>
-          <TrackNamesCard />
+        <Section title="Таймлайн" plain>
+          <div className="auto-card">
+            <TrackNamesCard />
+          </div>
+          <TransitionsCard />
+          <MarkersCard />
+        </Section>
+
+        <Section title="Проект" plain>
+          <BinsCard />
         </Section>
 
         <Section
@@ -231,10 +240,6 @@ export function AutoView() {
               <div className="tile action-tile is-soon" title="Измерить громкость и привести к −14 LUFS">
                 <Icon name="wave" size={18} />
                 <span className="tile-label">−14 LUFS</span>
-              </div>
-              <div className="tile action-tile is-soon" title="Маркеры на тишине и клиппинге">
-                <Icon name="marker" size={18} />
-                <span className="tile-label">Маркеры</span>
               </div>
               <div className="tile action-tile is-soon" title="Свои автоматизации: ассистент запомнит и будет повторять">
                 <Icon name="bolt" size={18} />

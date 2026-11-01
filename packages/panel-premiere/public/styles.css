@@ -1737,3 +1737,22 @@ code {
 .pv-row-stack .pv-seg {
   min-width: 0;
 }
+
+/* Карточки «Авто» */
+.auto-card {
+  margin-bottom: 10px;
+}
+.auto-actions {
+  display: flex;
+  flex-direction: row;
+  margin-top: 6px;
+}
+.auto-btn-half {
+  flex: 1;
+}
+.auto-actions .auto-btn-half:first-child {
+  margin-right: 8px;
+}
+.auto-hint {
+  margin-bottom: 8px;
+}
