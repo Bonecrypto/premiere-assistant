@@ -114,7 +114,7 @@ function EmptyState(props: { health: HealthState; onSuggestion(t: string): void;
           <div className="empty-warning-text">
             {props.health === "warn"
               ? "В помощнике не задан API-ключ. Открыть настройки"
-              : "Помощник не запущен. Запустите start-helper.cmd — панель подключится сама"}
+              : "Помощник не запущен. Запустите start-helper.cmd (или один раз autostart-on.cmd — и он будет стартовать сам с Windows)"}
           </div>
         </div>
       )}

@@ -77,7 +77,7 @@ export function Onboarding(props: {
         <CheckRow
           state={helperCheck}
           title="Помощник запущен"
-          text={helperCheck === "ok" ? "Связь есть" : "Запустите start-helper.cmd в папке проекта"}
+          text={helperCheck === "ok" ? "Связь есть" : "Запустите start-helper.cmd в папке проекта. Чтобы не делать это каждый раз — один раз запустите autostart-on.cmd"}
         />
         <CheckRow
           state={keyCheck}

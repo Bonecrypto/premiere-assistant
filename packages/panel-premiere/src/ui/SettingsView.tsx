@@ -28,7 +28,7 @@ export function SettingsView(props: {
         footer={
           connected
             ? `Помощник — программа на вашем компьютере, которая общается с ИИ (${props.helper?.provider ?? "модель"}). Ключ API хранится только в ней. Сменить модель — AI_PROVIDER в packages/helper/.env.`
-            : "Запустите start-helper.cmd в папке проекта (или npm start) — панель подключится сама."
+            : "Запустите start-helper.cmd в папке проекта — панель подключится сама. Автозапуск с Windows: один раз запустите autostart-on.cmd."
         }
       >
         <Row
