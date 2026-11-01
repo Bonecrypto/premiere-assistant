@@ -5,7 +5,7 @@ import { diagnoseLabels } from "../automation/diagnose.ts";
 import { LABEL_KEYS, LABELS, type LabelKey } from "../automation/labels.ts";
 import { loadRules, onRulesChange, resetRules, saveRules, type CategoryId, type ColorRules } from "../automation/rules.ts";
 import { Badge, Button } from "./Button.tsx";
-import { Icon } from "./Icon.tsx";
+import { Icon, type IconName } from "./Icon.tsx";
 import { Section } from "./Section.tsx";
 import { TrackNamesCard } from "./TrackNamesCard.tsx";
 import { BinsCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
@@ -31,6 +31,7 @@ export function AutoView() {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [editing, setEditing] = useState<CategoryId | null>(null);
   const [diag, setDiag] = useState<string | null>(null);
+  const [page, setPage] = useState<AutoPage | null>(null);
 
   const runDiag = async () => {
     setDiag("Собираю данные…");
@@ -70,21 +71,20 @@ export function AutoView() {
     }
   };
 
-  return (
-    <div className="page">
-      <div className="scroll-inner">
-        <Section title="Покраска таймлайна" plain>
-          <div className="hero-card">
-            <div className="hero-head">
-              <div className="hero-icon">
-                <Icon name="palette" size={18} />
-              </div>
-              <div className="hero-text">
-                <div className="row-label">Покрасить таймлайн</div>
-                <div className="row-sublabel">Музыка, звуковые эффекты, голос, видео, графика — каждая своим цветом</div>
-              </div>
-            </div>
+  if (page) {
+    const meta = PAGES[page];
+    return (
+      <div className="page">
+        <div className="scroll-inner">
+          <div className="nav-back" onClick={() => setPage(null)}>
+            ‹ Авто
+          </div>
+          <div className="page-title">{meta.title}</div>
+          <div className="page-sub">{meta.subtitle}</div>
 
+          {page === "color" ? (
+            <>
+              <div className="hero-card">
             {phase.kind === "idle" || phase.kind === "done" || phase.kind === "error" ? (
               <>
                 {phase.kind === "done" ? (
@@ -114,31 +114,26 @@ export function AutoView() {
                 onApply={() => apply(phase.planned)}
               />
             ) : null}
-          </div>
-        </Section>
-
-        <Section title="Таймлайн" plain>
-          <div className="auto-card">
-            <TrackNamesCard />
-          </div>
-          <TransitionsCard />
-          <MarkersCard />
-        </Section>
-
-        <Section title="Проект" plain>
-          <BinsCard />
-        </Section>
-
-        <Section
-          title="Правила"
-          collapsible
-          aside={
-            <Button variant="plain" size="small" onClick={() => setRules(resetRules())}>
-              Сбросить
-            </Button>
-          }
-          footer="Ассистент запоминает уточнения из чата: «файлы из папки Whoosh — это SFX», «музыку крась в синий». В Premiere UXP API цвет есть у элементов проекта, поэтому красятся они — и вместе с ними клипы на таймлайне."
-        >
+              </div>
+              <div className="nav-link" onClick={() => setPage("rules")}>
+                Правила покраски ›
+              </div>
+            </>
+          ) : null}
+          {page === "tracks" ? <TrackNamesCard bare /> : null}
+          {page === "transitions" ? <TransitionsCard bare /> : null}
+          {page === "markers" ? <MarkersCard bare /> : null}
+          {page === "bins" ? <BinsCard bare /> : null}
+          {page === "rules" ? (
+            <Section
+              title="Категории"
+              aside={
+                <Button variant="plain" size="small" onClick={() => setRules(resetRules())}>
+                  Сбросить
+                </Button>
+              }
+              footer="Ассистент запоминает уточнения из чата: «файлы из папки Whoosh — это SFX», «музыку крась в синий»."
+            >
           {rules.categories.map((c) => (
             <div key={c.id} className="rule">
               <div className="rule-row">
@@ -218,37 +213,88 @@ export function AutoView() {
               ))}
             </div>
           ) : null}
-        </Section>
-
-        <Section
-          title="Диагностика цветов"
-          collapsible
-          defaultOpen={false}
-          footer="Показывает, какие номера цветов отдаёт ваш Premiere и какой номер стоит у каждого файла. Пришлите скриншот — по нему проверим, что цвета сопоставлены правильно."
-        >
+            </Section>
+          ) : null}
+          {page === "diag" ? (
+            <Section footer="Показывает, какие номера цветов отдаёт ваш Premiere и какой номер стоит у каждого файла. Пришлите скриншот — по нему проверим сопоставление цветов.">
           <div className="group-actions">
             <Button variant="secondary" className="wide" onClick={runDiag}>
               Запустить диагностику
             </Button>
           </div>
           {diag ? <pre className="code-block diag-block">{diag}</pre> : null}
-        </Section>
-
-        <Section title="Скоро" collapsible aside={<Badge tone="accent">Этап 2–3</Badge>} plain>
-          <div className="tiles">
-            <div className="tiles-row">
-              <div className="tile action-tile is-soon" title="Измерить громкость и привести к −14 LUFS">
-                <Icon name="wave" size={18} />
-                <span className="tile-label">−14 LUFS</span>
-              </div>
-              <div className="tile action-tile is-soon" title="Свои автоматизации: ассистент запомнит и будет повторять">
-                <Icon name="bolt" size={18} />
-                <span className="tile-label">Свои</span>
-              </div>
-            </div>
-          </div>
-        </Section>
+            </Section>
+          ) : null}
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="page">
+      <div className="scroll-inner">
+        <div className="page-title">Авто</div>
+        <div className="page-sub">Рутина одним нажатием — вы занимаетесь креативом</div>
+
+        <div className="bento-hero" onClick={() => setPage("color")}>
+          <div className="bento-hero-icon">
+            <Icon name="palette" size={20} />
+          </div>
+          <div className="bento-hero-text">
+            <div className="bento-hero-title">Покрасить таймлайн</div>
+            <div className="bento-hero-sub">Музыка, SFX, голос, видео, графика — каждая своим цветом</div>
+          </div>
+          <span className="bento-chevron">›</span>
+        </div>
+
+        <div className="bento-row">
+          <BentoTile tone="blue" icon="tasks" title="Дорожки" sub="Подписать по содержимому" onClick={() => setPage("tracks")} />
+          <BentoTile tone="indigo" icon="fliph" title="Переходы" sub="На все стыки" onClick={() => setPage("transitions")} />
+        </div>
+        <div className="bento-row">
+          <BentoTile tone="orange" icon="marker" title="Маркеры" sub="Склейки или интервал" onClick={() => setPage("markers")} />
+          <BentoTile tone="green" icon="save" title="Папки" sub="Разложить проект" onClick={() => setPage("bins")} />
+        </div>
+
+        <div className="bento-list">
+          <div className="bento-list-row" onClick={() => setPage("rules")}>
+            <span className="bento-list-title">Правила покраски</span>
+            <span className="bento-list-value">{rules.categories.filter((c) => c.enabled).length} категорий ›</span>
+          </div>
+          <div className="bento-list-row" onClick={() => setPage("diag")}>
+            <span className="bento-list-title">Диагностика цветов</span>
+            <span className="bento-list-value">›</span>
+          </div>
+          <div className="bento-list-row is-soon">
+            <span className="bento-list-title">Громкость −14 LUFS</span>
+            <span className="bento-list-value">скоро</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type AutoPage = "color" | "tracks" | "transitions" | "markers" | "bins" | "rules" | "diag";
+
+const PAGES: Record<AutoPage, { title: string; subtitle: string }> = {
+  color: { title: "Покраска таймлайна", subtitle: "Каждая категория клипов — своим цветом. Отмена — Ctrl+Z." },
+  tracks: { title: "Дорожки", subtitle: "Голос, Музыка, SFX, Видео, Графика — по тому, что на них лежит." },
+  transitions: { title: "Переходы", subtitle: "На все склейки выделенных клипов. Выделите клипы (можно Ctrl+A)." },
+  markers: { title: "Маркеры", subtitle: "На каждой склейке или через равные промежутки." },
+  bins: { title: "Папки проекта", subtitle: "Файлы из корня проекта — по папкам. Ваши папки не трогаются." },
+  rules: { title: "Правила покраски", subtitle: "Цвет и слова-подсказки для каждой категории." },
+  diag: { title: "Диагностика цветов", subtitle: "Если цвета встают не те — пришлите скриншот отсюда." },
+};
+
+function BentoTile(props: { tone: "blue" | "indigo" | "orange" | "green" | "purple"; icon: IconName; title: string; sub: string; onClick(): void }) {
+  return (
+    <div className="bento-tile" onClick={props.onClick}>
+      <div className={`bento-icon grad-${props.tone}`}>
+        <Icon name={props.icon} size={17} />
+      </div>
+      <div className="bento-title">{props.title}</div>
+      <div className="bento-sub">{props.sub}</div>
     </div>
   );
 }

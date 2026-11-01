@@ -2,6 +2,7 @@ import type { HelloAckMsg } from "@pa/core";
 import { useEffect, useRef } from "react";
 import type { ChatItem } from "../state.ts";
 import { IconTile } from "./Button.tsx";
+import { Icon, type IconName } from "./Icon.tsx";
 import { Logo } from "./Logo.tsx";
 import { ConfirmCard } from "./ConfirmCard.tsx";
 import type { HealthState } from "./Header.tsx";
@@ -9,10 +10,12 @@ import { RichText } from "./RichText.tsx";
 import { Typing } from "./Typing.tsx";
 
 /** Примеры запросов: узнавание вместо припоминания — не нужно гадать, что умеет ассистент. */
-const SUGGESTIONS = [
-  "Что за проект и секвенция открыты?",
-  "Как выставить громкость на −14 LUFS для YouTube?",
-  "Запомни: мой стандарт — true peak −1 dBTP",
+/** Примеры запросов плитками: узнавание вместо припоминания. Текст подставляется в поле — можно поправить. */
+const SUGGESTIONS: Array<{ title: string; text: string; icon: IconName; tone: string }> = [
+  { title: "Покрась таймлайн", text: "Покрась таймлайн по моим правилам", icon: "palette", tone: "pink" },
+  { title: "Подпиши дорожки", text: "Подпиши звуковые дорожки по содержимому", icon: "tasks", tone: "blue" },
+  { title: "Переходы на стыки", text: "Поставь растворение 0.5 с на все стыки выделенных клипов", icon: "fliph", tone: "indigo" },
+  { title: "Что открыто?", text: "Что за проект и секвенция открыты?", icon: "chat", tone: "green" },
 ];
 
 export function ChatView(props: {
@@ -96,16 +99,21 @@ function EmptyState(props: { health: HealthState; embedded: boolean; onSuggestio
   const ready = props.health === "ok";
   return (
     <div className="empty">
-      <Logo size={48} className="empty-logo" />
+      <Logo size={44} className="empty-logo" />
       <div className="empty-title">Чем помочь?</div>
-      <div className="empty-text">
-        Спросите о монтаже, звуке или Premiere — или поручите действие. Всё, что меняет проект, я сначала покажу вам.
-      </div>
+      <div className="empty-text">Спросите о монтаже или поручите действие. Всё, что меняет проект, я сначала покажу.</div>
       {ready ? (
-        <div className="suggestions">
-          {SUGGESTIONS.map((s) => (
-            <div key={s} className="suggestion" onClick={() => props.onSuggestion(s)}>
-              {s}
+        <div className="suggest-grid">
+          {[0, 2].map((r) => (
+            <div key={r} className="bento-row">
+              {SUGGESTIONS.slice(r, r + 2).map((s) => (
+                <div key={s.title} className="bento-tile suggest-tile" onClick={() => props.onSuggestion(s.text)}>
+                  <div className={`bento-icon grad-${s.tone}`}>
+                    <Icon name={s.icon} size={16} />
+                  </div>
+                  <div className="bento-title">{s.title}</div>
+                </div>
+              ))}
             </div>
           ))}
         </div>

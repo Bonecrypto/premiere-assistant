@@ -11,10 +11,10 @@ import { Slider } from "./Slider.tsx";
 
 type Status = { tone: "ok" | "error" | "info"; text: string } | null;
 
-function Card(props: { icon: IconName; title: string; subtitle: string; status: Status; children: ReactNode }) {
+function Card(props: { icon: IconName; title: string; subtitle: string; status: Status; children: ReactNode; bare?: boolean }) {
   return (
     <div className="hero-card auto-card">
-      <div className="hero-head">
+      {props.bare ? null : <div className="hero-head">
         <div className="hero-icon">
           <Icon name={props.icon} size={18} />
         </div>
@@ -22,7 +22,7 @@ function Card(props: { icon: IconName; title: string; subtitle: string; status: 
           <div className="row-label">{props.title}</div>
           <div className="row-sublabel">{props.subtitle}</div>
         </div>
-      </div>
+      </div>}
       {props.children}
       {props.status ? (
         <div className={`result${props.status.tone === "ok" ? " result-ok" : props.status.tone === "error" ? " result-error" : ""}`}>
@@ -43,13 +43,13 @@ async function guard(set: (s: Status) => void, fn: () => Promise<string>) {
 }
 
 /** Переходы на все стыки выделенных клипов. */
-export function TransitionsCard() {
+export function TransitionsCard({ bare }: { bare?: boolean } = {}) {
   const [kind, setKind] = useState<TransitionKind>(() => (storageGet("trKind") as TransitionKind) || "dissolve");
   const [seconds, setSeconds] = useState(() => Number(storageGet("trSeconds")) || 0.5);
   const [edges, setEdges] = useState(() => storageGet("trEdges") === "1");
   const [status, setStatus] = useState<Status>(null);
   return (
-    <Card icon="fliph" title="Переходы на стыки" subtitle="На все склейки выделенных клипов — одним нажатием" status={status}>
+    <Card bare={bare} icon="fliph" title="Переходы на стыки" subtitle="На все склейки выделенных клипов — одним нажатием" status={status}>
       <div className="pv-row pv-row-stack">
         <span className="pv-label">Переход</span>
         <Segmented<TransitionKind>
@@ -105,12 +105,12 @@ export function TransitionsCard() {
 }
 
 /** Маркеры на склейках или через интервал. */
-export function MarkersCard() {
+export function MarkersCard({ bare }: { bare?: boolean } = {}) {
   const [mode, setMode] = useState<MarkerMode>("cuts");
   const [interval, setIntervalSec] = useState(10);
   const [status, setStatus] = useState<Status>(null);
   return (
-    <Card icon="marker" title="Маркеры" subtitle="На каждой склейке или через равные промежутки" status={status}>
+    <Card bare={bare} icon="marker" title="Маркеры" subtitle="На каждой склейке или через равные промежутки" status={status}>
       <div className="pv-row pv-row-stack">
         <span className="pv-label">Где</span>
         <Segmented<MarkerMode>
@@ -157,11 +157,11 @@ export function MarkersCard() {
 }
 
 /** Разложить файлы из корня проекта по папкам. */
-export function BinsCard() {
+export function BinsCard({ bare }: { bare?: boolean } = {}) {
   const [plan, setPlan] = useState<BinPlan | null>(null);
   const [status, setStatus] = useState<Status>(null);
   return (
-    <Card icon="tasks" title="Разложить проект по папкам" subtitle="Видео, Музыка, SFX, Голос, Графика, Секвенции" status={status}>
+    <Card bare={bare} icon="tasks" title="Разложить проект по папкам" subtitle="Видео, Музыка, SFX, Голос, Графика, Секвенции" status={status}>
       {plan ? (
         <div className="plan">
           {plan.byBin.length === 0 ? (

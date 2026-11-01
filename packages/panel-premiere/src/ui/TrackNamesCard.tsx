@@ -5,7 +5,7 @@ import { Button } from "./Button.tsx";
 import { Icon } from "./Icon.tsx";
 
 /** «Подписать дорожки»: анализ → сводка «было → станет» → применить (один Ctrl+Z). */
-export function TrackNamesCard() {
+export function TrackNamesCard({ bare }: { bare?: boolean } = {}) {
   const [plan, setPlan] = useState<TrackPlanItem[] | null>(null);
   const [status, setStatus] = useState<{ tone: "ok" | "error" | "info"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,7 +42,7 @@ export function TrackNamesCard() {
 
   return (
     <div className="hero-card">
-      <div className="hero-head">
+      {bare ? null : <div className="hero-head">
         <div className="hero-icon">
           <Icon name="tasks" size={18} />
         </div>
@@ -50,7 +50,7 @@ export function TrackNamesCard() {
           <div className="row-label">Подписать дорожки</div>
           <div className="row-sublabel">Голос, Музыка, SFX, Видео, Графика — по тому, что на них лежит</div>
         </div>
-      </div>
+      </div>}
       {status ? <div className={`result${status.tone === "ok" ? " result-ok" : status.tone === "error" ? " result-error" : ""}`}>{status.text}</div> : null}
       {plan && plan.length ? (
         <div className="plan">
