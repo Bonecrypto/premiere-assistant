@@ -1452,3 +1452,288 @@ code {
 .anim-try {
   margin: 0 6px;
 }
+
+/* ═════════ «Пресеты»: список → детали ═════════ */
+.pv {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pv-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+.pv-side {
+  width: 36%;
+  min-width: 130px;
+  max-width: 220px;
+  overflow-y: auto;
+  border-right: 1px solid var(--separator);
+  padding: 6px 6px 10px 6px;
+  background-color: #141118;
+}
+.pv-group {
+  color: var(--label-3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 10px 8px 4px 8px;
+}
+.pv-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 6px 8px;
+  border-radius: 8px;
+  margin-bottom: 1px;
+  cursor: pointer;
+}
+.pv-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+.pv-item.is-active {
+  background-color: var(--accent);
+  background-image: var(--accent-gradient);
+}
+.pv-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 3px;
+  background-color: var(--accent-text);
+  margin: 6px 8px 0 0;
+}
+.pv-item.is-active .pv-dot {
+  background-color: #ffffff;
+}
+.pv-item-text {
+  flex: 1;
+  overflow: hidden;
+}
+.pv-item-title {
+  font-weight: 600;
+  color: var(--label);
+}
+.pv-item-sub {
+  color: var(--label-3);
+  font-size: 10px;
+  margin-top: 1px;
+}
+.pv-item.is-active .pv-item-sub {
+  color: rgba(255, 255, 255, 0.78);
+}
+.pv-detail {
+  flex: 1;
+  overflow-y: auto;
+}
+.pv-detail-inner {
+  padding: 10px 12px 14px 12px;
+}
+.pv-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.pv-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.pv-chip {
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--separator);
+  color: var(--label-2);
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+.pv-chip:hover {
+  color: var(--label);
+  border-color: var(--label-3);
+}
+.preview {
+  margin-bottom: 10px;
+}
+.preview-frame {
+  position: relative;
+  height: 130px;
+  border-radius: 12px;
+  background-color: #0d0b10;
+  border: 1px solid var(--separator);
+  overflow: hidden;
+}
+.preview-clip {
+  position: absolute;
+  border-radius: 8px;
+  background-color: var(--accent);
+  background-image: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview-clip-label {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 12px;
+}
+.preview-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  color: var(--label-2);
+  font-size: 10px;
+}
+.pv-card {
+  background-color: var(--bg-elevated);
+  border-radius: 12px;
+  padding: 6px 12px 10px 12px;
+}
+.pv-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 7px 0;
+}
+.pv-label {
+  color: var(--label);
+  font-weight: 500;
+}
+.pv-hint {
+  color: var(--label-3);
+  font-size: 10px;
+  margin-left: 6px;
+}
+.pv-seg {
+  min-width: 150px;
+}
+.pv-text {
+  color: var(--label-2);
+  line-height: 1.45;
+  padding: 6px 0;
+}
+.pv-align {
+  padding: 8px 0 0 0;
+  border-bottom-width: 0;
+}
+.pv-links {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 10px;
+}
+.pv-save {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.pv-save-input {
+  flex: 1;
+  margin-right: 8px;
+}
+.pv-delete {
+  margin-left: auto;
+  color: var(--red);
+}
+.pv-hint-block {
+  color: var(--label-3);
+  font-size: var(--fs-small);
+  margin-top: 8px;
+}
+.pv-footer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--separator);
+}
+.pv-footer-text {
+  flex: 1;
+  color: var(--label-3);
+  font-size: var(--fs-small);
+  margin-right: 10px;
+}
+.pv-footer-text.status-ok {
+  color: var(--green);
+}
+.pv-footer-text.status-error {
+  color: var(--red);
+}
+.pv-footer-text.status-busy {
+  color: var(--label-2);
+}
+.pv-apply {
+  border-radius: 14px;
+  padding: 6px 18px;
+}
+
+/* Ползунок */
+.slider {
+  padding: 7px 0;
+}
+.slider-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 7px;
+}
+.slider-label {
+  color: var(--label);
+  font-weight: 500;
+}
+.slider-value {
+  font-family: var(--font-mono);
+  color: var(--label);
+}
+.slider-unit {
+  color: var(--label-3);
+  font-family: var(--font-ui);
+  font-size: 10px;
+}
+.slider-track {
+  position: relative;
+  height: 16px;
+  cursor: pointer;
+}
+.slider-fill {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--accent);
+  background-image: var(--accent-gradient);
+}
+.slider-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--fill-strong);
+}
+.slider-knob {
+  position: absolute;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.pv-row-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+.pv-row-stack .pv-label {
+  margin-bottom: 6px;
+}
+.pv-row-stack .pv-seg {
+  min-width: 0;
+}

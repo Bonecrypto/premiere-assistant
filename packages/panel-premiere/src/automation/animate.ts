@@ -107,7 +107,13 @@ interface Key {
   value: number | { x: number; y: number };
 }
 
-export async function animateSelected(preset: AnimPreset, opt: AnimOptions): Promise<AnimResult> {
+export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions): Promise<AnimResult> {
+  const opt: AnimOptions = {
+    ...baseOpt,
+    ...(preset.easing ? { easing: preset.easing } : {}),
+    ...(typeof preset.blur === "boolean" ? { blur: preset.blur } : {}),
+    ...(preset.distance ? { distance: preset.distance } : {}),
+  };
   const p = ppro() as any;
   const { project, frame, items } = await selectedVideoItems();
   const matchName = await transformMatchName();

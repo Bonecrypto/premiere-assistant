@@ -23,6 +23,10 @@ export interface AnimPreset {
   duration?: number;
   /** Глиф для плитки. */
   glyph: string;
+  /** Свои значения общих настроек (для пользовательских пресетов). */
+  easing?: "bezier" | "linear";
+  blur?: boolean;
+  distance?: number;
   builtin?: boolean;
 }
 
