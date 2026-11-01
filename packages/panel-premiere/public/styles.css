@@ -1327,3 +1327,21 @@ code {
 .ai-status {
   margin-top: 0;
 }
+
+/* Обновления */
+.statusbar-update {
+  color: var(--accent-text);
+  font-weight: 600;
+  margin-left: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.update-row .row-label {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.update-status {
+  padding: 8px 12px 10px 12px;
+  color: var(--label-2);
+  font-size: var(--fs-small);
+}

@@ -1,6 +1,8 @@
 import type { HelloAckMsg } from "@pa/core";
 import type { AiMode, AiSettings } from "../agent/settings.ts";
 import { AiKeyCard } from "./AiKeyCard.tsx";
+import { UpdatesSection } from "./UpdatesSection.tsx";
+import type { UpdateInfo } from "../update/updater.ts";
 import { Segmented } from "./Segmented.tsx";
 import { useState } from "react";
 import { ACCENTS, applyAccent, savedAccent } from "../theme.ts";
@@ -8,7 +10,7 @@ import type { ConnectionStatus } from "../connection.ts";
 import { Button, IconTile } from "./Button.tsx";
 import { Row, Section } from "./Section.tsx";
 
-const PANEL_VERSION = "0.1.0";
+const PANEL_VERSION = __APP_VERSION__;
 
 export function SettingsView(props: {
   connection: ConnectionStatus;
@@ -20,6 +22,8 @@ export function SettingsView(props: {
   onShowOnboarding(): void;
   ai: AiSettings | null;
   onSaveAi(next: AiSettings): Promise<void>;
+  update: UpdateInfo | null;
+  onCheckUpdate(): Promise<string>;
 }) {
   const [value, setValue] = useState(String(props.port));
   const n = Number(value);
@@ -122,6 +126,8 @@ export function SettingsView(props: {
 
         </>
       ) : null}
+
+      <UpdatesSection update={props.update} onCheck={props.onCheckUpdate} onChanged={() => void props.onCheckUpdate()} />
 
       <Section title="Оформление">
         <div className="row">

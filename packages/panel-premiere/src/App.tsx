@@ -10,6 +10,7 @@ import { ChatView } from "./ui/ChatView.tsx";
 import { Composer } from "./ui/Composer.tsx";
 import { TopBar, health } from "./ui/Header.tsx";
 import { StatusBar } from "./ui/StatusBar.tsx";
+import { checkForUpdate, type UpdateInfo } from "./update/updater.ts";
 import { Onboarding } from "./ui/Onboarding.tsx";
 import { AutoView } from "./ui/AutoView.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
@@ -35,6 +36,23 @@ export function App() {
   const [sequence, setSequence] = useState<string | null>(null);
   const connRef = useRef<Transport | null>(null);
   const [ai, setAi] = useState<AiSettings | null>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+
+  const checkUpdate = useCallback(async (): Promise<string> => {
+    try {
+      const info = await checkForUpdate();
+      setUpdate(info);
+      return info ? `Доступна v${info.version}` : "У вас последняя версия.";
+    } catch (err) {
+      return `Не удалось проверить: ${(err as Error)?.message || err}`;
+    }
+  }, []);
+
+  // Проверка обновлений при запуске (тихо, через пару секунд).
+  useEffect(() => {
+    const t = setTimeout(() => void checkUpdate(), 3000);
+    return () => clearTimeout(t);
+  }, [checkUpdate]);
 
   useEffect(() => {
     void loadAiSettings().then(setAi);
@@ -210,9 +228,18 @@ export function App() {
           onShowOnboarding={() => setOnboarding(true)}
           ai={ai}
           onSaveAi={saveAi}
+          update={update}
+          onCheckUpdate={checkUpdate}
         />
       ) : null}
-      <StatusBar state={hs} helper={state.helper} sequence={sequence} onClick={() => setTab("settings")} />
+      <StatusBar
+        state={hs}
+        helper={state.helper}
+        sequence={sequence}
+        onClick={() => setTab("settings")}
+        update={update}
+        onUpdateClick={() => setTab("settings")}
+      />
     </div>
   );
 }

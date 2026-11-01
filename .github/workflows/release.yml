@@ -1,0 +1,63 @@
+# Сборка плагина и релиз после каждой правки в main.
+# Панель в Premiere сама находит новый релиз и обновляется одной кнопкой
+# (файл index.js из релиза). Для первой установки — premiere-assistant.ccx.
+name: Сборка и релиз плагина
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Проверка типов
+        run: npm run typecheck
+
+      - name: Номер версии
+        id: v
+        run: echo "version=0.2.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Сборка панели
+        env:
+          PANEL_VERSION: ${{ steps.v.outputs.version }}
+          PANEL_UPDATE_REPO: ${{ github.repository }}
+        run: npm run build:panel
+
+      - name: Версия в manifest и упаковка .ccx
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          node -e "const fs=require('fs');const f='packages/panel-premiere/dist/manifest.json';const m=JSON.parse(fs.readFileSync(f,'utf8'));m.version=process.env.VERSION;fs.writeFileSync(f,JSON.stringify(m,null,2))"
+          cd packages/panel-premiere/dist
+          zip -r -q ../../../premiere-assistant.ccx . -x '*.map'
+
+      - name: Релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+          NOTES: ${{ github.event.head_commit.message }}
+        run: |
+          gh release create "v$VERSION" \
+            premiere-assistant.ccx \
+            packages/panel-premiere/dist/index.js \
+            --title "v$VERSION" \
+            --notes "${NOTES:-Сборка $VERSION}"

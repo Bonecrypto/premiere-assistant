@@ -11,7 +11,8 @@
   "requiredPermissions": {
     "network": {
       "domains": "all"
-    }
+    },
+    "allowCodeGenerationFromStrings": true
   },
   "entrypoints": [
     {

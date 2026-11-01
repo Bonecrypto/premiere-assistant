@@ -102,7 +102,7 @@ export class EmbeddedTransport implements Transport {
     this.onMessage({
       type: "hello_ack",
       protocolVersion: PROTOCOL_VERSION,
-      helperVersion: "0.1.0",
+      helperVersion: (window as any).__paRunningVersion ?? __APP_VERSION__,
       model: provider.model,
       provider: PROVIDER_INFO[this.settings.provider].title,
       apiKeyVar: provider.apiKeyVar,

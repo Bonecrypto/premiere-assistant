@@ -1,7 +1,7 @@
 {
   "name": "@pa/panel-premiere",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "UXP-панель для Premiere Pro: чат, подтверждения, лог задач, host-инструменты",
   "type": "module",
   "scripts": {
