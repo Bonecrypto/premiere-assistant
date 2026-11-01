@@ -2154,3 +2154,121 @@ body,
   right: auto;
   left: 8px;
 }
+
+/* ── Поле ввода как в «Сообщениях»: пилюля, микрофон внутри ── */
+.composer {
+  border-top-width: 0;
+  padding: 6px 12px 12px 12px;
+}
+.composer-field {
+  align-items: flex-end;
+  min-height: 38px;
+  border-radius: 19px;
+  padding: 3px 4px 3px 14px;
+  background-color: #1c1b22;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.composer-field.is-recording {
+  border-color: rgba(255, 69, 58, 0.55);
+}
+.composer-input {
+  height: 28px;
+  min-height: 28px;
+  padding: 5px 0 5px 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+.round-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+.round-mic {
+  background-color: transparent;
+  opacity: 0.7;
+}
+.round-mic:hover,
+.round-mic.is-active {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.round-ghost {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--label-2);
+  font-size: 12px;
+}
+.voice-live {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 28px;
+}
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: #ff453a;
+  margin-right: 8px;
+}
+.voice-live-text {
+  color: var(--label);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.voice-pop {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  padding: 10px 10px 10px 10px;
+  border-radius: 16px;
+  background-color: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.voice-pop-error {
+  cursor: pointer;
+}
+.voice-pop-error .voice-pop-sub {
+  color: #ff6961;
+}
+.voice-pop-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+.voice-pop-text {
+  flex: 1;
+  min-width: 0;
+}
+.voice-pop-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--label);
+  margin-bottom: 2px;
+}
+.voice-pop-sub {
+  font-size: 11px;
+  color: var(--label-2);
+}
+.voice-pop-close {
+  color: var(--label-3);
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.kbd {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--label);
+  font-weight: 600;
+  font-size: 10px;
+}
