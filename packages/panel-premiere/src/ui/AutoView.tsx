@@ -7,6 +7,7 @@ import { loadRules, onRulesChange, resetRules, saveRules, type CategoryId, type 
 import { Badge, Button } from "./Button.tsx";
 import { Icon } from "./Icon.tsx";
 import { Section } from "./Section.tsx";
+import { TrackNamesCard } from "./TrackNamesCard.tsx";
 
 type Phase =
   | { kind: "idle" }
@@ -113,6 +114,10 @@ export function AutoView() {
               />
             ) : null}
           </div>
+        </Section>
+
+        <Section title="Дорожки" plain>
+          <TrackNamesCard />
         </Section>
 
         <Section

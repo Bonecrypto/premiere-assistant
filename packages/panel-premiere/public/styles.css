@@ -1350,3 +1350,17 @@ code {
   max-height: 320px;
   user-select: text;
 }
+.track-id {
+  width: 26px;
+}
+.track-old {
+  color: var(--label-2);
+  margin-left: 0;
+}
+.track-new {
+  color: var(--label);
+  font-weight: 600;
+}
+.track-same {
+  color: var(--label-3);
+}
