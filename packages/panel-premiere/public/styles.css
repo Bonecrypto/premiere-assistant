@@ -1345,3 +1345,8 @@ code {
   color: var(--label-2);
   font-size: var(--fs-small);
 }
+.diag-block {
+  margin: 0 12px 12px 12px;
+  max-height: 320px;
+  user-select: text;
+}

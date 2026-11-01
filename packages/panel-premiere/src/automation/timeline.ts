@@ -35,15 +35,31 @@ export function ppro() {
   return p;
 }
 
-/** Номер метки из API → ключ («ROSE»). Значения берём из Constants, а не угадываем. */
+/**
+ * Таблица «ключ метки → номер». В Premiere 16 меток (Caribbean — третья), а в Constants.ProjectItemColorLabel
+ * Caribbean может отсутствовать — тогда номера после Iris сдвинуты на один (проверено на Premiere 26.3:
+ * «Cerulean» красил в Lavender, «Mango» — в Rose). Если Caribbean в API нет и номера идут подряд 0…14,
+ * используем настоящий порядок Premiere; иначе — значения из API.
+ */
+export function labelTable(): { table: Record<string, number>; corrected: boolean } {
+  const consts = (ppro().Constants as unknown as { ProjectItemColorLabel?: Record<string, number> }).ProjectItemColorLabel ?? {};
+  if (typeof consts.CARIBBEAN === "number") return { table: consts, corrected: false };
+  const apiKeys = LABEL_KEYS.filter((k) => k !== "CARIBBEAN");
+  const sequential = apiKeys.every((k, i) => consts[k] === i);
+  if (sequential || Object.keys(consts).length === 0) {
+    return { table: Object.fromEntries(LABEL_KEYS.map((k, i) => [k, i])), corrected: true };
+  }
+  return { table: consts, corrected: false };
+}
+
+/** Номер метки → ключ («ROSE»). */
 export function labelKeyFromIndex(index: number): LabelKey | null {
-  const consts = (ppro().Constants as unknown as { ProjectItemColorLabel: Record<string, number> }).ProjectItemColorLabel;
-  return LABEL_KEYS.find((k) => consts[k] === index) ?? null;
+  const { table } = labelTable();
+  return LABEL_KEYS.find((k) => table[k] === index) ?? null;
 }
 
 export function labelIndexFromKey(key: LabelKey): number {
-  const consts = (ppro().Constants as unknown as { ProjectItemColorLabel: Record<string, number> }).ProjectItemColorLabel;
-  const v = consts[key];
+  const v = labelTable().table[key];
   if (typeof v !== "number") throw new HostToolError(`Цвет ${key} не поддерживается этой версией Premiere.`);
   return v;
 }

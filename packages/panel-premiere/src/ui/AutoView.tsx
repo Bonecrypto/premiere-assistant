@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { applyPlan, planColoring, type PlanWithRefs } from "../automation/coloring.ts";
 import { selectCategory } from "../automation/select.ts";
+import { diagnoseLabels } from "../automation/diagnose.ts";
 import { LABEL_KEYS, LABELS, type LabelKey } from "../automation/labels.ts";
 import { loadRules, onRulesChange, resetRules, saveRules, type CategoryId, type ColorRules } from "../automation/rules.ts";
 import { Badge, Button } from "./Button.tsx";
@@ -27,6 +28,16 @@ export function AutoView() {
   const [rules, setRules] = useState<ColorRules>(loadRules);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [editing, setEditing] = useState<CategoryId | null>(null);
+  const [diag, setDiag] = useState<string | null>(null);
+
+  const runDiag = async () => {
+    setDiag("Собираю данные…");
+    try {
+      setDiag(await diagnoseLabels());
+    } catch (err) {
+      setDiag(`Ошибка: ${(err as Error)?.message || err}`);
+    }
+  };
 
   // Правила могут поменяться из чата (ассистент «доучивает») — обновляем экран.
   useEffect(() => onRulesChange(setRules), []);
@@ -193,6 +204,20 @@ export function AutoView() {
               ))}
             </div>
           ) : null}
+        </Section>
+
+        <Section
+          title="Диагностика цветов"
+          collapsible
+          defaultOpen={false}
+          footer="Показывает, какие номера цветов отдаёт ваш Premiere и какой номер стоит у каждого файла. Пришлите скриншот — по нему проверим, что цвета сопоставлены правильно."
+        >
+          <div className="group-actions">
+            <Button variant="secondary" className="wide" onClick={runDiag}>
+              Запустить диагностику
+            </Button>
+          </div>
+          {diag ? <pre className="code-block diag-block">{diag}</pre> : null}
         </Section>
 
         <Section title="Скоро" collapsible aside={<Badge tone="accent">Этап 2–3</Badge>} plain>
