@@ -1768,8 +1768,8 @@ code {
   --separator: rgba(255, 255, 255, 0.07);
   --label-2: rgba(235, 235, 245, 0.62);
   --label-3: rgba(235, 235, 245, 0.34);
-  --font-ui: "SF Pro Text", "SF Pro", "SF Pro Display", "Inter", "Inter Variable", "Segoe UI Variable Text", "Segoe UI";
-  --font-display: "SF Pro Display", "SF Pro", "Inter Display", "Inter", "Inter Variable", "Segoe UI Variable Display", "Segoe UI";
+  --font-ui: "SF Pro Text", "SF Pro", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Inter", "Inter Variable", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --font-display: "SF Pro Display", "SF Pro", -apple-system, BlinkMacSystemFont, "Inter Display", "Inter", "Inter Variable", "Segoe UI Variable Display", "Segoe UI", sans-serif;
 }
 body,
 .composer-input,
@@ -2033,4 +2033,124 @@ body,
 .preview-frame {
   border-radius: 18px;
   background-color: #000000;
+}
+
+/* ── Цифры шрифтом интерфейса (Consolas выглядел «по-виндовому») ── */
+.slider-value,
+.plan-count {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.slider-label,
+.pv-label {
+  font-weight: 500;
+}
+
+/* ── Библиотека анимаций ── */
+.lib-search {
+  margin-bottom: 8px;
+}
+.lib-chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.lib-chip {
+  padding: 4px 10px;
+  margin: 0 6px 6px 0;
+  border-radius: 999px;
+  background-color: var(--bg-elevated);
+  color: var(--label-2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lib-chip:hover {
+  color: var(--label);
+}
+.lib-chip.is-active {
+  background-color: var(--accent);
+  background-image: var(--accent-gradient);
+  color: #ffffff;
+}
+.lib-row {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 8px;
+}
+.lib-card {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px;
+  border-radius: 16px;
+  background-color: var(--bg-elevated);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+}
+.lib-card + .lib-card {
+  margin-left: 8px;
+}
+.lib-card:hover {
+  border-color: var(--separator);
+}
+.lib-card.is-active {
+  border-color: var(--accent);
+}
+.lib-card-empty {
+  background-color: transparent;
+  cursor: default;
+}
+.lib-card-empty:hover {
+  border-color: transparent;
+}
+.preview-mini {
+  margin-bottom: 6px;
+}
+.preview-mini .preview-frame {
+  height: 64px;
+  border-radius: 11px;
+}
+.preview-mini .preview-clip {
+  border-radius: 4px;
+}
+.lib-card-foot {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 0 2px 2px 4px;
+}
+.lib-card-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.lib-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label);
+  margin-bottom: 1px;
+}
+.lib-card-sub {
+  font-size: 10px;
+  color: var(--label-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lib-star {
+  font-size: 14px;
+  color: var(--label-3);
+  padding: 0 2px;
+  cursor: pointer;
+}
+.lib-star:hover {
+  color: var(--label);
+}
+.lib-star.is-on {
+  color: #ffcc00;
+}
+.preview-badge-left {
+  right: auto;
+  left: 8px;
 }

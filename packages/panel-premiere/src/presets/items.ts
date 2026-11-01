@@ -3,7 +3,21 @@ import type { AnimKind } from "./animations.ts";
 
 /** Пункты вкладки «Пресеты»: список слева, детали справа. */
 
-export type AnimField = "when" | "whenWhole" | "side" | "distance" | "scale" | "rotation" | "fade" | "duration" | "easing" | "blur";
+export type AnimField =
+  | "when"
+  | "whenWhole"
+  | "whenBoth"
+  | "side"
+  | "distance"
+  | "scale"
+  | "rotation"
+  | "fade"
+  | "duration"
+  | "easing"
+  | "blur"
+  | "bounce"
+  | "gblur"
+  | "shake";
 
 export interface AnimParams {
   kind: AnimKind;
@@ -16,6 +30,14 @@ export interface AnimParams {
   duration: number;
   easing: "bezier" | "linear";
   blur: boolean;
+  /** «Пружина», % пути. */
+  overshoot: number;
+  /** Размытие Gaussian Blur в крайней точке. */
+  blurAmt: number;
+  /** Тряска, % кадра. */
+  shake: number;
+  /** Для «вход + выход»: выход в другую сторону. */
+  through: boolean;
 }
 
 export interface AnimItem {
@@ -36,7 +58,9 @@ export interface FrameItem {
   details: string;
 }
 
-const base: AnimParams = { kind: "out", dx: 1, dy: 0, distance: 100, scale: 100, rotation: 0, fade: false, duration: 0.3, easing: "bezier", blur: true };
+export const ALL_FIELDS: AnimField[] = ["whenWhole", "whenBoth", "side", "distance", "scale", "rotation", "fade", "bounce", "gblur", "shake", "duration", "easing", "blur"];
+
+const base: AnimParams = { kind: "out", dx: 1, dy: 0, distance: 100, scale: 100, rotation: 0, fade: false, duration: 0.3, easing: "bezier", blur: true, overshoot: 0, blurAmt: 0, shake: 0, through: false };
 
 export const ANIM_ITEMS: AnimItem[] = [
   {
@@ -44,7 +68,7 @@ export const ANIM_ITEMS: AnimItem[] = [
     id: "slide",
     title: "Сдвиг",
     subtitle: "Влёт и улёт за край кадра",
-    fields: ["when", "side", "distance", "duration", "easing", "blur"],
+    fields: ["whenBoth", "side", "distance", "bounce", "gblur", "duration", "easing", "blur"],
     defaults: { ...base },
   },
   {
@@ -52,7 +76,7 @@ export const ANIM_ITEMS: AnimItem[] = [
     id: "zoom",
     title: "Масштаб",
     subtitle: "Наезд, отъезд, «поп»",
-    fields: ["whenWhole", "scale", "duration", "easing", "blur"],
+    fields: ["whenWhole", "scale", "bounce", "gblur", "duration", "easing", "blur"],
     defaults: { ...base, kind: "whole", dx: 0, scale: 115, duration: 0.4 },
   },
   {
@@ -60,7 +84,7 @@ export const ANIM_ITEMS: AnimItem[] = [
     id: "fade",
     title: "Растворение",
     subtitle: "Появление и исчезновение",
-    fields: ["when", "duration", "easing"],
+    fields: ["whenBoth", "gblur", "duration", "easing"],
     defaults: { ...base, kind: "in", dx: 0, fade: true, blur: false, duration: 0.5 },
   },
   {
@@ -68,7 +92,7 @@ export const ANIM_ITEMS: AnimItem[] = [
     id: "spin",
     title: "Поворот",
     subtitle: "Влёт или улёт с поворотом",
-    fields: ["when", "rotation", "scale", "fade", "duration", "easing", "blur"],
+    fields: ["whenBoth", "rotation", "scale", "fade", "bounce", "duration", "easing", "blur"],
     defaults: { ...base, kind: "in", dx: 0, rotation: 90, scale: 60, fade: true, duration: 0.4 },
   },
   {
@@ -76,8 +100,16 @@ export const ANIM_ITEMS: AnimItem[] = [
     id: "custom",
     title: "Свободная",
     subtitle: "Все настройки — соберите свою",
-    fields: ["whenWhole", "side", "distance", "scale", "rotation", "fade", "duration", "easing", "blur"],
+    fields: ALL_FIELDS,
     defaults: { ...base, rotation: 0 },
+  },
+  {
+    type: "anim",
+    id: "shake",
+    title: "Тряска",
+    subtitle: "Удар, землетрясение",
+    fields: ["whenWhole", "shake", "duration", "blur"],
+    defaults: { ...base, kind: "in", dx: 0, shake: 3, duration: 0.45, easing: "linear" },
   },
 ];
 
@@ -93,6 +125,7 @@ export const FRAME_ITEMS: FrameItem[] = [
 
 /** Глиф для пункта «Мои» по направлению. */
 export function glyphFor(p: AnimParams): string {
+  if (p.shake) return "≋";
   if (p.dx || p.dy) {
     const g: Record<string, string> = { "-1,0": "←", "1,0": "→", "0,-1": "↑", "0,1": "↓", "-1,-1": "↖", "1,-1": "↗", "-1,1": "↙", "1,1": "↘" };
     return g[`${p.dx},${p.dy}`] ?? "•";

@@ -10,7 +10,7 @@ export function Slider(props: {
   min: number;
   max: number;
   step: number;
-  unit: string;
+  unit?: string;
   format?: (v: number) => string;
   onChange(v: number): void;
 }) {
@@ -46,7 +46,7 @@ export function Slider(props: {
         <div className="spacer" />
         <span className="slider-value">
           {props.format ? props.format(props.value) : props.value}
-          <span className="slider-unit"> {props.unit}</span>
+          {props.unit && props.value !== 0 ? <span className="slider-unit"> {props.unit}</span> : null}
         </span>
       </div>
       <div className="slider-track" ref={trackRef} onMouseDown={onDown}>

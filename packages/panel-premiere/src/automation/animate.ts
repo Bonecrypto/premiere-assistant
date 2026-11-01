@@ -104,8 +104,42 @@ function run(project: any, title: string, fill: (compound: any) => void): void {
 interface Key {
   param: P;
   seconds: number;
-  value: number | { x: number; y: number };
+  value: Val;
 }
+
+const GBLUR_NAMES = {
+  amount: ["blurriness", "размытость", "размытие", "степень размытия"],
+  repeat: ["repeat edge pixels", "повторять краевые пиксели", "повторять пиксели краев"],
+};
+
+async function gaussianMatchName(): Promise<string | null> {
+  const names: string[] = await (ppro() as any).VideoFilterFactory.getMatchNames();
+  return names.find((n) => n === "AE.ADBE Gaussian Blur 2") ?? names.find((n) => /gaussian/i.test(n)) ?? null;
+}
+
+function pickByName(comp: any, names: string[], index: number): P | null {
+  const n: number = comp.getParamCount();
+  const list: P[] = [];
+  for (let i = 0; i < n; i++) list.push(comp.getParam(i));
+  return list.find((p) => names.includes(String(p.displayName ?? "").trim().toLowerCase())) ?? list[index] ?? null;
+}
+
+type Val = number | { x: number; y: number };
+const lerp = (a: Val, b: Val, t: number): Val =>
+  typeof a === "number" ? a + ((b as number) - a) * t : { x: a.x + ((b as any).x - a.x) * t, y: a.y + ((b as any).y - a.y) * t };
+
+/** Отрезок анимации: в extremeAt — «крайнее» состояние, в normalAt — обычное. */
+interface Segment {
+  extremeAt: number;
+  normalAt: number;
+  /** -1 — выход в противоположную сторону (проезд). */
+  sign: 1 | -1;
+}
+
+/** Псевдослучайные, но повторяемые смещения для тряски. */
+const SHAKE = [
+  [1, -0.6], [-0.8, 0.9], [0.5, 0.7], [-1, -0.3], [0.7, -1], [-0.4, 0.8], [0.9, 0.2], [-0.6, -0.9], [0.3, 1], [-0.9, 0.4],
+];
 
 export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions): Promise<AnimResult> {
   const opt: AnimOptions = {
@@ -117,17 +151,23 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
   const p = ppro() as any;
   const { project, frame, items } = await selectedVideoItems();
   const matchName = await transformMatchName();
+  const blurAmt = Math.max(0, preset.blurAmt ?? 0);
+  const gName = blurAmt > 0 ? await gaussianMatchName() : null;
+  if (blurAmt > 0 && !gName) throw new HostToolError("В этой версии Premiere не нашёл эффект Gaussian Blur.");
   const skipped: AnimResult["skipped"] = [];
 
-  // 1. Добавить Transform тем клипам, у кого его нет.
+  // 1. Добавить Transform (и Gaussian Blur для размытия) тем клипам, у кого их нет.
   const toAppend: Array<{ chain: any; component: any }> = [];
   for (const item of items) {
     if (!(await findTransform(item, matchName))) {
       toAppend.push({ chain: await item.getComponentChain(), component: await p.VideoFilterFactory.createComponent(matchName) });
     }
+    if (gName && !(await findTransform(item, gName))) {
+      toAppend.push({ chain: await item.getComponentChain(), component: await p.VideoFilterFactory.createComponent(gName) });
+    }
   }
   if (toAppend.length) {
-    run(project, "Ассистент: эффект Transform", (c) => {
+    run(project, gName ? "Ассистент: эффекты Transform и Gaussian Blur" : "Ассистент: эффект Transform", (c) => {
       for (const a of toAppend) c.addAction(a.chain.createAppendComponentAction(a.component));
     });
   }
@@ -136,9 +176,12 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
   const keys: Key[] = [];
   const timeVarying = new Set<P>();
   const staticSets: Array<{ param: P; value: number | boolean }> = [];
+  const linearKeys = new Set<Key>();
   const W = frame.w;
   const H = frame.h;
   const dist = (opt.distance || 100) / 100;
+  const over = Math.max(0, Math.min(60, preset.overshoot ?? 0)) / 100;
+  const shake = Math.max(0, preset.shake ?? 0) / 100;
   let changed = 0;
 
   for (const item of items) {
@@ -161,13 +204,21 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
       skipped.push({ name, why: "слишком короткий клип" });
       continue;
     }
-    const d = Math.min(preset.duration ?? opt.duration, preset.kind === "whole" ? len : len / 2);
     const endS = outS - Math.min(0.01, len / 100);
-    // Две точки анимации: «крайняя» (сдвиг/масштаб/прозрачность) и «обычная».
-    const [tA, tB] = preset.kind === "in" ? [inS, inS + d] : preset.kind === "out" ? [endS - d, endS] : [inS, endS];
-    const extremeAt = preset.kind === "in" ? tA : tB;
-    const normalAt = preset.kind === "in" ? tB : tA;
-    const tNormal = p.TickTime.createWithSeconds(normalAt);
+    const want = preset.duration ?? opt.duration;
+    const d = Math.min(want, preset.kind === "whole" ? len : preset.kind === "both" ? len / 2.2 : len / 2);
+    const segs: Segment[] =
+      preset.kind === "in"
+        ? [{ extremeAt: inS, normalAt: inS + d, sign: 1 }]
+        : preset.kind === "out"
+          ? [{ extremeAt: endS, normalAt: endS - d, sign: 1 }]
+          : preset.kind === "whole"
+            ? [{ extremeAt: endS, normalAt: inS, sign: 1 }]
+            : [
+                { extremeAt: inS, normalAt: inS + d, sign: 1 },
+                { extremeAt: endS, normalAt: endS - d, sign: preset.through ? -1 : 1 },
+              ];
+    const tNormal = p.TickTime.createWithSeconds(segs[0].normalAt);
 
     const pos = pointOf(await valueAt(prm.position, tNormal));
     if (!pos) {
@@ -175,28 +226,70 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
       continue;
     }
     const norm = Math.abs(pos.x) <= 2 && Math.abs(pos.y) <= 2;
-    const shift = { x: preset.dx * W * dist, y: preset.dy * H * dist };
-    const target = norm ? { x: pos.x + shift.x / W, y: pos.y + shift.y / H } : { x: pos.x + shift.x, y: pos.y + shift.y };
+    const toUnits = (px: number, py: number) => (norm ? { x: px / W, y: py / H } : { x: px, y: py });
 
-    const add = (param: P | null, normal: number | { x: number; y: number }, extreme: number | { x: number; y: number }) => {
+    /** Ключи свойства: обычное значение, крайнее (по знаку отрезка), перелёт для «пружины». */
+    const add = (param: P | null, normal: Val, extreme: (sign: 1 | -1) => Val, canOvershoot: boolean) => {
       if (!param) return;
       timeVarying.add(param);
-      keys.push({ param, seconds: normalAt, value: normal });
-      keys.push({ param, seconds: extremeAt, value: extreme });
+      for (const s of segs) {
+        const ext = extreme(s.sign);
+        keys.push({ param, seconds: s.normalAt, value: normal });
+        keys.push({ param, seconds: s.extremeAt, value: ext });
+        if (canOvershoot && over > 0) {
+          // Перелёт (на входе) или замах (на выходе) — ближе к обычной точке.
+          keys.push({ param, seconds: s.extremeAt + (s.normalAt - s.extremeAt) * 0.72, value: lerp(normal, ext, -over) });
+        }
+      }
     };
 
-    if (preset.dx || preset.dy) add(prm.position, pos, target);
+    if (shake > 0) {
+      // Тряска: частые ключи Position с затуханием (на входе) или нарастанием (на выходе).
+      timeVarying.add(prm.position);
+      const step = 1 / 24;
+      const [t0, t1] = preset.kind === "out" ? [endS - d, endS] : preset.kind === "whole" ? [inS, endS] : [inS, inS + d];
+      const n = Math.max(3, Math.min(60, Math.floor((t1 - t0) / step)));
+      for (let i = 0; i <= n; i++) {
+        const t = t0 + ((t1 - t0) * i) / n;
+        const life = preset.kind === "out" ? i / n : preset.kind === "whole" ? 1 : 1 - i / n;
+        const edge = (preset.kind === "out" && i === 0) || (preset.kind !== "out" && preset.kind !== "whole" && i === n);
+        const [sx, sy] = SHAKE[i % SHAKE.length];
+        const off = edge ? { x: 0, y: 0 } : toUnits(sx * shake * W * life, sy * shake * H * life);
+        const k: Key = { param: prm.position, seconds: t, value: { x: pos.x + off.x, y: pos.y + off.y } };
+        keys.push(k);
+        linearKeys.add(k);
+      }
+    } else if (preset.dx || preset.dy) {
+      add(
+        prm.position,
+        pos,
+        (sign) => {
+          const u = toUnits(preset.dx * W * dist * sign, preset.dy * H * dist * sign);
+          return { x: pos.x + u.x, y: pos.y + u.y };
+        },
+        true,
+      );
+    }
     if (preset.scale !== 100) {
-      const s = numberOf(await valueAt(prm.scale, tNormal)) ?? 100;
-      add(prm.scale, s, (s * preset.scale) / 100);
+      const sc = numberOf(await valueAt(prm.scale, tNormal)) ?? 100;
+      add(prm.scale, sc, () => (sc * preset.scale) / 100, true);
     }
     if (preset.rotation) {
       const r = prm.rotation ? numberOf(await valueAt(prm.rotation, tNormal)) ?? 0 : 0;
-      add(prm.rotation, r, r + preset.rotation);
+      add(prm.rotation, r, (sign) => r + preset.rotation * sign, true);
     }
     if (preset.fade) {
       const o = prm.opacity ? numberOf(await valueAt(prm.opacity, tNormal)) ?? 100 : 100;
-      add(prm.opacity, o, 0);
+      add(prm.opacity, o, () => 0, false);
+    }
+    if (gName) {
+      const g = await findTransform(item, gName);
+      const amount = g ? pickByName(g, GBLUR_NAMES.amount, 0) : null;
+      if (amount) {
+        add(amount, 0, () => blurAmt, false);
+        const rep = pickByName(g, GBLUR_NAMES.repeat, 2);
+        if (rep) staticSets.push({ param: rep, value: true });
+      } else skipped.push({ name, why: "не нашёл параметр размытия" });
     }
     if (opt.blur) {
       if (prm.useComp) staticSets.push({ param: prm.useComp, value: false });
@@ -232,13 +325,16 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
     }
   });
 
-  // 5. Плавность (Bezier) или линейно.
+  // 5. Плавность (Bezier) или линейно; тряска — всегда линейно.
   const modes = p.Constants?.InterpolationMode ?? {};
   const mode = opt.easing === "bezier" ? modes.BEZIER : modes.LINEAR;
   if (typeof mode === "number") {
     try {
       run(project, "Ассистент: плавность", (c) => {
-        for (const k of keys) c.addAction(k.param.createSetInterpolationAtKeyframeAction(p.TickTime.createWithSeconds(k.seconds), mode, true));
+        for (const k of keys) {
+          const m = linearKeys.has(k) && typeof modes.LINEAR === "number" ? modes.LINEAR : mode;
+          c.addAction(k.param.createSetInterpolationAtKeyframeAction(p.TickTime.createWithSeconds(k.seconds), m, true));
+        }
       });
     } catch {
       /* плавность — не критично */

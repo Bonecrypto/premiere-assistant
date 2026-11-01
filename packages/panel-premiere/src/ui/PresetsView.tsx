@@ -6,7 +6,8 @@ import { ppro } from "../automation/timeline.ts";
 import { isUXP, storageGet, storageSet } from "../env.ts";
 import { loadAnimOptions, loadUserAnims, saveUserAnims, type AnimPreset } from "../presets/animations.ts";
 import { ALIGN_GRID, SAFE_MARGINS, type AlignAnchor, type SafeMargin } from "../presets/catalog.ts";
-import { ANIM_ITEMS, FRAME_ITEMS, glyphFor, type AnimField, type AnimItem, type AnimParams, type FrameItem } from "../presets/items.ts";
+import { ALL_FIELDS, ANIM_ITEMS, FRAME_ITEMS, glyphFor, type AnimField, type AnimItem, type AnimParams, type FrameItem } from "../presets/items.ts";
+import { LIB_CATEGORIES, LIBRARY, loadFavorites, saveFavorites } from "../presets/library.ts";
 import { AnimPreview } from "./AnimPreview.tsx";
 import { Button } from "./Button.tsx";
 import { Segmented } from "./Segmented.tsx";
@@ -16,6 +17,7 @@ type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
 
 /** Выбранный пункт: встроенная анимация, своя анимация или действие с кадром. */
 type Selected =
+  | { kind: "lib"; id: string }
   | { kind: "anim"; id: string }
   | { kind: "user"; id: string }
   | { kind: "frame"; id: string }
@@ -31,7 +33,7 @@ function loadSelected(): Selected {
   } catch {
     /* по умолчанию */
   }
-  return { kind: "anim", id: "slide" };
+  return { kind: "lib", id: "all" };
 }
 
 function loadParams(item: AnimItem): AnimParams {
@@ -59,6 +61,10 @@ function toPreset(name: string, p: AnimParams, id = "custom"): AnimPreset {
     easing: p.easing,
     blur: p.blur,
     distance: p.distance,
+    overshoot: p.overshoot,
+    blurAmt: p.blurAmt,
+    shake: p.shake,
+    through: p.through,
     glyph: glyphFor(p),
   };
 }
@@ -76,6 +82,10 @@ function fromPreset(a: AnimPreset): AnimParams {
     duration: a.duration ?? o.duration,
     easing: a.easing ?? o.easing,
     blur: a.blur ?? o.blur,
+    overshoot: a.overshoot ?? 0,
+    blurAmt: a.blurAmt ?? 0,
+    shake: a.shake ?? 0,
+    through: Boolean(a.through),
   };
 }
 
@@ -158,7 +168,14 @@ export function PresetsView() {
     <div className="pv">
       <div className="pv-body">
         <div className="pv-side">
-          <div className="pv-group">Анимация</div>
+          <div className="pv-group">Библиотека</div>
+          <SideItem
+            title="Готовые"
+            subtitle={`${LIBRARY.length} анимаций`}
+            active={selected.kind === "lib"}
+            onClick={() => select({ kind: "lib", id: "all" })}
+          />
+          <div className="pv-group">Настроить</div>
           {ANIM_ITEMS.map((i) => (
             <SideItem
               key={i.id}
@@ -173,7 +190,7 @@ export function PresetsView() {
             <SideItem
               key={u.id}
               title={u.name}
-              subtitle={u.kind === "in" ? "Вход" : u.kind === "out" ? "Выход" : "Весь клип"}
+              subtitle={KIND_LABEL[u.kind]}
               active={selected.kind === "user" && selected.id === u.id}
               onClick={() => select({ kind: "user", id: u.id })}
             />
@@ -207,6 +224,16 @@ export function PresetsView() {
         </div>
 
         <div className="pv-detail">
+          {selected.kind === "lib" ? (
+            <LibraryDetail
+              setAction={setAction}
+              onCustomize={(a) => {
+                const preset = { ...a, id: `u${Date.now().toString(36)}`, name: `${a.name} — моя`, builtin: false, category: undefined };
+                saveUser([...user, preset]);
+                select({ kind: "user", id: preset.id });
+              }}
+            />
+          ) : null}
           {animItem ? (
             <AnimDetail
               key={animItem.id}
@@ -226,13 +253,13 @@ export function PresetsView() {
             <AnimDetail
               key={userItem.id}
               title={userItem.name}
-              fields={["whenWhole", "side", "distance", "scale", "rotation", "fade", "duration", "easing", "blur"]}
+              fields={ALL_FIELDS}
               initial={fromPreset(userItem)}
               onParams={(p) => saveUser(user.map((u) => (u.id === userItem.id ? toPreset(u.name, p, u.id) : u)))}
               setAction={setAction}
               onDelete={() => {
                 saveUser(user.filter((u) => u.id !== userItem.id));
-                select({ kind: "anim", id: "slide" });
+                select({ kind: "lib", id: "all" });
               }}
             />
           ) : null}
@@ -292,6 +319,8 @@ function SideItem(props: { title: string; subtitle: string; active: boolean; onC
   );
 }
 
+const KIND_LABEL: Record<AnimParams["kind"], string> = { in: "Вход", out: "Выход", whole: "Весь клип", both: "Вход + выход" };
+
 const SIDES = [
   { id: "l", dx: -1, dy: 0, in: "Слева", out: "Влево" },
   { id: "r", dx: 1, dy: 0, in: "Справа", out: "Вправо" },
@@ -345,7 +374,7 @@ function AnimDetail(props: {
       <AnimPreview params={p} replayKey={replay} />
 
       <div className="pv-card">
-        {has("when") || has("whenWhole") ? (
+        {has("when") || has("whenWhole") || has("whenBoth") ? (
           <div className="pv-row pv-row-stack">
             <span className="pv-label">Когда</span>
             <Segmented<string>
@@ -353,7 +382,8 @@ function AnimDetail(props: {
               items={[
                 { id: "in", label: "Вход" },
                 { id: "out", label: "Выход" },
-                ...(has("whenWhole") ? [{ id: "whole", label: "Весь клип" }] : []),
+                ...(has("whenBoth") ? [{ id: "both", label: has("whenWhole") ? "Оба" : "Вход+выход" }] : []),
+                ...(has("whenWhole") ? [{ id: "whole", label: has("whenBoth") ? "Весь" : "Весь клип" }] : []),
               ]}
               value={p.kind}
               onChange={(k) => update({ kind: k as AnimParams["kind"] })}
@@ -367,7 +397,7 @@ function AnimDetail(props: {
               className="segmented-small pv-seg"
               items={[
                 ...(props.fields.includes("scale") ? [{ id: "none", label: "Нет" }] : []),
-                ...SIDES.map((s) => ({ id: s.id, label: p.kind === "in" ? s.in : s.out })),
+                ...SIDES.map((s) => ({ id: s.id, label: p.kind === "in" || p.kind === "both" ? s.in : s.out })),
               ]}
               value={side}
               onChange={(id) => {
@@ -396,6 +426,24 @@ function AnimDetail(props: {
         ) : null}
         {has("rotation") ? (
           <Slider label="Поворот" value={p.rotation} min={-360} max={360} step={15} unit="°" onChange={(v) => update({ rotation: v })} />
+        ) : null}
+        {has("bounce") && !p.shake ? (
+          <Slider label="Пружина" value={p.overshoot} min={0} max={40} step={1} unit="%" format={(v) => (v ? String(v) : "нет")} onChange={(v) => update({ overshoot: v })} />
+        ) : null}
+        {has("gblur") ? (
+          <Slider label="Размытие" value={p.blurAmt} min={0} max={100} step={5} format={(v) => (v ? String(v) : "нет")} onChange={(v) => update({ blurAmt: v })} />
+        ) : null}
+        {has("shake") ? (
+          <Slider label="Тряска" value={p.shake} min={0} max={10} step={0.5} unit="% кадра" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => update({ shake: v })} />
+        ) : null}
+        {p.kind === "both" && (p.dx || p.dy) && has("side") ? (
+          <div className="pv-row">
+            <span className="pv-label">Выход в другую сторону</span>
+            <div className="spacer" />
+            <div className={`switch${p.through ? " is-on" : ""}`} onClick={() => update({ through: !p.through })}>
+              <div className="switch-knob" />
+            </div>
+          </div>
         ) : null}
         {has("easing") ? (
           <div className="pv-row pv-row-stack">
@@ -617,4 +665,128 @@ function FxDetail(props: { preset: FxPreset; setAction(a: { run: () => Promise<s
       </div>
     </div>
   );
+}
+
+const LIB_SEL_KEY = "libSelected";
+const LIB_CAT_KEY = "libCategory";
+
+/** Библиотека готовых анимаций: поиск, разделы, избранное, сетка карточек с превью. */
+function LibraryDetail(props: { setAction(a: { run: () => Promise<string> } | null): void; onCustomize(a: AnimPreset): void }) {
+  const [query, setQuery] = useState("");
+  const [cat, setCat] = useState<string>(() => storageGet(LIB_CAT_KEY) || "Все");
+  const [favs, setFavs] = useState<string[]>(() => loadFavorites(storageGet));
+  const [sel, setSel] = useState<string>(() => storageGet(LIB_SEL_KEY) || LIBRARY[0].id);
+  const [hover, setHover] = useState<string | null>(null);
+
+  const chosen = LIBRARY.find((a) => a.id === sel) ?? LIBRARY[0];
+  const q = query.trim().toLowerCase();
+  const list = LIBRARY.filter(
+    (a) =>
+      (cat === "Все" || (cat === "★" ? favs.includes(a.id) : a.category === cat)) &&
+      (!q || a.name.toLowerCase().includes(q) || (a.category ?? "").toLowerCase().includes(q)),
+  );
+
+  useEffect(() => {
+    props.setAction({
+      run: async () => {
+        const r = await animateSelected(chosen, loadAnimOptions());
+        const skip = r.skipped.length ? ` Пропущено ${r.skipped.length}: ${r.skipped[0].why}.` : "";
+        return `Готово: ${chosen.name} — ${r.changed} ${clipsWord(r.changed)}. Отмена: Ctrl+Z (несколько раз).${skip}`;
+      },
+    });
+  }, [chosen.id]);
+
+  const toggleFav = (id: string) => {
+    const next = favs.includes(id) ? favs.filter((x) => x !== id) : [...favs, id];
+    setFavs(next);
+    saveFavorites(storageSet, next);
+  };
+
+  const rows: AnimPreset[][] = [];
+  for (let i = 0; i < list.length; i += 2) rows.push(list.slice(i, i + 2));
+
+  return (
+    <div className="pv-detail-inner">
+      <div className="pv-head">
+        <span className="pv-title">Готовые</span>
+        <div className="spacer" />
+        <span className="pv-hint">{KIND_LABEL[chosen.kind]}</span>
+      </div>
+
+      <div className="input-box lib-search">
+        <input className="text-input ai-input" type="text" placeholder="Поиск: влёт, пружина, размытие…" value={query} onChange={(e) => setQuery(e.target.value)} />
+      </div>
+
+      <div className="lib-chips">
+        {["Все", "★", ...LIB_CATEGORIES].map((c) => (
+          <div
+            key={c}
+            className={`lib-chip${cat === c ? " is-active" : ""}`}
+            onClick={() => {
+              setCat(c);
+              storageSet(LIB_CAT_KEY, c);
+            }}
+          >
+            {c === "★" ? "★ Избранное" : c}
+          </div>
+        ))}
+      </div>
+
+      {list.length === 0 ? (
+        <div className="pv-hint-block">{cat === "★" ? "Отметьте звёздочкой пресеты, которыми пользуетесь чаще всего." : "Ничего не нашлось."}</div>
+      ) : null}
+
+      {rows.map((row, r) => (
+        <div key={r} className="lib-row">
+          {row.map((a) => (
+            <div
+              key={a.id}
+              className={`lib-card${a.id === chosen.id ? " is-active" : ""}`}
+              onClick={() => {
+                setSel(a.id);
+                storageSet(LIB_SEL_KEY, a.id);
+              }}
+              onMouseEnter={() => setHover(a.id)}
+              onMouseLeave={() => setHover((h) => (h === a.id ? null : h))}
+            >
+              <AnimPreview mini params={fromPreset(a)} playing={hover === a.id || a.id === chosen.id} />
+              <div className="lib-card-foot">
+                <div className="lib-card-text">
+                  <div className="lib-card-title">{a.name}</div>
+                  <div className="lib-card-sub">{libTags(a)}</div>
+                </div>
+                <span
+                  className={`lib-star${favs.includes(a.id) ? " is-on" : ""}`}
+                  title={favs.includes(a.id) ? "Убрать из избранного" : "В избранное"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFav(a.id);
+                  }}
+                >
+                  {favs.includes(a.id) ? "★" : "☆"}
+                </span>
+              </div>
+            </div>
+          ))}
+          {row.length === 1 ? <div className="lib-card lib-card-empty" /> : null}
+        </div>
+      ))}
+
+      <div className="pv-links">
+        <span className="link-small" onClick={() => props.onCustomize(chosen)}>
+          Настроить «{chosen.name}» под себя ›
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function libTags(a: AnimPreset): string {
+  const t: string[] = [];
+  t.push(`${(a.duration ?? 0.4).toFixed(2).replace(/0$/, "")} с`);
+  if (a.overshoot) t.push("пружина");
+  if (a.blurAmt) t.push("размытие");
+  if (a.shake) t.push("тряска");
+  if (a.blur && (a.dx || a.dy || a.rotation || a.scale !== 100)) t.push("блюр");
+  return t.join(" · ");
 }

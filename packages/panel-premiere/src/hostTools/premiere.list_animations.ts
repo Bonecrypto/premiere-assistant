@@ -1,3 +1,4 @@
+import { LIBRARY } from "../presets/library.ts";
 import { BUILTIN_ANIMS, loadAnimOptions, loadUserAnims } from "../presets/animations.ts";
 import type { HostTool } from "./types.ts";
 
@@ -5,13 +6,13 @@ import type { HostTool } from "./types.ts";
 const tool: HostTool<Record<string, never>> = {
   spec: {
     name: "premiere.list_animations",
-    description: "Возвращает анимации-пресеты (встроенные и свои пользовательские) с параметрами и общие настройки (длительность, моушн-блюр).",
+    description: "Возвращает анимации-пресеты (встроенные, библиотека готовых и свои пользовательские) с параметрами и общие настройки (длительность, моушн-блюр).",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     runsIn: "host",
     mutates: false,
   },
   async run() {
-    return { options: loadAnimOptions(), builtin: BUILTIN_ANIMS, user: loadUserAnims() };
+    return { options: loadAnimOptions(), builtin: BUILTIN_ANIMS, library: LIBRARY.map((a) => ({ id: a.id, name: a.name, category: a.category, kind: a.kind })), user: loadUserAnims() };
   },
 };
 

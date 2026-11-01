@@ -1,10 +1,12 @@
 import { storageGet, storageSet } from "../env.ts";
+import { LIBRARY } from "./library.ts";
 
 /**
  * Анимации-пресеты. Движение делается эффектом Transform (у него есть Shutter Angle → моушн-блюр),
  * ключевые кадры ставятся в начале клипа (влёт), в конце (улёт) или на весь клип (наезд/отъезд).
  */
-export type AnimKind = "in" | "out" | "whole";
+/** in — в начале клипа, out — в конце, whole — весь клип, both — вход в начале и выход в конце. */
+export type AnimKind = "in" | "out" | "whole" | "both";
 
 export interface AnimPreset {
   id: string;
@@ -27,6 +29,16 @@ export interface AnimPreset {
   easing?: "bezier" | "linear";
   blur?: boolean;
   distance?: number;
+  /** «Пружина»: перелёт за конечную точку и возврат, % пути (0 — нет). */
+  overshoot?: number;
+  /** Размытие (эффект Gaussian Blur) в «крайней» точке, 0 — без размытия. */
+  blurAmt?: number;
+  /** Тряска: амплитуда в % кадра (0 — нет). Затухает за длительность. */
+  shake?: number;
+  /** Для both: выход в противоположную сторону (проезд через кадр). */
+  through?: boolean;
+  /** Раздел библиотеки. */
+  category?: string;
   builtin?: boolean;
 }
 
@@ -94,7 +106,7 @@ export function saveUserAnims(list: AnimPreset[]): void {
 }
 
 export function allAnims(): AnimPreset[] {
-  return [...BUILTIN_ANIMS, ...loadUserAnims()];
+  return [...BUILTIN_ANIMS, ...LIBRARY, ...loadUserAnims()];
 }
 
 export function findAnim(id: string): AnimPreset | undefined {
