@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { animateSelected } from "../automation/animate.ts";
+import { applyFxPreset, captureFxPreset, loadFxPresets, saveFxPresets, type FxPreset } from "../automation/fxPresets.ts";
 import { applyMotion } from "../automation/motion.ts";
 import { ppro } from "../automation/timeline.ts";
 import { isUXP, storageGet, storageSet } from "../env.ts";
@@ -14,7 +15,12 @@ import { Slider } from "./Slider.tsx";
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
 
 /** Выбранный пункт: встроенная анимация, своя анимация или действие с кадром. */
-type Selected = { kind: "anim"; id: string } | { kind: "user"; id: string } | { kind: "frame"; id: string };
+type Selected =
+  | { kind: "anim"; id: string }
+  | { kind: "user"; id: string }
+  | { kind: "frame"; id: string }
+  | { kind: "fxnew"; id: string }
+  | { kind: "fx"; id: string };
 
 const SEL_KEY = "presetSelected";
 
@@ -115,6 +121,7 @@ function clipsWord(n: number): string {
 export function PresetsView() {
   const [selected, setSelectedState] = useState<Selected>(loadSelected);
   const [user, setUser] = useState<AnimPreset[]>(loadUserAnims);
+  const [fx, setFx] = useState<FxPreset[]>(loadFxPresets);
   const [status, setStatus] = useState<Status>(null);
   const count = useSelectionCount();
 
@@ -127,6 +134,7 @@ export function PresetsView() {
   const animItem = selected.kind === "anim" ? ANIM_ITEMS.find((i) => i.id === selected.id) : undefined;
   const userItem = selected.kind === "user" ? user.find((u) => u.id === selected.id) : undefined;
   const frameItem = selected.kind === "frame" ? FRAME_ITEMS.find((i) => i.id === selected.id) : undefined;
+  const fxItem = selected.kind === "fx" ? fx.find((f) => f.id === selected.id) : undefined;
 
   // Детали сообщают, что делать по «Применить».
   const [action, setAction] = useState<{ run: () => Promise<string> } | null>(null);
@@ -160,7 +168,7 @@ export function PresetsView() {
               onClick={() => select({ kind: "anim", id: i.id })}
             />
           ))}
-          {user.length ? <div className="pv-group">Мои</div> : null}
+          {user.length ? <div className="pv-group">Мои анимации</div> : null}
           {user.map((u) => (
             <SideItem
               key={u.id}
@@ -168,6 +176,22 @@ export function PresetsView() {
               subtitle={u.kind === "in" ? "Вход" : u.kind === "out" ? "Выход" : "Весь клип"}
               active={selected.kind === "user" && selected.id === u.id}
               onClick={() => select({ kind: "user", id: u.id })}
+            />
+          ))}
+          <div className="pv-group">Эффекты</div>
+          <SideItem
+            title="+ Сохранить с клипа"
+            subtitle="Эффекты и их настройки"
+            active={selected.kind === "fxnew"}
+            onClick={() => select({ kind: "fxnew", id: "new" })}
+          />
+          {fx.map((f) => (
+            <SideItem
+              key={f.id}
+              title={f.name}
+              subtitle={`${f.kind === "video" ? "Видео" : "Звук"} · ${f.components.length} эфф.`}
+              active={selected.kind === "fx" && selected.id === f.id}
+              onClick={() => select({ kind: "fx", id: f.id })}
             />
           ))}
           <div className="pv-group">Кадр</div>
@@ -213,6 +237,28 @@ export function PresetsView() {
             />
           ) : null}
           {frameItem ? <FrameDetail key={frameItem.id} item={frameItem} setAction={setAction} /> : null}
+          {selected.kind === "fxnew" ? (
+            <FxNewDetail
+              setAction={setAction}
+              onSaved={(preset) => {
+                setFx(loadFxPresets());
+                select({ kind: "fx", id: preset.id });
+              }}
+            />
+          ) : null}
+          {fxItem ? (
+            <FxDetail
+              key={fxItem.id}
+              preset={fxItem}
+              setAction={setAction}
+              onDelete={() => {
+                const list = fx.filter((f) => f.id !== fxItem.id);
+                setFx(list);
+                saveFxPresets(list);
+                select({ kind: "fxnew", id: "new" });
+              }}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -488,6 +534,87 @@ function FrameDetail(props: { item: FrameItem; setAction(a: { run: () => Promise
         ) : null}
       </div>
       <div className="pv-hint-block">Работает с выделенными видеоклипами. Отмена — Ctrl+Z.</div>
+    </div>
+  );
+}
+
+function FxNewDetail(props: { setAction(a: { run: () => Promise<string> } | null): void; onSaved(p: FxPreset): void }) {
+  const [name, setName] = useState("");
+  const [builtIn, setBuiltIn] = useState(false);
+
+  useEffect(() => {
+    props.setAction({
+      run: async () => {
+        const preset = await captureFxPreset(name, builtIn);
+        props.onSaved(preset);
+        return `Сохранено: «${preset.name}» — эффектов ${preset.components.length}.`;
+      },
+    });
+  }, [name, builtIn]);
+
+  return (
+    <div className="pv-detail-inner">
+      <div className="pv-head">
+        <span className="pv-title">Сохранить эффекты с клипа</span>
+      </div>
+      <div className="pv-card">
+        <div className="pv-text">
+          Выделите на таймлайне клип, на котором эффекты уже настроены (Lumetri, Blur, Crop, DeNoise, EQ…), и нажмите
+          «Применить» внизу — эффекты с настройками сохранятся как пресет.
+        </div>
+        <div className="pv-row pv-row-stack">
+          <span className="pv-label">Название</span>
+          <div className="input-box">
+            <input className="text-input ai-input" type="text" placeholder="Например: Тёплый грейд + блюр" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+        </div>
+        <div className="pv-row">
+          <span className="pv-label">Вместе с Motion и Opacity</span>
+          <div className="spacer" />
+          <div className={`switch${builtIn ? " is-on" : ""}`} onClick={() => setBuiltIn(!builtIn)}>
+            <div className="switch-knob" />
+          </div>
+        </div>
+      </div>
+      <div className="pv-hint-block">Анимированные параметры (с ключевыми кадрами) не сохраняются — только постоянные значения.</div>
+    </div>
+  );
+}
+
+function FxDetail(props: { preset: FxPreset; setAction(a: { run: () => Promise<string> } | null): void; onDelete(): void }) {
+  const { preset } = props;
+  useEffect(() => {
+    props.setAction({
+      run: async () => {
+        const r = await applyFxPreset(preset);
+        const skip = r.skippedParams ? ` Не перенесено параметров: ${r.skippedParams}.` : "";
+        return `Готово: «${preset.name}» — ${r.changed} ${clipsWord(r.changed)}. Отмена: Ctrl+Z (2 раза).${skip}`;
+      },
+    });
+  }, [preset.id]);
+
+  return (
+    <div className="pv-detail-inner">
+      <div className="pv-head">
+        <span className="pv-title">{preset.name}</span>
+        <div className="spacer" />
+        <span className="pv-hint">{preset.kind === "video" ? "для видеоклипов" : "для аудиоклипов"}</span>
+      </div>
+      <div className="pv-card">
+        {preset.components.map((c, i) => (
+          <div key={`${c.matchName}-${i}`} className="pv-row">
+            <span className="pv-label">{c.displayName}</span>
+            <div className="spacer" />
+            <span className="pv-hint">параметров: {c.params.length}</span>
+          </div>
+        ))}
+      </div>
+      <div className="pv-links">
+        <span className="pv-hint-block">Выделите клипы и нажмите «Применить».</span>
+        <span className="link-small pv-delete" onClick={props.onDelete}>
+          Удалить пресет
+        </span>
+      </div>
     </div>
   );
 }
