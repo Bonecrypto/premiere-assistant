@@ -1,5 +1,6 @@
 import { DEFAULT_HELPER_PORT, type HelloAckMsg } from "@pa/core";
 import { useState } from "react";
+import { ACCENTS, applyAccent, savedAccent } from "../theme.ts";
 import type { ConnectionStatus } from "../connection.ts";
 import { Button, IconTile } from "./Button.tsx";
 import { Row, Section } from "./Section.tsx";
@@ -19,6 +20,8 @@ export function SettingsView(props: {
   const n = Number(value);
   const valid = Number.isInteger(n) && n > 0 && n < 65536;
   const connected = props.connection === "connected";
+  const [accent, setAccent] = useState(savedAccent().id);
+  const accentLabel = ACCENTS.find((a) => a.id === accent)?.label ?? "";
 
   return (
     <div className="page">
@@ -84,6 +87,30 @@ export function SettingsView(props: {
           <Button variant="primary" size="small" disabled={!valid || n === props.port} onClick={() => props.onChangePort(n)}>
             Применить
           </Button>
+        </div>
+      </Section>
+
+      <Section title="Оформление">
+        <div className="row">
+          <div className="row-main">
+            <div className="row-label">Цвет акцента</div>
+            <div className="row-sublabel">{accentLabel}{accent === "violet" ? " · фирменный" : ""}</div>
+          </div>
+          <div className="swatches">
+            {ACCENTS.map((a) => (
+              <div
+                key={a.id}
+                title={a.label}
+                className={`swatch${a.id === accent ? " is-active" : ""}`}
+                onClick={() => {
+                  applyAccent(a, true);
+                  setAccent(a.id);
+                }}
+              >
+                <div className="swatch-fill" style={{ backgroundColor: a.color, backgroundImage: a.gradient }} />
+              </div>
+            ))}
+          </div>
         </div>
       </Section>
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Icon } from "./Icon.tsx";
 
 /** Поле ввода-«пилюля» с круглой кнопкой отправки, как в «Сообщениях». */
 export function Composer(props: {
@@ -57,7 +58,7 @@ export function Composer(props: {
             title="Отправить (Enter)"
             onClick={submit}
           >
-            ↑
+            <Icon name="send" size={14} className="send-icon" />
           </div>
         )}
       </div>

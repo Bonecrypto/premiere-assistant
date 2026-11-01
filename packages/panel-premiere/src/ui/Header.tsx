@@ -1,5 +1,6 @@
 import type { HelloAckMsg } from "@pa/core";
 import type { ConnectionStatus } from "../connection.ts";
+import { Icon, type IconName } from "./Icon.tsx";
 import { Logo } from "./Logo.tsx";
 
 export type HealthState = "ok" | "warn" | "connecting" | "off";
@@ -13,37 +14,55 @@ export function health(connection: ConnectionStatus, helper: HelloAckMsg | null)
   return "ok";
 }
 
-const LABEL: Record<HealthState, string> = {
-  ok: "Готов",
-  warn: "Нет ключа",
-  connecting: "Подключение…",
-  off: "Не подключён",
-};
+export interface TabDef<T extends string> {
+  id: T;
+  icon: IconName;
+  label: string;
+  badge?: number;
+}
 
-/** Шапка: название плагина и «пилюля» статуса (видимость состояния системы). */
-export function Header(props: {
-  state: HealthState;
-  onStatusClick(): void;
-  action?: { label: string; title: string; onClick(): void; disabled?: boolean };
+/**
+ * Верхняя панель: логотип, вкладки-иконки в «таблетке» (подпись — во всплывающей подсказке
+ * и у активной вкладки), справа — действие текущей вкладки.
+ */
+export function TopBar<T extends string>(props: {
+  tabs: TabDef<T>[];
+  tab: T;
+  onTab(id: T): void;
+  action?: { icon: IconName; title: string; onClick(): void; disabled?: boolean };
 }) {
   return (
-    <div className="header">
-      <Logo size={22} className="app-mark" />
-      <div className="app-title">Ассистент</div>
+    <div className="topbar">
+      <Logo size={24} className="topbar-logo" />
+      <div className="tabpill" role="tablist">
+        {props.tabs.map((t) => {
+          const active = t.id === props.tab;
+          return (
+            <div
+              key={t.id}
+              role="tab"
+              aria-selected={active}
+              title={t.label}
+              className={`tabpill-item${active ? " is-active" : ""}`}
+              onClick={() => props.onTab(t.id)}
+            >
+              <Icon name={t.icon} size={15} />
+              {active ? <span className="tabpill-label">{t.label}</span> : null}
+              {t.badge ? <span className="tabpill-badge">{t.badge}</span> : null}
+            </div>
+          );
+        })}
+      </div>
       <div className="spacer" />
       {props.action ? (
         <div
-          className={`header-action${props.action.disabled ? " is-disabled" : ""}`}
+          className={`icon-btn${props.action.disabled ? " is-disabled" : ""}`}
           title={props.action.title}
           onClick={() => !props.action!.disabled && props.action!.onClick()}
         >
-          {props.action.label}
+          <Icon name={props.action.icon} size={15} />
         </div>
       ) : null}
-      <div className={`status-pill pill-${props.state}`} onClick={props.onStatusClick} title="Подробнее — в настройках">
-        <span className="pill-dot" />
-        {LABEL[props.state]}
-      </div>
     </div>
   );
 }

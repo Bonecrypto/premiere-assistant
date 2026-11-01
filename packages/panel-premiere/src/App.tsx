@@ -6,10 +6,10 @@ import { getHostTool } from "./hostTools/index.ts";
 import { initialState, reducer } from "./state.ts";
 import { ChatView } from "./ui/ChatView.tsx";
 import { Composer } from "./ui/Composer.tsx";
-import { Header, health } from "./ui/Header.tsx";
+import { TopBar, health } from "./ui/Header.tsx";
+import { StatusBar } from "./ui/StatusBar.tsx";
 import { Onboarding } from "./ui/Onboarding.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
-import { Segmented } from "./ui/Segmented.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
@@ -29,6 +29,7 @@ export function App() {
   const [tab, setTabState] = useState<Tab>(savedTab);
   const [onboarding, setOnboarding] = useState(() => storageGet(ONBOARDING_KEY) !== "1");
   const [draft, setDraft] = useState<string | null>(null);
+  const [sequence, setSequence] = useState<string | null>(null);
   const connRef = useRef<HelperConnection | null>(null);
 
   const setTab = (t: Tab) => {
@@ -67,6 +68,28 @@ export function App() {
     conn.start();
     return () => conn.stop();
   }, [runHostTool]);
+
+  // Активная секвенция для строки статуса (только чтение, раз в 5 с).
+  useEffect(() => {
+    if (!isUXP) return;
+    const tool = getHostTool("premiere.get_context");
+    if (!tool) return;
+    let alive = true;
+    const poll = async () => {
+      try {
+        const r = (await tool.run({})) as { activeSequence?: { name: string } | null };
+        if (alive) setSequence(r.activeSequence?.name ?? null);
+      } catch {
+        if (alive) setSequence(null);
+      }
+    };
+    void poll();
+    const t = setInterval(poll, 5000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   const send = (text: string) => {
     const conn = connRef.current;
@@ -116,27 +139,21 @@ export function App() {
 
   return (
     <div className="app">
-      <Header
-        state={hs}
-        onStatusClick={() => setTab("settings")}
+      <TopBar<Tab>
+        tabs={[
+          { id: "chat", icon: "chat", label: "Чат" },
+          { id: "presets", icon: "presets", label: "Пресеты" },
+          { id: "tasks", icon: "tasks", label: "Задачи", badge: activeTasks },
+          { id: "settings", icon: "settings", label: "Настройки" },
+        ]}
+        tab={tab}
+        onTab={setTab}
         action={
           tab === "chat"
-            ? { label: "Новый чат", title: "Начать новый диалог", onClick: newChat, disabled: state.busy || state.items.length === 0 }
+            ? { icon: "compose", title: "Новый чат", onClick: newChat, disabled: state.busy || state.items.length === 0 }
             : undefined
         }
       />
-      <div className="tabbar">
-        <Segmented<Tab>
-          items={[
-            { id: "chat", label: "Чат" },
-            { id: "presets", label: "Пресеты" },
-            { id: "tasks", label: "Задачи", badge: activeTasks },
-            { id: "settings", label: "Настройки" },
-          ]}
-          value={tab}
-          onChange={setTab}
-        />
-      </div>
 
       {tab === "chat" ? (
         <>
@@ -172,6 +189,7 @@ export function App() {
           onShowOnboarding={() => setOnboarding(true)}
         />
       ) : null}
+      <StatusBar state={hs} helper={state.helper} sequence={sequence} onClick={() => setTab("settings")} />
     </div>
   );
 }

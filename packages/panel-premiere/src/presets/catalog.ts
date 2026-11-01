@@ -36,6 +36,16 @@ export const SAFE_MARGINS: { id: SafeMargin; label: string; hint: string }[] = [
   { id: "title", label: "10%", hint: "безопасная зона титров" },
 ];
 
+/** Быстрые действия с клипом (Effect Controls → Motion). Появятся вместе с host-инструментом. */
+export const CLIP_ACTIONS: { id: string; label: string; icon: "fit" | "fill" | "center" | "fliph" | "flipv" | "reset"; hint: string }[] = [
+  { id: "fit", label: "Вписать", icon: "fit", hint: "Масштаб, чтобы клип целиком вошёл в кадр" },
+  { id: "fill", label: "Заполнить", icon: "fill", hint: "Масштаб, чтобы клип закрыл весь кадр" },
+  { id: "center", label: "По центру", icon: "center", hint: "Позиция — центр кадра" },
+  { id: "fliph", label: "Отразить ↔", icon: "fliph", hint: "Зеркально по горизонтали" },
+  { id: "flipv", label: "Отразить ↕", icon: "flipv", hint: "Зеркально по вертикали" },
+  { id: "reset", label: "Сбросить", icon: "reset", hint: "Вернуть Motion к значениям по умолчанию" },
+];
+
 export interface UserPreset {
   id: string;
   name: string;

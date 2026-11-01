@@ -1,18 +1,40 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Icon } from "./Icon.tsx";
 
-/** Сгруппированный список в стиле Apple (inset grouped): заголовок, карточка, подпись. */
-export function Section(props: { title?: string; footer?: ReactNode; children: ReactNode; aside?: ReactNode }) {
+/**
+ * Раздел: заголовок, карточка, подпись. Если задан collapsible — заголовок сворачивает раздел
+ * (как группы в панелях монтажных программ).
+ */
+export function Section(props: {
+  title?: string;
+  footer?: ReactNode;
+  children: ReactNode;
+  aside?: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  plain?: boolean;
+}) {
+  const [open, setOpen] = useState(props.defaultOpen ?? true);
+  const isOpen = !props.collapsible || open;
   return (
     <div className="section">
       {props.title ? (
-        <div className="section-head">
+        <div
+          className={`section-head${props.collapsible ? " is-collapsible" : ""}`}
+          onClick={props.collapsible ? () => setOpen((v) => !v) : undefined}
+        >
+          {props.collapsible ? <Icon name="chevron" size={11} className={`section-chevron${open ? " is-open" : ""}`} /> : null}
           <span className="section-title">{props.title}</span>
           <div className="spacer" />
           {props.aside}
         </div>
       ) : null}
-      <div className="group">{props.children}</div>
-      {props.footer ? <div className="section-footer">{props.footer}</div> : null}
+      {isOpen ? (
+        <>
+          {props.plain ? props.children : <div className="group">{props.children}</div>}
+          {props.footer ? <div className="section-footer">{props.footer}</div> : null}
+        </>
+      ) : null}
     </div>
   );
 }
