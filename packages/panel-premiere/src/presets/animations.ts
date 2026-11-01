@@ -37,6 +37,8 @@ export interface AnimPreset {
   shake?: number;
   /** Для both: выход в противоположную сторону (проезд через кадр). */
   through?: boolean;
+  /** Свой график плавности [x1, y1, x2, y2]; пусто — обычный Bezier Premiere. */
+  curve?: [number, number, number, number];
   /** Раздел библиотеки. */
   category?: string;
   builtin?: boolean;

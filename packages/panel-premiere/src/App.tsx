@@ -14,18 +14,19 @@ import { StatusBar } from "./ui/StatusBar.tsx";
 import { checkForUpdate, type UpdateInfo } from "./update/updater.ts";
 import { Onboarding } from "./ui/Onboarding.tsx";
 import { AutoView } from "./ui/AutoView.tsx";
+import { GraphView } from "./ui/GraphView.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
-type Tab = "chat" | "auto" | "presets" | "tasks" | "settings";
+type Tab = "chat" | "auto" | "presets" | "graph" | "tasks" | "settings";
 
 const ONBOARDING_KEY = "onboardingDone";
 const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return t === "auto" || t === "presets" || t === "tasks" || t === "settings" ? t : "chat";
+  return t === "auto" || t === "presets" || t === "graph" || t === "tasks" || t === "settings" ? t : "chat";
 }
 
 export function App() {
@@ -187,6 +188,7 @@ export function App() {
           { id: "chat", icon: "chat", label: "Чат" },
           { id: "auto", icon: "bolt", label: "Авто" },
           { id: "presets", icon: "presets", label: "Пресеты" },
+          { id: "graph", icon: "graph", label: "Графики" },
           { id: "tasks", icon: "tasks", label: "Задачи", badge: activeTasks },
           { id: "settings", icon: "settings", label: "Настройки" },
         ]}
@@ -223,6 +225,7 @@ export function App() {
       ) : null}
       {tab === "auto" ? <AutoView /> : null}
       {tab === "presets" ? <PresetsView /> : null}
+      {tab === "graph" ? <GraphView /> : null}
       {tab === "tasks" ? <TasksView tasks={state.tasks} onClear={() => dispatch({ type: "clear_tasks" })} /> : null}
       {tab === "settings" ? (
         <SettingsView

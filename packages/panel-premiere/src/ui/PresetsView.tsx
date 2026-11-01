@@ -9,6 +9,8 @@ import { ALIGN_GRID, SAFE_MARGINS, type AlignAnchor, type SafeMargin } from "../
 import { ALL_FIELDS, ANIM_ITEMS, FRAME_ITEMS, glyphFor, type AnimField, type AnimItem, type AnimParams, type FrameItem } from "../presets/items.ts";
 import { LIB_CATEGORIES, LIBRARY, loadFavorites, saveFavorites } from "../presets/library.ts";
 import { AnimPreview } from "./AnimPreview.tsx";
+import { CurveEditor } from "./CurveEditor.tsx";
+import { CURVE_PRESETS, curveName, formatCurve, loadLastCurve, sameCurve, type Curve } from "../presets/curves.ts";
 import { Button } from "./Button.tsx";
 import { Segmented } from "./Segmented.tsx";
 import { Slider } from "./Slider.tsx";
@@ -65,6 +67,7 @@ function toPreset(name: string, p: AnimParams, id = "custom"): AnimPreset {
     blurAmt: p.blurAmt,
     shake: p.shake,
     through: p.through,
+    curve: p.curve ?? undefined,
     glyph: glyphFor(p),
   };
 }
@@ -86,6 +89,7 @@ function fromPreset(a: AnimPreset): AnimParams {
     blurAmt: a.blurAmt ?? 0,
     shake: a.shake ?? 0,
     through: Boolean(a.through),
+    curve: a.curve ?? null,
   };
 }
 
@@ -319,6 +323,9 @@ function SideItem(props: { title: string; subtitle: string; active: boolean; onC
   );
 }
 
+/** Быстрые кривые под редактором графика пресета. */
+const QUICK_CURVES = ["apple", "smooth-out", "expo-out", "expo-inout", "back-out", "back-in", "in", "linear"];
+
 const KIND_LABEL: Record<AnimParams["kind"], string> = { in: "Вход", out: "Выход", whole: "Весь клип", both: "Вход + выход" };
 
 const SIDES = [
@@ -427,7 +434,7 @@ function AnimDetail(props: {
         {has("rotation") ? (
           <Slider label="Поворот" value={p.rotation} min={-360} max={360} step={15} unit="°" onChange={(v) => update({ rotation: v })} />
         ) : null}
-        {has("bounce") && !p.shake ? (
+        {has("bounce") && !p.shake && !p.curve ? (
           <Slider label="Пружина" value={p.overshoot} min={0} max={40} step={1} unit="%" format={(v) => (v ? String(v) : "нет")} onChange={(v) => update({ overshoot: v })} />
         ) : null}
         {has("gblur") ? (
@@ -448,15 +455,40 @@ function AnimDetail(props: {
         {has("easing") ? (
           <div className="pv-row pv-row-stack">
             <span className="pv-label">Плавность</span>
-            <Segmented<"bezier" | "linear">
+            <Segmented<"bezier" | "linear" | "curve">
               className="segmented-small pv-seg"
               items={[
                 { id: "bezier", label: "Плавно" },
                 { id: "linear", label: "Линейно" },
+                { id: "curve", label: "График" },
               ]}
-              value={p.easing}
-              onChange={(v) => update({ easing: v })}
+              value={p.curve ? "curve" : p.easing}
+              onChange={(v) => (v === "curve" ? update({ curve: p.curve ?? loadLastCurve() }) : update({ easing: v, curve: null }))}
             />
+          </div>
+        ) : null}
+        {has("easing") && p.curve ? (
+          <div className="pv-curve">
+            <div className="pv-curve-head">
+              <span className="pv-hint">{curveName(p.curve)}</span>
+              <div className="spacer" />
+              <span className="pv-hint">{formatCurve(p.curve)}</span>
+            </div>
+            <CurveEditor value={p.curve} onChange={(c) => update({ curve: c })} height={120} showBall={false} />
+            <div className="pv-curve-chips">
+              {QUICK_CURVES.map((id) => {
+                const cp = CURVE_PRESETS.find((x) => x.id === id)!;
+                return (
+                  <div
+                    key={id}
+                    className={`lib-chip${sameCurve(cp.curve, p.curve!) ? " is-active" : ""}`}
+                    onClick={() => update({ curve: [...cp.curve] as Curve })}
+                  >
+                    {cp.name}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : null}
         {has("fade") ? (
@@ -772,11 +804,10 @@ function LibraryDetail(props: { setAction(a: { run: () => Promise<string> } | nu
         </div>
       ))}
 
-      <div className="pv-links">
-        <span className="link-small" onClick={() => props.onCustomize(chosen)}>
-          Настроить «{chosen.name}» под себя ›
-        </span>
-      </div>
+      <Button variant="secondary" className="wide lib-edit" onClick={() => props.onCustomize(chosen)}>
+        Изменить анимацию «{chosen.name}»
+      </Button>
+      <div className="pv-hint-block">Создаст вашу копию в «Мои»: там меняется всё — направление, длительность, график плавности.</div>
     </div>
   );
 }

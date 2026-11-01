@@ -28,27 +28,27 @@ const L = (d: Def): AnimPreset => ({
 
 export const LIBRARY: AnimPreset[] = [
   // Вход
-  L({ id: "slide-in-l", name: "Влёт слева", category: "Вход", kind: "in", dx: -1, glyph: "→", duration: 0.35 }),
-  L({ id: "slide-in-r", name: "Влёт справа", category: "Вход", kind: "in", dx: 1, glyph: "←", duration: 0.35 }),
+  L({ id: "slide-in-l", name: "Влёт слева", category: "Вход", kind: "in", dx: -1, glyph: "→", duration: 0.35, curve: [0.16, 1, 0.3, 1] }),
+  L({ id: "slide-in-r", name: "Влёт справа", category: "Вход", kind: "in", dx: 1, glyph: "←", duration: 0.35, curve: [0.16, 1, 0.3, 1] }),
   L({ id: "spring-in-l", name: "Пружина слева", category: "Вход", kind: "in", dx: -1, overshoot: 12, glyph: "↪", duration: 0.5 }),
   L({ id: "drop-in", name: "Падение с отскоком", category: "Вход", kind: "in", dy: -1, overshoot: 15, glyph: "↓", duration: 0.55 }),
-  L({ id: "rise-in", name: "Подъём снизу", category: "Вход", kind: "in", dy: 0.25, fade: true, glyph: "↑", duration: 0.5 }),
+  L({ id: "rise-in", name: "Подъём снизу", category: "Вход", kind: "in", dy: 0.25, fade: true, glyph: "↑", duration: 0.5, curve: [0.16, 1, 0.3, 1] }),
   L({ id: "soft-in", name: "Мягкое появление", category: "Вход", kind: "in", scale: 92, fade: true, blur: false, glyph: "◐", duration: 0.5 }),
   L({ id: "blur-in", name: "Из размытия", category: "Вход", kind: "in", fade: true, blurAmt: 40, blur: false, glyph: "◌", duration: 0.5 }),
   L({ id: "pop-in", name: "Поп", category: "Вход", kind: "in", scale: 30, overshoot: 18, fade: true, glyph: "●", duration: 0.4 }),
-  L({ id: "whip-in-l", name: "Свайп слева", category: "Вход", kind: "in", dx: -1, blurAmt: 60, glyph: "»", duration: 0.18 }),
+  L({ id: "whip-in-l", name: "Свайп слева", category: "Вход", kind: "in", dx: -1, blurAmt: 60, glyph: "»", duration: 0.18, curve: [0.16, 1, 0.3, 1] }),
   L({ id: "spin-in", name: "Закрутка", category: "Вход", kind: "in", rotation: -90, scale: 50, fade: true, glyph: "↻", duration: 0.45 }),
-  L({ id: "zoom-blur-in", name: "Наезд из размытия", category: "Вход", kind: "in", scale: 140, fade: true, blurAmt: 30, glyph: "⤢", duration: 0.45 }),
+  L({ id: "zoom-blur-in", name: "Наезд из размытия", category: "Вход", kind: "in", scale: 140, fade: true, blurAmt: 30, glyph: "⤢", duration: 0.45, curve: [0.16, 1, 0.3, 1] }),
 
   // Выход
-  L({ id: "slide-out-r", name: "Улёт вправо", category: "Выход", kind: "out", dx: 1, glyph: "→", duration: 0.35 }),
-  L({ id: "slide-out-l", name: "Улёт влево", category: "Выход", kind: "out", dx: -1, glyph: "←", duration: 0.35 }),
+  L({ id: "slide-out-r", name: "Улёт вправо", category: "Выход", kind: "out", dx: 1, glyph: "→", duration: 0.35, curve: [0.7, 0, 0.84, 0] }),
+  L({ id: "slide-out-l", name: "Улёт влево", category: "Выход", kind: "out", dx: -1, glyph: "←", duration: 0.35, curve: [0.7, 0, 0.84, 0] }),
   L({ id: "anticip-out-r", name: "Замах и улёт", category: "Выход", kind: "out", dx: 1, overshoot: 10, glyph: "↩", duration: 0.5 }),
-  L({ id: "fall-out", name: "Падение вниз", category: "Выход", kind: "out", dy: 1, glyph: "↓", duration: 0.4 }),
+  L({ id: "fall-out", name: "Падение вниз", category: "Выход", kind: "out", dy: 1, glyph: "↓", duration: 0.4, curve: [0.7, 0, 0.84, 0] }),
   L({ id: "soft-out", name: "Мягкое исчезновение", category: "Выход", kind: "out", scale: 92, fade: true, blur: false, glyph: "◑", duration: 0.5 }),
   L({ id: "blur-out", name: "В размытие", category: "Выход", kind: "out", fade: true, blurAmt: 40, blur: false, glyph: "◌", duration: 0.5 }),
   L({ id: "collapse-out", name: "Схлопывание", category: "Выход", kind: "out", scale: 20, fade: true, overshoot: 8, glyph: "•", duration: 0.4 }),
-  L({ id: "whip-out-r", name: "Свайп вправо", category: "Выход", kind: "out", dx: 1, blurAmt: 60, glyph: "»", duration: 0.18 }),
+  L({ id: "whip-out-r", name: "Свайп вправо", category: "Выход", kind: "out", dx: 1, blurAmt: 60, glyph: "»", duration: 0.18, curve: [0.7, 0, 0.84, 0] }),
   L({ id: "spin-out", name: "Улёт с поворотом", category: "Выход", kind: "out", rotation: 90, scale: 50, fade: true, glyph: "↻", duration: 0.45 }),
 
   // Акцент

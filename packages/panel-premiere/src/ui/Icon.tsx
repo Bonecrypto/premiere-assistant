@@ -4,7 +4,7 @@ import { INLINE_ICONS } from "./inlineIcons.ts";
 export type IconName =
   | "align" | "center" | "chat" | "chevron" | "compose" | "fill" | "fit" | "fliph" | "flipv"
   | "presets" | "reset" | "save" | "send" | "settings" | "star" | "tasks"
-  | "bolt" | "palette" | "wave" | "marker" | "mic";
+  | "bolt" | "palette" | "wave" | "marker" | "mic" | "graph";
 
 export function Icon(props: { name: IconName; size?: number; className?: string }) {
   const size = props.size ?? 16;

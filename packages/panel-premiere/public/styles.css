@@ -2414,3 +2414,179 @@ body,
   margin-bottom: 4px;
   letter-spacing: 0.3px;
 }
+
+/* ── Графики ── */
+.curve-box {
+  position: relative;
+  border-radius: 14px;
+  background-color: #0a090d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  margin: 0 0 8px 0;
+}
+.curve-hline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+.curve-hline.is-main {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+.curve-vline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+.curve-dot {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 2px;
+  background-color: var(--accent);
+}
+.curve-guide {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  margin: -1px 0 0 -1px;
+  border-radius: 1px;
+  background-color: rgba(255, 255, 255, 0.35);
+}
+.curve-end {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+.curve-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 7px;
+  background-color: #ffffff;
+  border: 3px solid var(--accent);
+  cursor: grab;
+}
+.ease-track {
+  position: relative;
+  height: 18px;
+  border-radius: 9px;
+  background-color: rgba(255, 255, 255, 0.05);
+  margin-bottom: 4px;
+}
+.ease-ball {
+  position: absolute;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background-color: var(--accent);
+  background-image: var(--accent-gradient);
+}
+.graph-head,
+.pv-curve-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.graph-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--label);
+}
+.graph-values {
+  font-size: 11px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+.graph-axis {
+  display: flex;
+  flex-direction: row;
+  font-size: 10px;
+  color: var(--label-3);
+}
+.graph-group {
+  margin-top: 12px;
+}
+.graph-presets {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.graph-preset {
+  position: relative;
+  width: 76px;
+  margin: 0 8px 8px 0;
+  padding: 6px;
+  border-radius: 12px;
+  background-color: var(--bg-elevated);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+}
+.graph-preset:hover {
+  border-color: var(--separator);
+}
+.graph-preset.is-active {
+  border-color: var(--accent);
+}
+.graph-preset-name {
+  font-size: 10px;
+  color: var(--label-2);
+  margin-top: 4px;
+}
+.graph-preset-del {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 10px;
+  color: var(--label-3);
+}
+.curve-thumb {
+  position: relative;
+  height: 40px;
+  border-radius: 8px;
+  background-color: #0a090d;
+}
+.curve-thumb-dot {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  margin: -1px 0 0 -1px;
+  border-radius: 1px;
+  background-color: var(--label-2);
+}
+.curve-thumb.is-active .curve-thumb-dot {
+  background-color: var(--accent);
+}
+.graph-options {
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+.pv-curve {
+  padding: 4px 0 8px 0;
+}
+.pv-curve-chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.lib-edit {
+  margin-top: 4px;
+}
+.pv-curve .lib-chip {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+.pv-curve .lib-chip.is-active {
+  background-color: var(--accent);
+}

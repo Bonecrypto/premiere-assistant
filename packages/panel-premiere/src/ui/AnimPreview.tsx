@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AnimKind } from "../presets/animations.ts";
+import { easeFn } from "../presets/curves.ts";
 
 export interface PreviewParams {
   kind: AnimKind;
@@ -12,6 +13,8 @@ export interface PreviewParams {
   duration: number;
   easing: "bezier" | "linear";
   overshoot?: number;
+  /** Свой график плавности. */
+  curve?: [number, number, number, number] | null;
   blurAmt?: number;
   shake?: number;
   through?: boolean;
@@ -39,8 +42,11 @@ interface Frame {
 
 /** Состояние анимации в момент el (мс) цикла. Возвращает также полную длину цикла. */
 function frameAt(p: PreviewParams, el: number): Frame {
-  const ease = p.easing === "bezier" ? easeInOut : (t: number) => t;
-  const over = Math.max(0, p.overshoot ?? 0) / 100;
+  const custom = p.curve ? easeFn(p.curve) : null;
+  const ease = custom ?? (p.easing === "bezier" ? easeInOut : (t: number) => t);
+  const over = custom ? 0 : Math.max(0, p.overshoot ?? 0) / 100;
+  // Со своим графиком: на входе путь идёт от крайней точки к обычной, на выходе — наоборот (как в движке).
+  const toward = (k: number, isOut: boolean) => (custom ? (isOut ? custom(1 - k) : 1 - custom(k)) : towardNormal(isOut ? 1 - k : k, over, ease));
   const dur = Math.max(0.1, p.duration) * 1000;
   const hold = 600;
   const clamp = (v: number) => Math.max(0, Math.min(1, v));
@@ -54,17 +60,17 @@ function frameAt(p: PreviewParams, el: number): Frame {
     const life = !active ? 0 : p.kind === "out" ? k : 1 - k;
     return { f: 0, sign: 1, shakeLife: life, shakeIndex };
   }
-  if (p.kind === "in") return { f: towardNormal(clamp((el - hold) / dur), over, ease), sign: 1, shakeLife: 0, shakeIndex };
-  if (p.kind === "out") return { f: towardNormal(1 - clamp((el - hold) / dur), over, ease), sign: 1, shakeLife: 0, shakeIndex };
+  if (p.kind === "in") return { f: toward(clamp((el - hold) / dur), false), sign: 1, shakeLife: 0, shakeIndex };
+  if (p.kind === "out") return { f: toward(1 - clamp((el - hold) / dur), true), sign: 1, shakeLife: 0, shakeIndex };
   if (p.kind === "whole") {
     const total = Math.max(1500, dur);
     return { f: ease(clamp((el - hold) / total)), sign: 1, shakeLife: 0, shakeIndex };
   }
   // both: вход, пауза, выход
   const tIn = el - hold;
-  if (tIn < dur + hold) return { f: towardNormal(clamp(tIn / dur), over, ease), sign: 1, shakeLife: 0, shakeIndex };
+  if (tIn < dur + hold) return { f: toward(clamp(tIn / dur), false), sign: 1, shakeLife: 0, shakeIndex };
   const tOut = tIn - dur - hold;
-  return { f: towardNormal(1 - clamp(tOut / dur), over, ease), sign: p.through ? -1 : 1, shakeLife: 0, shakeIndex };
+  return { f: toward(1 - clamp(tOut / dur), true), sign: p.through ? -1 : 1, shakeLife: 0, shakeIndex };
 }
 
 function cycleLength(p: PreviewParams): number {
@@ -92,7 +98,7 @@ export function AnimPreview(props: { params: PreviewParams; replayKey?: number; 
     const total = cycleLength(p);
     const timer = setInterval(() => setEl((Date.now() - start.current) % total), 33);
     return () => clearInterval(timer);
-  }, [props.replayKey, playing, p.kind, p.duration, p.overshoot, p.shake, p.through]);
+  }, [props.replayKey, playing, p.kind, p.duration, p.overshoot, p.shake, p.through, (p.curve ?? []).join(",")]);
 
   // Без проигрывания — показываем клип в обычном состоянии.
   const staticEl = p.kind === "in" ? 1e9 : p.kind === "both" ? 700 + Math.max(0.1, p.duration) * 1000 : 0;

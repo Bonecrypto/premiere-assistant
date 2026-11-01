@@ -2,6 +2,7 @@ import { HostToolError } from "../hostTools/types.ts";
 import type { AnimOptions, AnimPreset } from "../presets/animations.ts";
 import { selectedVideoItems } from "./motion.ts";
 import { ppro } from "./timeline.ts";
+import { curveKeys, frameSeconds } from "./graph.ts";
 
 /**
  * Анимация выделенных клипов эффектом Transform (Premiere UXP API 25.6+):
@@ -180,7 +181,10 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
   const W = frame.w;
   const H = frame.h;
   const dist = (opt.distance || 100) / 100;
-  const over = Math.max(0, Math.min(60, preset.overshoot ?? 0)) / 100;
+  const curve = preset.curve && preset.curve.length === 4 ? preset.curve : null;
+  // Со своим графиком «пружину» задаёт сама кривая.
+  const over = curve ? 0 : Math.max(0, Math.min(60, preset.overshoot ?? 0)) / 100;
+  const frameSec = curve ? await frameSeconds(await project.getActiveSequence()) : 1 / 30;
   const shake = Math.max(0, preset.shake ?? 0) / 100;
   let changed = 0;
 
@@ -234,6 +238,20 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
       timeVarying.add(param);
       for (const s of segs) {
         const ext = extreme(s.sign);
+        if (curve) {
+          // Свой график: ключи на каждом кадре по кривой, интерполяция линейная.
+          const [t0, v0, t1, v1] = s.extremeAt < s.normalAt ? [s.extremeAt, ext, s.normalAt, normal] : [s.normalAt, normal, s.extremeAt, ext];
+          const lo = typeof v0 === "number" ? Math.min(v0, v1 as number) : 0;
+          const hi = typeof v0 === "number" ? Math.max(v0, v1 as number) : 0;
+          for (const k of curveKeys(t0, t1, v0, v1, curve, frameSec)) {
+            // Прозрачность и размытие не должны «перелетать» за свои пределы.
+            const v = !canOvershoot && typeof k.v === "number" ? Math.max(lo, Math.min(hi, k.v)) : k.v;
+            const key: Key = { param, seconds: k.t, value: v };
+            keys.push(key);
+            linearKeys.add(key);
+          }
+          continue;
+        }
         keys.push({ param, seconds: s.normalAt, value: normal });
         keys.push({ param, seconds: s.extremeAt, value: ext });
         if (canOvershoot && over > 0) {

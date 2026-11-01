@@ -38,6 +38,8 @@ export interface AnimParams {
   shake: number;
   /** Для «вход + выход»: выход в другую сторону. */
   through: boolean;
+  /** Свой график плавности (вместо «Плавно/Линейно»); null — без него. */
+  curve: [number, number, number, number] | null;
 }
 
 export interface AnimItem {
@@ -60,7 +62,7 @@ export interface FrameItem {
 
 export const ALL_FIELDS: AnimField[] = ["whenWhole", "whenBoth", "side", "distance", "scale", "rotation", "fade", "bounce", "gblur", "shake", "duration", "easing", "blur"];
 
-const base: AnimParams = { kind: "out", dx: 1, dy: 0, distance: 100, scale: 100, rotation: 0, fade: false, duration: 0.3, easing: "bezier", blur: true, overshoot: 0, blurAmt: 0, shake: 0, through: false };
+const base: AnimParams = { kind: "out", dx: 1, dy: 0, distance: 100, scale: 100, rotation: 0, fade: false, duration: 0.3, easing: "bezier", blur: true, overshoot: 0, blurAmt: 0, shake: 0, through: false, curve: null };
 
 export const ANIM_ITEMS: AnimItem[] = [
   {
