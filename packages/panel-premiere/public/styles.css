@@ -1364,3 +1364,91 @@ code {
 .track-same {
   color: var(--label-3);
 }
+
+/* Анимации */
+.anim-options {
+  padding: 6px 12px;
+  margin-bottom: 10px;
+}
+.anim-opt-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 5px 0;
+}
+.anim-opt-label {
+  width: 96px;
+  margin: 0;
+}
+.anim-opt-row .segmented {
+  flex: 1;
+}
+.anim-group-title {
+  color: var(--label-3);
+  font-size: var(--fs-small);
+  margin: 4px 2px 5px 2px;
+}
+.anim-tile {
+  flex: 1;
+  height: 52px;
+  margin-right: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.anim-tile:last-child {
+  margin-right: 0;
+}
+.anim-glyph {
+  font-size: 15px;
+  color: var(--label);
+}
+.anim-user-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.anim-user-tile {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 9px 12px;
+}
+.anim-user-name {
+  margin-left: 10px;
+  font-weight: 500;
+}
+.anim-edit {
+  margin-left: 10px;
+}
+.anim-editor {
+  padding: 12px;
+}
+.anim-editor-cols {
+  display: flex;
+  flex-direction: row;
+}
+.anim-editor-side {
+  flex: 1;
+  margin-left: 6px;
+}
+.anim-field {
+  margin-top: 10px;
+}
+.anim-field-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.anim-num {
+  width: 80px;
+}
+.anim-suffix {
+  margin: 0 0 0 6px;
+}
+.anim-try {
+  margin: 0 6px;
+}

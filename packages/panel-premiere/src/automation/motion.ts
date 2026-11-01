@@ -95,7 +95,7 @@ async function sourceSize(item: any): Promise<{ w: number; h: number } | null> {
   }
 }
 
-async function selectedVideoItems(): Promise<{ project: any; frame: { w: number; h: number }; items: any[] }> {
+export async function selectedVideoItems(): Promise<{ project: any; frame: { w: number; h: number }; items: any[] }> {
   const p = ppro();
   const project = await p.Project.getActiveProject();
   if (!project) throw new HostToolError("В Premiere нет открытого проекта.");

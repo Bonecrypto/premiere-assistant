@@ -3,6 +3,7 @@ import { applyMotion, OP_TITLE, type MotionOp, type MotionRequest } from "../aut
 import { ALIGN_GRID, CLIP_ACTIONS, SAFE_MARGINS, type AlignAnchor, type SafeMargin } from "../presets/catalog.ts";
 import { Badge, Button } from "./Button.tsx";
 import { Icon } from "./Icon.tsx";
+import { AnimationsSection } from "./AnimationsSection.tsx";
 import { Section } from "./Section.tsx";
 import { Segmented } from "./Segmented.tsx";
 
@@ -40,7 +41,9 @@ export function PresetsView() {
     <div className="page-with-footer">
       <div className="page">
         <div className="scroll-inner">
-          <Section title="Выравнивание в кадре" collapsible footer="Выберите положение и нажмите «Применить» внизу — выделенные клипы встанут туда с учётом отступа.">
+          <AnimationsSection onStatus={setStatus} />
+
+          <Section title="Выравнивание в кадре" collapsible footer="Выберите положение и нажмите «Выровнять» внизу — выделенные клипы встанут туда с учётом отступа.">
             <div className="align-block">
               <div className="align-grid">
                 {ALIGN_GRID.map((row, r) => (
@@ -119,8 +122,8 @@ export function PresetsView() {
           {status ? status.text : "Выделите клипы на таймлайне"}
         </span>
         <div className="spacer" />
-        <Button variant="primary" size="small" onClick={() => run({ op: "align", anchor, margin })} title="Выровнять выделенные клипы">
-          Применить
+        <Button variant="primary" size="small" onClick={() => run({ op: "align", anchor, margin })} title="Выровнять выделенные клипы по сетке «Выравнивание в кадре»">
+          Выровнять
         </Button>
       </div>
     </div>

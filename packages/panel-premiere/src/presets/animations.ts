@@ -1,0 +1,98 @@
+import { storageGet, storageSet } from "../env.ts";
+
+/**
+ * Анимации-пресеты. Движение делается эффектом Transform (у него есть Shutter Angle → моушн-блюр),
+ * ключевые кадры ставятся в начале клипа (влёт), в конце (улёт) или на весь клип (наезд/отъезд).
+ */
+export type AnimKind = "in" | "out" | "whole";
+
+export interface AnimPreset {
+  id: string;
+  name: string;
+  kind: AnimKind;
+  /** Сдвиг в долях кадра: dx = -1 — на ширину кадра влево, dy = 1 — на высоту вниз. */
+  dx: number;
+  dy: number;
+  /** Масштаб в «крайней» точке анимации, % (100 — без изменения). */
+  scale: number;
+  /** Поворот в «крайней» точке, градусы. */
+  rotation: number;
+  /** Растворение до прозрачности в «крайней» точке. */
+  fade: boolean;
+  /** Своя длительность (с); пусто — общая из настроек. */
+  duration?: number;
+  /** Глиф для плитки. */
+  glyph: string;
+  builtin?: boolean;
+}
+
+export interface AnimOptions {
+  /** Длительность влёта/улёта, с. */
+  duration: number;
+  easing: "bezier" | "linear";
+  /** Моушн-блюр: Transform → Shutter Angle 360. */
+  blur: boolean;
+  /** Насколько далеко улетать, % кадра (100 — ровно за край). */
+  distance: number;
+}
+
+const B = (p: Omit<AnimPreset, "builtin" | "scale" | "rotation" | "fade"> & Partial<AnimPreset>): AnimPreset => ({
+  scale: 100,
+  rotation: 0,
+  fade: false,
+  builtin: true,
+  ...p,
+});
+
+export const BUILTIN_ANIMS: AnimPreset[] = [
+  B({ id: "in-left", name: "Влёт слева", kind: "in", dx: -1, dy: 0, glyph: "→" }),
+  B({ id: "in-right", name: "Влёт справа", kind: "in", dx: 1, dy: 0, glyph: "←" }),
+  B({ id: "in-top", name: "Влёт сверху", kind: "in", dx: 0, dy: -1, glyph: "↓" }),
+  B({ id: "in-bottom", name: "Влёт снизу", kind: "in", dx: 0, dy: 1, glyph: "↑" }),
+  B({ id: "out-left", name: "Улёт влево", kind: "out", dx: -1, dy: 0, glyph: "←" }),
+  B({ id: "out-right", name: "Улёт вправо", kind: "out", dx: 1, dy: 0, glyph: "→" }),
+  B({ id: "out-top", name: "Улёт вверх", kind: "out", dx: 0, dy: -1, glyph: "↑" }),
+  B({ id: "out-bottom", name: "Улёт вниз", kind: "out", dx: 0, dy: 1, glyph: "↓" }),
+  B({ id: "zoom-in", name: "Наезд", kind: "whole", dx: 0, dy: 0, scale: 115, glyph: "⤢" }),
+  B({ id: "zoom-out", name: "Отъезд", kind: "whole", dx: 0, dy: 0, scale: 85, glyph: "⤡" }),
+  B({ id: "fade-in", name: "Появление", kind: "in", dx: 0, dy: 0, fade: true, glyph: "◐" }),
+  B({ id: "fade-out", name: "Исчезновение", kind: "out", dx: 0, dy: 0, fade: true, glyph: "◑" }),
+];
+
+export const DEFAULT_ANIM_OPTIONS: AnimOptions = { duration: 0.3, easing: "bezier", blur: true, distance: 100 };
+
+const OPT_KEY = "animOptions";
+const USER_KEY = "userAnims";
+
+export function loadAnimOptions(): AnimOptions {
+  try {
+    return { ...DEFAULT_ANIM_OPTIONS, ...JSON.parse(storageGet(OPT_KEY) || "{}") };
+  } catch {
+    return { ...DEFAULT_ANIM_OPTIONS };
+  }
+}
+
+export function saveAnimOptions(o: AnimOptions): void {
+  storageSet(OPT_KEY, JSON.stringify(o));
+}
+
+export function loadUserAnims(): AnimPreset[] {
+  try {
+    const list = JSON.parse(storageGet(USER_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((p) => p && p.id && p.name) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveUserAnims(list: AnimPreset[]): void {
+  storageSet(USER_KEY, JSON.stringify(list));
+}
+
+export function allAnims(): AnimPreset[] {
+  return [...BUILTIN_ANIMS, ...loadUserAnims()];
+}
+
+export function findAnim(id: string): AnimPreset | undefined {
+  return allAnims().find((a) => a.id === id);
+}
