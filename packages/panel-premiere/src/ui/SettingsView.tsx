@@ -1,4 +1,4 @@
-import { DEFAULT_HELPER_PORT, type HelloAckMsg } from "@pa/core";
+import type { HelloAckMsg } from "@pa/core";
 import { useState } from "react";
 import { ACCENTS, applyAccent, savedAccent } from "../theme.ts";
 import type { ConnectionStatus } from "../connection.ts";
@@ -65,9 +65,7 @@ export function SettingsView(props: {
         footer={
           <>
             Должен совпадать с HELPER_PORT в packages/helper/.env.
-            {props.isUXP && n !== DEFAULT_HELPER_PORT
-              ? " Для другого порта добавьте его в manifest.json (requiredPermissions.network) и пересоберите панель."
-              : ""}
+
           </>
         }
       >
