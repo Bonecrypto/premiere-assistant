@@ -9,6 +9,7 @@ import { Icon, type IconName } from "./Icon.tsx";
 import { Section } from "./Section.tsx";
 import { TrackNamesCard } from "./TrackNamesCard.tsx";
 import { BinsCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
+import { TimelineColorWizard } from "./TimelineColorWizard.tsx";
 
 type Phase =
   | { kind: "idle" }
@@ -82,7 +83,15 @@ export function AutoView() {
           <div className="page-title">{meta.title}</div>
           <div className="page-sub">{meta.subtitle}</div>
 
-          {page === "color" ? (
+          {page === "timeline" ? (
+            <>
+              <TimelineColorWizard rules={rules} onOpenRules={() => setPage("rules")} />
+              <div className="nav-link" onClick={() => setPage("rules")}>
+                Правила и цвета ›
+              </div>
+            </>
+          ) : null}
+          {page === "project" ? (
             <>
               <div className="hero-card">
             {phase.kind === "idle" || phase.kind === "done" || phase.kind === "error" ? (
@@ -90,20 +99,19 @@ export function AutoView() {
                 {phase.kind === "done" ? (
                   <div className="result result-ok">
                     {phase.changed > 0
-                      ? `Готово: перекрашено файлов — ${phase.changed}. Отменить: Ctrl+Z в Premiere.`
+                      ? `Готово: перекрашено файлов в проекте — ${phase.changed}. Отменить: Ctrl+Z в Premiere.`
                       : "Файлы в проекте уже покрашены по правилам."}
-                    {" "}Если клипы на таймлайне остались прежнего цвета — нажмите «Покрасить таймлайн» ещё раз и
-                    «Выделить» у категории, затем правый клик по выделению → Label → цвет.
+                    {" "}Клипы, которые уже лежат на таймлайне, Premiere не перекрашивает — для них есть «Покраска таймлайна».
                   </div>
                 ) : null}
                 {phase.kind === "error" ? <div className="result result-error">{phase.message}</div> : null}
                 <Button variant="primary" className="wide hero-btn" onClick={scan}>
-                  Покрасить таймлайн
+                  Покрасить файлы проекта
                 </Button>
               </>
             ) : null}
 
-            {phase.kind === "scanning" ? <div className="result">Анализирую таймлайн…</div> : null}
+            {phase.kind === "scanning" ? <div className="result">Анализирую проект…</div> : null}
 
             {phase.kind === "preview" || phase.kind === "applying" ? (
               <PlanPreview
@@ -236,31 +244,31 @@ export function AutoView() {
         <div className="page-title">Авто</div>
         <div className="page-sub">Рутина одним нажатием — вы занимаетесь креативом</div>
 
-        <div className="bento-hero" onClick={() => setPage("color")}>
+        <div className="bento-hero" onClick={() => setPage("timeline")}>
           <div className="bento-hero-icon">
             <Icon name="palette" size={20} />
           </div>
           <div className="bento-hero-text">
             <div className="bento-hero-title">Покрасить таймлайн</div>
-            <div className="bento-hero-sub">Музыка, SFX, голос, видео, графика — каждая своим цветом</div>
+            <div className="bento-hero-sub">Клипы на таймлайне: музыка, SFX, голос, видео — каждая категория своим цветом</div>
           </div>
           <span className="bento-chevron">›</span>
         </div>
 
         <div className="bento-row">
+          <BentoTile tone="pink" icon="palette" title="Покраска проекта" sub="Файлы в Project по категориям" onClick={() => setPage("project")} />
           <BentoTile tone="blue" icon="tasks" title="Дорожки" sub="Подписать по содержимому" onClick={() => setPage("tracks")} />
-          <BentoTile tone="indigo" icon="fliph" title="Переходы" sub="На все стыки" onClick={() => setPage("transitions")} />
         </div>
         <div className="bento-row">
+          <BentoTile tone="indigo" icon="fliph" title="Переходы" sub="На все стыки" onClick={() => setPage("transitions")} />
           <BentoTile tone="orange" icon="marker" title="Маркеры" sub="Склейки или интервал" onClick={() => setPage("markers")} />
+        </div>
+        <div className="bento-row">
           <BentoTile tone="green" icon="save" title="Папки" sub="Разложить проект" onClick={() => setPage("bins")} />
+          <BentoTile tone="purple" icon="settings" title="Правила покраски" sub={`${rules.categories.filter((c) => c.enabled).length} категорий и цвета`} onClick={() => setPage("rules")} />
         </div>
 
         <div className="bento-list">
-          <div className="bento-list-row" onClick={() => setPage("rules")}>
-            <span className="bento-list-title">Правила покраски</span>
-            <span className="bento-list-value">{rules.categories.filter((c) => c.enabled).length} категорий ›</span>
-          </div>
           <div className="bento-list-row" onClick={() => setPage("diag")}>
             <span className="bento-list-title">Диагностика цветов</span>
             <span className="bento-list-value">›</span>
@@ -275,10 +283,11 @@ export function AutoView() {
   );
 }
 
-type AutoPage = "color" | "tracks" | "transitions" | "markers" | "bins" | "rules" | "diag";
+type AutoPage = "timeline" | "project" | "tracks" | "transitions" | "markers" | "bins" | "rules" | "diag";
 
 const PAGES: Record<AutoPage, { title: string; subtitle: string }> = {
-  color: { title: "Покраска таймлайна", subtitle: "Каждая категория клипов — своим цветом. Отмена — Ctrl+Z." },
+  timeline: { title: "Покраска таймлайна", subtitle: "Клипы в секвенции — каждая категория своим цветом. Пошагово, пара секунд на категорию." },
+  project: { title: "Покраска проекта", subtitle: "Файлы в панели Project по категориям. Новые клипы с них ложатся на таймлайн уже нужным цветом. Отмена — Ctrl+Z." },
   tracks: { title: "Дорожки", subtitle: "Голос, Музыка, SFX, Видео, Графика — по тому, что на них лежит." },
   transitions: { title: "Переходы", subtitle: "На все склейки выделенных клипов. Выделите клипы (можно Ctrl+A)." },
   markers: { title: "Маркеры", subtitle: "На каждой склейке или через равные промежутки." },
@@ -287,7 +296,7 @@ const PAGES: Record<AutoPage, { title: string; subtitle: string }> = {
   diag: { title: "Диагностика цветов", subtitle: "Если цвета встают не те — пришлите скриншот отсюда." },
 };
 
-function BentoTile(props: { tone: "blue" | "indigo" | "orange" | "green" | "purple"; icon: IconName; title: string; sub: string; onClick(): void }) {
+function BentoTile(props: { tone: "blue" | "indigo" | "orange" | "green" | "purple" | "pink"; icon: IconName; title: string; sub: string; onClick(): void }) {
   return (
     <div className="bento-tile" onClick={props.onClick}>
       <div className={`bento-icon grad-${props.tone}`}>
