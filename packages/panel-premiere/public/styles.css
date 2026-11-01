@@ -2590,3 +2590,15 @@ body,
 .pv-curve .lib-chip.is-active {
   background-color: var(--accent);
 }
+.wiz-setup-steps {
+  font-size: 12px;
+  color: var(--label-2);
+  margin-bottom: 10px;
+}
+.wiz-setup-steps div {
+  margin-bottom: 4px;
+}
+.wiz-kbd {
+  font-size: 11px;
+  padding: 2px 8px;
+}

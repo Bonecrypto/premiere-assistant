@@ -5,6 +5,7 @@ import { config, envCreated, HELPER_DIR, HELPER_VERSION } from "./config.ts";
 import { checkProviderSetup, createProvider } from "./providers/index.ts";
 import { ToolRegistry } from "./registry.ts";
 import { Session } from "./session.ts";
+import { sendKeys } from "./keys.ts";
 
 function ts(): string {
   return new Date().toLocaleTimeString("ru-RU");
@@ -97,6 +98,16 @@ async function main(): Promise<void> {
       const msg = parsePanelMessage(data.toString());
       if (!msg) {
         send({ type: "error", message: "Помощник получил непонятное сообщение." });
+        return;
+      }
+      if (msg.type === "send_keys") {
+        // Автопокраска таймлайна: нажать клавишу метки в Premiere (только из разрешённого списка).
+        sendKeys(msg.keys)
+          .then(() => send({ type: "keys_done", id: msg.id, ok: true }))
+          .catch((e: Error) => {
+            plog(`клавиши не нажаты: ${e.message}`);
+            send({ type: "keys_done", id: msg.id, ok: false, error: e.message });
+          });
         return;
       }
       if (msg.type !== "ping") session.handle(msg);

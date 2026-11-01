@@ -208,5 +208,9 @@ function onHelperMessage(state: State, msg: HelperToPanel): State {
     case "tool_call":
       // Выполняется в App (side effect); статус приходит отдельным task_progress.
       return state;
+
+    case "keys_done":
+      // Ответ на нажатие клавиш — обрабатывает keysClient, в чат не попадает.
+      return state;
   }
 }

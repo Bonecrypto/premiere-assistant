@@ -289,7 +289,7 @@ export function AutoView() {
 type AutoPage = "timeline" | "project" | "tracks" | "transitions" | "markers" | "bins" | "rules" | "diag";
 
 const PAGES: Record<AutoPage, { title: string; subtitle: string }> = {
-  timeline: { title: "Покраска таймлайна", subtitle: "Клипы в секвенции — каждая категория своим цветом. Пошагово, пара секунд на категорию." },
+  timeline: { title: "Покраска таймлайна", subtitle: "Клипы в секвенции — каждая категория своим цветом, автоматически." },
   project: { title: "Покраска проекта", subtitle: "Файлы в панели Project по категориям. Новые клипы с них ложатся на таймлайн уже нужным цветом. Отмена — Ctrl+Z." },
   tracks: { title: "Дорожки", subtitle: "Голос, Музыка, SFX, Видео, Графика — по тому, что на них лежит." },
   transitions: { title: "Переходы", subtitle: "На все склейки выделенных клипов. Выделите клипы (можно Ctrl+A)." },

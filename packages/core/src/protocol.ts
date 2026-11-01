@@ -59,7 +59,19 @@ export interface PingMsg {
   type: "ping";
 }
 
+/**
+ * Нажать горячие клавиши в Premiere (Windows). Нужен для автопокраски клипов на таймлайне:
+ * панель выделяет клипы, помощник нажимает клавишу метки (Edit → Label → цвет).
+ * Помощник принимает только комбинации из KEY_ALLOWLIST — произвольный ввод запрещён.
+ */
+export interface SendKeysMsg {
+  type: "send_keys";
+  id: string;
+  keys: string[];
+}
+
 export type PanelToHelper =
+  | SendKeysMsg
   | HelloMsg
   | UserMessageMsg
   | ConfirmResponseMsg
@@ -148,11 +160,29 @@ export type HelperToPanel =
   | ToolCallMsg
   | ConfirmRequestMsg
   | TaskProgressMsg
+  | KeysDoneMsg
   | ErrorMsg;
+
+export interface KeysDoneMsg {
+  type: "keys_done";
+  id: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** Фокус на таймлайн (Shift+3 в Premiere по умолчанию) и клавиши меток: Ctrl+Alt+Shift+1…9, 0, F1…F6. */
+export const KEY_TIMELINE_FOCUS = "shift+3";
+export const LABEL_KEYS_COMBOS = [
+  "ctrl+alt+shift+1", "ctrl+alt+shift+2", "ctrl+alt+shift+3", "ctrl+alt+shift+4", "ctrl+alt+shift+5",
+  "ctrl+alt+shift+6", "ctrl+alt+shift+7", "ctrl+alt+shift+8", "ctrl+alt+shift+9", "ctrl+alt+shift+0",
+  "ctrl+alt+shift+f1", "ctrl+alt+shift+f2", "ctrl+alt+shift+f3", "ctrl+alt+shift+f4", "ctrl+alt+shift+f5", "ctrl+alt+shift+f6",
+];
+export const KEY_ALLOWLIST = new Set<string>([KEY_TIMELINE_FOCUS, ...LABEL_KEYS_COMBOS]);
 
 // ───────────── Утилиты ─────────────
 
 const PANEL_TYPES = new Set<PanelToHelper["type"]>([
+  "send_keys",
   "hello",
   "user_message",
   "confirm_response",
@@ -170,6 +200,7 @@ const HELPER_TYPES = new Set<HelperToPanel["type"]>([
   "tool_call",
   "confirm_request",
   "task_progress",
+  "keys_done",
   "error",
 ]);
 
