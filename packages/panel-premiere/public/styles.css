@@ -2377,3 +2377,40 @@ body,
   flex-direction: row;
   margin-top: 10px;
 }
+
+/* ── Автопокраска новых файлов ── */
+.auto-label {
+  margin-bottom: 12px;
+}
+.auto-label-text {
+  flex: 1;
+  min-width: 0;
+  margin-right: 12px;
+}
+.auto-label-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--label);
+  margin-bottom: 2px;
+}
+.auto-label-sub {
+  font-size: 11px;
+  color: var(--label-2);
+}
+.wiz-instruction-box {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--accent);
+  background-color: rgba(159, 24, 236, 0.1);
+  margin-bottom: 12px;
+}
+.wiz-instruction-box .wiz-instruction {
+  margin-bottom: 0;
+}
+.wiz-instruction-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}

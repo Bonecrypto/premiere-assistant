@@ -4,6 +4,7 @@ import { EmbeddedTransport } from "./agent/embedded.ts";
 import { loadAiSettings, saveAiSettings, type AiSettings } from "./agent/settings.ts";
 import { HelperConnection, getSavedPort, savePort, type Transport } from "./connection.ts";
 import { isUXP, storageGet, storageSet } from "./env.ts";
+import { isAutoLabelOn, startAutoLabel, stopAutoLabel } from "./automation/autoLabel.ts";
 import { getHostTool } from "./hostTools/index.ts";
 import { initialState, reducer } from "./state.ts";
 import { ChatView } from "./ui/ChatView.tsx";
@@ -56,6 +57,12 @@ export function App() {
 
   useEffect(() => {
     void loadAiSettings().then(setAi);
+  }, []);
+
+  // Автопокраска новых файлов (если включена во «Авто → Покраска таймлайна»).
+  useEffect(() => {
+    if (isUXP && isAutoLabelOn()) void startAutoLabel();
+    return () => stopAutoLabel();
   }, []);
 
   const saveAi = async (next: AiSettings) => {

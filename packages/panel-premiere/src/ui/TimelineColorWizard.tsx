@@ -77,7 +77,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           <div className="wiz-explain-row">
             <span className="wiz-num">2</span>
             <span>
-              Вы назначаете цвет: правый клик по выделению → <b>Label</b> → цвет.
+              <b>Цвет ставите вы</b>: правый клик по выделению → <b>Label</b> → цвет. Сама панель цвет клипа поменять не может.
             </span>
           </div>
           <div className="wiz-explain-row">
@@ -170,8 +170,12 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           </div>
         </div>
 
-        <div className="wiz-instruction">
-          Теперь в Premiere: правый клик по выделенным клипам → <b>Label</b> → <b>{LABELS[step.label].name}</b>
+        <div className="wiz-instruction-box">
+          <div className="wiz-instruction-title">ТЕПЕРЬ ВЫ — В PREMIERE</div>
+          <div className="wiz-instruction">
+            Правый клик по выделенным клипам на таймлайне → <b>Label</b> → <b>{LABELS[step.label].name}</b>. Потом вернитесь
+            сюда и нажмите «Покрасил — дальше».
+          </div>
         </div>
 
         <div className="confirm-actions">
@@ -179,7 +183,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
             Выделить снова
           </Button>
           <Button variant="primary" className="confirm-btn" onClick={() => void goto(state.planned, state.index + 1)}>
-            {last ? "Готово" : "Дальше ›"}
+            {last ? "Покрасил — готово" : "Покрасил — дальше ›"}
           </Button>
         </div>
         <div className="wiz-links">
@@ -205,7 +209,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
 
   return (
     <div className="hero-card">
-      <div className="result result-ok">Готово! Прошли категорий: {state.count}. Отменить цвет клипов — Ctrl+Z в Premiere.</div>
+      <div className="result result-ok">Готово! Прошли категорий: {state.count}. Если какие-то клипы остались прежнего цвета — значит, на этом шаге Label не поставили: пройдите ещё раз.</div>
       <Button variant="secondary" className="wide hero-btn" onClick={() => void scan()}>
         Пройти ещё раз
       </Button>

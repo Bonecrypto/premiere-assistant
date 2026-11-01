@@ -10,6 +10,7 @@ import { Section } from "./Section.tsx";
 import { TrackNamesCard } from "./TrackNamesCard.tsx";
 import { BinsCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
 import { TimelineColorWizard } from "./TimelineColorWizard.tsx";
+import { AutoLabelToggle } from "./AutoLabelToggle.tsx";
 
 type Phase =
   | { kind: "idle" }
@@ -85,6 +86,7 @@ export function AutoView() {
 
           {page === "timeline" ? (
             <>
+              <AutoLabelToggle />
               <TimelineColorWizard rules={rules} onOpenRules={() => setPage("rules")} />
               <div className="nav-link" onClick={() => setPage("rules")}>
                 Правила и цвета ›
@@ -93,6 +95,7 @@ export function AutoView() {
           ) : null}
           {page === "project" ? (
             <>
+              <AutoLabelToggle />
               <div className="hero-card">
             {phase.kind === "idle" || phase.kind === "done" || phase.kind === "error" ? (
               <>
