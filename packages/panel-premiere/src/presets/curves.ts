@@ -25,6 +25,8 @@ export const CURVE_PRESETS: CurvePreset[] = [
   { id: "smooth-inout", name: "Мягко туда-сюда", curve: [0.65, 0, 0.35, 1], group: "Мягкие" },
   { id: "sine", name: "Синус", curve: [0.37, 0, 0.63, 1], group: "Мягкие" },
 
+  { id: "fast-launch", name: "Быстрый вылет", curve: [0.05, 0.85, 0.1, 1], group: "Резкие" },
+  { id: "trampoline", name: "Трамплин", curve: [0.9, 0, 0.95, 0.15], group: "Резкие" },
   { id: "expo-out", name: "Выстрел", curve: [0.19, 1, 0.22, 1], group: "Резкие" },
   { id: "expo-in", name: "Втягивание", curve: [0.95, 0.05, 0.795, 0.035], group: "Резкие" },
   { id: "expo-inout", name: "Рывок", curve: [0.87, 0, 0.13, 1], group: "Резкие" },

@@ -1,4 +1,5 @@
 import { HostToolError } from "../hostTools/types.ts";
+import { storageGet, storageSet } from "../env.ts";
 import { easeFn, type Curve } from "../presets/curves.ts";
 import { ppro } from "./timeline.ts";
 
@@ -93,9 +94,9 @@ async function keyTimes(prm: any): Promise<number[]> {
   }
 }
 
-/** Все анимированные параметры клипа (с ключами). */
-async function animatedParams(item: any, scope: BakeOptions["scope"]): Promise<any[]> {
-  const out: any[] = [];
+/** Все анимированные параметры клипа (с ключами) + id «компонент.параметр» для реестра наших ключей. */
+async function animatedParams(item: any, scope: BakeOptions["scope"]): Promise<Array<{ prm: any; id: string }>> {
+  const out: Array<{ prm: any; id: string }> = [];
   const chain = await item.getComponentChain();
   const n: number = chain.getComponentCount();
   for (let i = 0; i < n; i++) {
@@ -105,7 +106,7 @@ async function animatedParams(item: any, scope: BakeOptions["scope"]): Promise<a
       const prm = comp.getParam(j);
       if (!prm?.isTimeVarying?.()) continue;
       if (scope === "motion" && !MOTION_NAMES.test(String(prm.displayName ?? ""))) continue;
-      out.push(prm);
+      out.push({ prm, id: `${i}.${j}` });
     }
   }
   return out;
@@ -115,8 +116,9 @@ async function animatedParams(item: any, scope: BakeOptions["scope"]): Promise<a
  * «Опорные» ключи параметра: густые серии (запечённые ранее, шаг ≤ 2.5 кадра) схлопываются до крайних ключей.
  * Так кривую можно менять сколько угодно раз — пересчитывается от исходных точек.
  */
-function anchors(times: number[], frame: number): { anchors: number[]; dense: number[] } {
-  const sorted = [...times].sort((a, b) => a - b);
+function anchors(times: number[], frame: number, ours?: Set<string>): { anchors: number[]; dense: number[] } {
+  const mine = times.filter((t) => ours?.has(t.toFixed(3)));
+  const sorted = times.filter((t) => !ours?.has(t.toFixed(3))).sort((a, b) => a - b);
   const keep: number[] = [];
   const dense: number[] = [];
   for (let i = 0; i < sorted.length; i++) {
@@ -138,7 +140,64 @@ function anchors(times: number[], frame: number): { anchors: number[]; dense: nu
     }
     if (equal) for (let j = 1; j < FEW_SEGMENTS; j++) few.add(k2[i + j]);
   }
-  return { anchors: keep.filter((t) => !few.has(t)), dense: [...dense, ...few] };
+  return { anchors: keep.filter((t) => !few.has(t)), dense: [...dense, ...few, ...mine] };
+}
+
+// ───────── Реестр «наших» ключей: чтобы повторное применение заменяло их, а не копило ─────────
+
+const REG_KEY = "bakedKeys";
+
+function loadRegistry(): Record<string, number[]> {
+  try {
+    const v = JSON.parse(storageGet(REG_KEY) || "{}");
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRegistry(r: Record<string, number[]>): void {
+  // Не даём реестру расти бесконечно.
+  const keys = Object.keys(r);
+  if (keys.length > 400) for (const k of keys.slice(0, keys.length - 400)) delete r[k];
+  storageSet(REG_KEY, JSON.stringify(r));
+}
+
+const regId = (clip: string, id: string) => `${clip}::${id}`;
+const asSet = (list?: number[]) => new Set((list ?? []).map((t) => t.toFixed(3)));
+
+/**
+ * Где ставить дополнительные ключи в режиме «мало»: в моменты, когда движение проходит 1/4, 1/2, 3/4 пути
+ * (для кривых без перелёта) — так ключи сгущаются там, где скорость меняется сильнее. Иначе — равномерно.
+ */
+export function fewFractions(curve: Curve): number[] {
+  const [, y1, , y2] = curve;
+  if (y1 < 0 || y1 > 1 || y2 < 0 || y2 > 1) return [0.25, 0.5, 0.75];
+  const ease = easeFn(curve);
+  return [0.25, 0.5, 0.75].map((y) => {
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (ease(mid) < y) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  });
+}
+
+/** Доли → времена ключей: на целых кадрах, не ближе кадра к соседям и концам отрезка. */
+function fewTimes(t0: number, t1: number, fr: number[], frame: number): number[] {
+  const out: number[] = [];
+  let prev = t0;
+  for (const f of fr) {
+    const t = Math.round((t0 + (t1 - t0) * f) / frame) * frame;
+    if (t - prev >= frame * 0.99 && t1 - t >= frame * 0.99) {
+      out.push(t);
+      prev = t;
+    }
+  }
+  return out;
 }
 
 /** Применить кривую ко всем отрезкам между опорными ключами выделенных клипов. */
@@ -155,37 +214,52 @@ export async function bakeCurve(curve: Curve, opt: BakeOptions): Promise<BakeRes
   for (const item of items) {
     const name: string = (await item.getName?.().catch(() => "")) || "клип";
     const prms = await animatedParams(item, opt.scope);
+    const reg = loadRegistry();
     if (prms.length === 0) {
       res.skipped.push(`${name}: нет ключевых кадров`);
       continue;
     }
     let used = false;
-    for (const prm of prms) {
+    for (const { prm, id } of prms) {
       const times = await keyTimes(prm);
       if (times.length < 2) continue;
-      const { anchors: pts, dense } = anchors(times, frame);
+      const rid = regId(name, id);
+      const { anchors: pts, dense } = anchors(times, frame, asSet(reg[rid]));
       if (pts.length < 2) continue;
       // Значения опорных ключей.
       const vals: Array<Val | null> = [];
       for (const t of pts) vals.push(valOf(await prm.getValueAtTime(p.TickTime.createWithSeconds(t)).catch(() => null)));
       let segs = 0;
+      const newReg: number[] = [];
       for (let s = 0; s < pts.length - 1; s++) {
         const a = vals[s];
         const b = vals[s + 1];
         if (a === null || b === null || typeof a !== typeof b) continue;
         const t0 = pts[s];
         const t1 = pts[s + 1];
-        const n = opt.step === 0 ? FEW_SEGMENTS : Math.floor((t1 - t0) / (frame * opt.step));
-        if (n < 2 || (t1 - t0) / n < frame * 0.9) continue;
-        for (let i = 1; i < n; i++) {
-          const t = t0 + ((t1 - t0) * i) / n;
-          adds.push({ param: prm, t, v: lerp(a, b, ease(i / n)) });
+        if (opt.step === 0) {
+          const ts = fewTimes(t0, t1, fewFractions(curve), frame);
+          if (!ts.length) continue;
+          for (const t of ts) {
+            adds.push({ param: prm, t, v: lerp(a, b, ease((t - t0) / (t1 - t0))) });
+            newReg.push(t);
+          }
+        } else {
+          const n = Math.floor((t1 - t0) / (frame * opt.step));
+          if (n < 2 || (t1 - t0) / n < frame * 0.9) continue;
+          for (let i = 1; i < n; i++) {
+            const t = t0 + ((t1 - t0) * i) / n;
+            adds.push({ param: prm, t, v: lerp(a, b, ease(i / n)) });
+            newReg.push(t);
+          }
         }
         segs++;
       }
       if (segs === 0) continue;
       for (const t of dense) removes.push({ param: prm, t });
       anchorMap.set(prm, pts);
+      reg[rid] = newReg;
+      saveRegistry(reg);
       res.params++;
       res.segments += segs;
       used = true;
@@ -233,13 +307,18 @@ export async function unbakeCurve(): Promise<{ removed: number }> {
   const frame = await frameSeconds(sequence);
   const removes: Array<{ param: any; t: number }> = [];
   const keepers: Array<{ param: any; t: number }> = [];
+  const reg = loadRegistry();
   for (const item of items) {
-    for (const prm of await animatedParams(item, "all")) {
-      const { anchors: pts, dense } = anchors(await keyTimes(prm), frame);
+    const name: string = (await item.getName?.().catch(() => "")) || "клип";
+    for (const { prm, id } of await animatedParams(item, "all")) {
+      const rid = regId(name, id);
+      const { anchors: pts, dense } = anchors(await keyTimes(prm), frame, asSet(reg[rid]));
       dense.forEach((t) => removes.push({ param: prm, t }));
       pts.forEach((t) => keepers.push({ param: prm, t }));
+      delete reg[rid];
     }
   }
+  saveRegistry(reg);
   if (removes.length === 0) throw new HostToolError("У выделенных клипов нет запечённых графиков.");
   run(project, "Ассистент: убрать график", (c) => {
     for (const r of removes) c.addAction(r.param.createRemoveKeyframeAction(p.TickTime.createWithSeconds(r.t), false));
@@ -263,7 +342,11 @@ export const FEW_SEGMENTS = 4;
 
 export function curveKeys(t0: number, t1: number, v0: Val, v1: Val, curve: Curve, frame: number, few = false): Array<{ t: number; v: Val }> {
   const ease = easeFn(curve);
-  const n = few ? FEW_SEGMENTS : Math.max(2, Math.round(Math.abs(t1 - t0) / frame));
+  if (few) {
+    const ts = [t0, ...fewTimes(t0, t1, fewFractions(curve), frame), t1];
+    return ts.map((t) => ({ t, v: lerp(v0, v1, ease((t - t0) / (t1 - t0))) }));
+  }
+  const n = Math.max(2, Math.round(Math.abs(t1 - t0) / frame));
   const out: Array<{ t: number; v: Val }> = [];
   for (let i = 0; i <= n; i++) out.push({ t: t0 + ((t1 - t0) * i) / n, v: lerp(v0, v1, ease(i / n)) });
   return out;
@@ -310,7 +393,7 @@ export async function applyQuickEase(kind: QuickEase, scope: BakeOptions["scope"
   const res: QuickResult = { clips: 0, params: 0, keys: 0 };
   for (const item of items) {
     let used = false;
-    for (const prm of await animatedParams(item, scope)) {
+    for (const { prm } of await animatedParams(item, scope)) {
       const times = (await keyTimes(prm)).sort((a, b) => a - b);
       if (times.length === 0) continue;
       const { anchors: pts } = anchors(times, frame);

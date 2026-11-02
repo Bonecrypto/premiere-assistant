@@ -2,6 +2,8 @@ import { useState } from "react";
 import { animateSelected } from "../automation/animate.ts";
 import { applyFxPreset, loadFxPresets } from "../automation/fxPresets.ts";
 import { applyRecipe, type FxRecipe } from "../automation/fxRecipes.ts";
+import { bakeCurve, unbakeCurve } from "../automation/graph.ts";
+import { CURVE_PRESETS } from "../presets/curves.ts";
 import { storageGet, storageSet } from "../env.ts";
 import { loadAnimOptions } from "../presets/animations.ts";
 import { COLOR_RECIPES, FX_MOTION, FX_RECIPES } from "../presets/fxLibrary.ts";
@@ -18,6 +20,8 @@ interface Tile {
   group: string;
   /** Цвета миниатюры (градиент). */
   swatch: [string, string];
+  /** Применять сразу по клику (без «Применить»). */
+  instant?: boolean;
   run(strength: number): Promise<string>;
 }
 
@@ -30,6 +34,7 @@ const SWATCH: Record<string, [string, string]> = {
   sharpen: ["#9ad0ff", "#20405f"],
   pixel: ["#7cff9b", "#1f6b3a"],
   "stop-motion": ["#ffd166", "#ef476f"],
+  "transform-mb": ["#9f18ec", "#22045e"],
   invert: ["#00e5ff", "#ff1744"],
   warm: ["#ffb26b", "#c2410c"],
   cold: ["#8ecbff", "#1e3a8a"],
@@ -58,6 +63,25 @@ function recipeTiles(list: FxRecipe[]): Tile[] {
   }));
 }
 
+/** Кривые «одним кликом» для ключей, которые пользователь поставил сам. */
+const KEY_CURVES: Array<{ id: string; name: string; desc: string; swatch: [string, string] }> = [
+  { id: "fast-launch", name: "Быстрый вылет", desc: "Максимальная скорость сразу, мягкое торможение", swatch: ["#ff5e3a", "#7a1cf0"] },
+  { id: "trampoline", name: "Трамплин", desc: "Медленный разгон — резкий вылет в конце", swatch: ["#7a1cf0", "#ff5e3a"] },
+  { id: "smooth-inout", name: "Плавно", desc: "Мягкий старт и мягкая остановка", swatch: ["#5a6fe8", "#2d9ee0"] },
+  { id: "unbake", name: "Убрать", desc: "Вернуть ваши ключи как были (Bezier)", swatch: ["#3a3a44", "#1a1a20"] },
+];
+
+/** Плотность ключей — как выбрано во вкладке «Графики» (по умолчанию «мало»). */
+function graphStep(): 0 | 1 | 2 {
+  try {
+    const v = JSON.parse(storageGet("graphOptions") || "null");
+    if (v && (v.step === 0 || v.step === 1 || v.step === 2)) return v.step;
+  } catch {
+    /* по умолчанию */
+  }
+  return 0;
+}
+
 /** Плитки вкладки «Эффекты»: пачки + движение + свои пачки из «Пресеты → Эффекты». */
 function effectsTiles(): Tile[] {
   const motion: Tile[] = FX_MOTION.map((m) => ({
@@ -84,7 +108,25 @@ function effectsTiles(): Tile[] {
       return `«${f.name}» — ${r.changed} клип. Отмена — Ctrl+Z (2 раза).`;
     },
   }));
-  return [...recipeTiles(FX_RECIPES), ...motion, ...mine];
+  const keys: Tile[] = KEY_CURVES.map((k) => ({
+    key: k.id,
+    name: k.name,
+    desc: k.desc,
+    group: "Ключи — ваши ключи в Effect Controls",
+    swatch: k.swatch,
+    instant: true,
+    run: async () => {
+      if (k.id === "unbake") {
+        const r = await unbakeCurve();
+        return `Убрано доп. ключей: ${r.removed}. Ваши ключи остались.`;
+      }
+      const curve = CURVE_PRESETS.find((c) => c.id === k.id)!.curve;
+      const r = await bakeCurve(curve, { step: graphStep(), scope: "all" });
+      const skip = r.skipped.length ? ` Пропущено: ${r.skipped[0]}.` : "";
+      return `«${k.name}»: ${r.segments} отрезк. у ${r.params} парам. Отмена — Ctrl+Z.${skip}`;
+    },
+  }));
+  return [...keys, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
 }
 
 export function EffectsView() {
@@ -93,7 +135,7 @@ export function EffectsView() {
       title="Эффекты"
       sub="Готовые пачки из стандартных эффектов Premiere — выделите клипы и примените."
       tiles={effectsTiles()}
-      hint="Свою пачку можно сохранить с клипа: «Пресеты → Эффекты → Сохранить с клипа» — она появится здесь в «Мои пачки»."
+      hint="«Ключи»: поставьте 2 ключа в Effect Controls (например, Position), выделите клип и нажмите плитку — применится сразу. Между вашими ключами появятся 1–3 доп. ключа (Premiere не даёт плагинам двигать ручки скорости). Повторное нажатие заменяет их, «Убрать» — возвращает как было. Свою пачку эффектов можно сохранить с клипа: «Пресеты → Эффекты → Сохранить с клипа»."
       storeKey="fxSelected"
     />
   );
@@ -119,11 +161,11 @@ function RecipeView(props: { title: string; sub: string; tiles: Tile[]; withStre
   const chosen = props.tiles.find((t) => t.key === sel) ?? null;
   const groups = [...new Set(props.tiles.map((t) => t.group))];
 
-  const apply = async () => {
-    if (!chosen) return;
-    setStatus({ tone: "busy", text: `Применяю «${chosen.name}»…` });
+  const apply = async (tile: Tile | null = chosen) => {
+    if (!tile) return;
+    setStatus({ tone: "busy", text: `Применяю «${tile.name}»…` });
     try {
-      setStatus({ tone: "ok", text: await chosen.run(strength / 100) });
+      setStatus({ tone: "ok", text: await tile.run(strength / 100) });
     } catch (err) {
       setStatus({ tone: "error", text: (err as Error)?.message || String(err) });
     }
@@ -164,9 +206,10 @@ function RecipeView(props: { title: string; sub: string; tiles: Tile[]; withStre
                       onClick={() => {
                         setSel(t.key);
                         storageSet(props.storeKey, t.key);
-                        setStatus(null);
+                        if (t.instant) void apply(t);
+                        else setStatus(null);
                       }}
-                      onDoubleClick={() => void apply()}
+                      onDoubleClick={() => !t.instant && void apply(t)}
                       title={t.desc}
                     >
                       <div className="recipe-swatch" style={{ backgroundColor: t.swatch[1], backgroundImage: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} />
@@ -184,7 +227,7 @@ function RecipeView(props: { title: string; sub: string; tiles: Tile[]; withStre
         <span className={`pv-footer-text${status ? ` status-${status.tone}` : ""}`}>
           {status ? status.text : chosen ? `${chosen.name} — выделите клипы и «Применить» (или двойной клик)` : "Выберите плитку"}
         </span>
-        <Button variant="primary" className="pv-apply" onClick={apply} disabled={!chosen || status?.tone === "busy"}>
+        <Button variant="primary" className="pv-apply" onClick={() => void apply()} disabled={!chosen || status?.tone === "busy"}>
           Применить
         </Button>
       </div>

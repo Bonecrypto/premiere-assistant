@@ -39,6 +39,16 @@ const posterizeTime = (fps: number): EffectStep => ({
   names: ["Posterize Time", "Постеризация времени"],
   params: [P(["Frame Rate", "Частота кадров"], fps, undefined, 0)],
 });
+/** Transform с моушн-блюром: Use Composition's Shutter Angle = выкл, Shutter Angle = 360. */
+export const transformBlur: EffectStep = {
+  label: "Transform",
+  match: ["AE.ADBE Geometry2"],
+  names: ["Transform", "Преобразовать", "Трансформирование", "Преобразование"],
+  params: [
+    P(["Use Composition's Shutter Angle", "Use Composition’s Shutter Angle", "Использовать угол затвора композиции"], false, undefined, 9),
+    P(["Shutter Angle", "Угол затвора"], 360, undefined, 10),
+  ],
+};
 const invert: EffectStep = { label: "Invert", names: ["Invert", "Инвертировать", "Инверсия"], params: [] };
 
 /** Lumetri Color: только нужные параметры (нейтральные значения — для ползунка «Сила»). */
@@ -82,6 +92,7 @@ export const FX_RECIPES: FxRecipe[] = [
   R("pixel", "Пиксели", "Картинка", "Мозаика — для цензуры или стиля", [mosaic(40, 24)]),
   R("stop-motion", "Stop-motion", "Картинка", "Рывками, 12 кадров/с", [posterizeTime(12)]),
   R("invert", "Инверсия", "Картинка", "Негатив", [invert]),
+  R("transform-mb", "Transform + блюр 360", "Движение", "Transform с моушн-блюром: Shutter 360°, без «Use Composition's»", [transformBlur]),
 ];
 
 /** Вкладка «Эффекты» — движение (готовые анимации из библиотеки «Пресетов»). */
