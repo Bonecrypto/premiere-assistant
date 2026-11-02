@@ -51,7 +51,7 @@ jobs:
           zip -r -q ../../../premiere-assistant.ccx . -x '*.map'
 
       - name: Нажиматель клавиш (для автопокраски таймлайна)
-        run: cd tools/keys-helper && zip -q ../../premiere-assistant-keys.zip PremiereAssistantKeys.ps1 run-hidden.vbs install.cmd uninstall.cmd README.txt
+        run: cd tools/keys-helper && zip -q ../../premiere-assistant-keys.zip PremiereAssistantKeys.ps1 start-keys.cmd README.txt
 
       - name: Релиз
         env:

@@ -153,7 +153,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
         </Button>
         <div className="wiz-note">
           Premiere не даёт плагинам менять цвет клипов на таймлайне напрямую, поэтому клавишу цвета нажимает маленький
-          «нажиматель клавиш» на вашем компьютере (ставится один раз). Без него — пошаговый режим вручную.
+          «нажиматель клавиш» на вашем компьютере (окно start-keys.cmd). Без него — пошаговый режим вручную.
         </div>
       </div>
     );
@@ -239,7 +239,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
         ))}
         <div className="field-hint">
           Также нужна стандартная клавиша Shift+3 — «перейти на таймлайн» (есть в Premiere по умолчанию). И установлен
-          «нажиматель клавиш» (premiere-assistant-keys.zip из релизов — панель подскажет, если его нет).
+          запущен «нажиматель клавиш» (start-keys.cmd из premiere-assistant-keys.zip — панель подскажет, если его нет).
         </div>
         <div className="confirm-actions">
           <Button variant="secondary" className="confirm-btn" onClick={() => setState({ kind: "overview", planned: state.planned })}>
@@ -263,26 +263,26 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
   if (state.kind === "noHelper") {
     return (
       <div className="hero-card">
-        <div className="result result-error">Не найден «нажиматель клавиш» — без него панель не может ставить цвет клипам.</div>
+        <div className="result result-error">Не запущен «нажиматель клавиш» — без него панель не может ставить цвет клипам.</div>
         <div className="wiz-step-head">ОДИН РАЗ, 1 МИНУТА</div>
         <div className="wiz-setup-steps">
           <div>
             1. Скачайте <b>premiere-assistant-keys.zip</b> со страницы релизов (кнопка ниже).
           </div>
-          <div>2. Распакуйте и дважды кликните <b>install.cmd</b>.</div>
-          <div>3. Вернитесь сюда и нажмите «Установил — покрасить».</div>
+          <div>2. Распакуйте и дважды кликните <b>start-keys.cmd</b> — откроется окно, его можно свернуть.</div>
+          <div>3. Вернитесь сюда и нажмите «Запустил — покрасить».</div>
         </div>
         <div className="wiz-url">github.com/{updateRepo() || "Bonecrypto/premiere-assistant"}/releases/latest</div>
         <div className="field-hint">
-          Это маленький скрипт Windows: нажимает только клавиши цветов в Premiere, работает только на вашем компьютере, сам
-          запускается при входе в Windows. Node.js и проект не нужны.
+          Это обычный текстовый скрипт PowerShell (можно открыть Блокнотом): нажимает только клавиши цветов в Premiere и
+          работает, пока открыто его окно. Ничего не устанавливает. Если окно уже запускали — просто откройте его снова.
         </div>
         <div className="confirm-actions">
           <Button variant="secondary" className="confirm-btn" onClick={() => openReleases()}>
             Открыть релизы
           </Button>
           <Button variant="primary" className="confirm-btn" onClick={() => void runAuto(state.planned)}>
-            Установил — покрасить
+            Запустил — покрасить
           </Button>
         </div>
         <div className="wiz-links">

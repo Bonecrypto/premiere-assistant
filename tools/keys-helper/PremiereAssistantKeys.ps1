@@ -1,7 +1,7 @@
 ﻿# Premiere Assistant — нажиматель клавиш для автопокраски таймлайна.
 # Слушает только этот компьютер (localhost:8766). Принимает от панели Premiere Assistant
 # только разрешённые комбинации: Shift+3 (фокус таймлайна) и клавиши меток Ctrl+Alt+Shift+1…9, 0, F1…F6.
-# Ничего другого не умеет. Остановить: uninstall.cmd (или завершить powershell в диспетчере задач).
+# Ничего другого не умеет. Работает, пока открыто окно; закройте окно — выключится.
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -28,6 +28,12 @@ try {
   # 127.0.0.1 может требовать прав администратора — тогда только localhost.
   $listener = New-Listener @("http://localhost:$Port/")
 }
+
+Write-Host ''
+Write-Host '  Premiere Assistant — клавиши для автопокраски таймлайна' -ForegroundColor Magenta
+Write-Host "  Работает на этом компьютере (localhost:$Port). Окно можно свернуть."
+Write-Host '  Закройте окно, чтобы выключить.'
+Write-Host ''
 
 function To-SendKeys([string]$combo) {
   $parts = $combo.ToLower().Split('+')
@@ -81,11 +87,13 @@ while ($listener.IsListening) {
       $bad = $keys | Where-Object { $Allow -notcontains $_ }
       if ($bad) { Reply $ctx 400 @{ ok = $false; error = "Комбинация не разрешена: $($bad -join ', ')" }; continue }
       Send-Keys $keys
+      Write-Host ("  {0}  нажато: {1}" -f (Get-Date -Format 'HH:mm:ss'), ($keys -join ', '))
       Reply $ctx 200 @{ ok = $true }
     } else {
       Reply $ctx 404 @{ ok = $false; error = 'not found' }
     }
   } catch {
+    Write-Host ("  ошибка: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
     try { Reply $ctx 500 @{ ok = $false; error = "$($_.Exception.Message)" } } catch {}
   }
 }
