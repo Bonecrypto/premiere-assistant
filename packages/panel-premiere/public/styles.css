@@ -3179,3 +3179,11 @@ body,
 .topbar.is-compact .tabpill {
   padding: 3px;
 }
+
+/* Картинки плиток «Эффекты» / «Цвет» */
+.recipe-thumb {
+  display: block;
+  width: 92px;
+  height: 52px;
+  background-color: #000;
+}

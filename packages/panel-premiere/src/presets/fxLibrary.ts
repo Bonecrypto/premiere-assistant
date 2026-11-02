@@ -63,6 +63,18 @@ const roundCorners = (border: number, sharpness: number): EffectStep => ({
     P(["Fractal Influence", "Фрактальное влияние", "Влияние фрактала"], 0),
   ],
 });
+/** Свечение по яркости: VR Glow (есть во всех версиях Premiere, работает и с обычным видео). */
+const vrGlow = (radius: number): EffectStep => ({
+  label: "VR Glow",
+  names: ["VR Glow", "VR-свечение", "Свечение VR", "Свечение (VR)"],
+  params: [P(["Glow Radius", "Радиус свечения"], radius)],
+});
+/** Свечение по краю альфа-канала: PNG, текст, логотипы. */
+const alphaGlow = (size: number, brightness: number): EffectStep => ({
+  label: "Alpha Glow",
+  names: ["Alpha Glow", "Альфа-свечение", "Свечение альфа-канала", "Свечение альфа"],
+  params: [P(["Glow", "Свечение"], size, undefined, 0), P(["Brightness", "Яркость"], brightness, undefined, 1)],
+});
 const invert: EffectStep = { label: "Invert", names: ["Invert", "Инвертировать", "Инверсия"], params: [] };
 
 /** Lumetri Color: только нужные параметры (нейтральные значения — для ползунка «Сила»). */
@@ -109,6 +121,10 @@ export const FX_RECIPES: FxRecipe[] = [
   R("round-s", "Скругление S", "Углы", "Слегка скруглить углы картинки/PNG", [roundCorners(12, 2)]),
   R("round-m", "Скругление M", "Углы", "Заметно скруглённые углы", [roundCorners(30, 1.5)]),
   R("round-l", "Скругление L", "Углы", "Сильное скругление, почти «таблетка»", [roundCorners(70, 1)]),
+  R("glow-soft", "Свечение", "Свечение", "Мягкий ореол вокруг светлых мест (VR Glow)", [vrGlow(25)]),
+  R("glow-strong", "Сильное свечение", "Свечение", "Яркий ореол — огни, неон, блики", [vrGlow(60)]),
+  R("glow-alpha", "Свечение контура", "Свечение", "Свет по краю PNG, текста, логотипа (Alpha Glow)", [alphaGlow(15, 200)]),
+  R("glow-neon", "Неон-контур", "Свечение", "Широкий яркий контур вокруг PNG/текста", [alphaGlow(40, 255)]),
   R("transform-mb", "Transform + блюр 360", "Движение", "Transform с моушн-блюром: Shutter 360°, без «Use Composition's»", [transformBlur]),
 ];
 

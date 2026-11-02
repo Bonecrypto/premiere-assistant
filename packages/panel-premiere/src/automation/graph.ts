@@ -42,6 +42,12 @@ function valOf(v: any): Val | null {
   return null;
 }
 
+function sameVal(a: Val | null, b: Val | null): boolean {
+  if (a === null || b === null) return false;
+  if (typeof a === "number" || typeof b === "number") return typeof a === typeof b && Math.abs((a as number) - (b as number)) < 1e-6;
+  return Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6;
+}
+
 function lerp(a: Val, b: Val, k: number): Val {
   if (typeof a === "number") return a + ((b as number) - a) * k;
   const bb = b as { x: number; y: number };
@@ -408,16 +414,24 @@ export async function applyQuickEase(kind: QuickEase, scope: BakeOptions["scope"
     for (const { prm } of await animatedParams(item, scope)) {
       const times = (await keyTimes(prm)).sort((a, b) => a - b);
       if (times.length === 0) continue;
+      // Наши доп. ключи уже убраны (unbakeCurve(true)) — остальные ключи пользователя, берём все.
+      // Для прочих режимов — опорные (без старых «частоколов» без реестра).
+      const shaped = kind === "launch" || kind === "trampoline";
       const { anchors: pts } = anchors(times, frame);
-      const keys = pts.length ? pts : times;
+      const keys = shaped || !pts.length ? times : pts;
+      // Где движение начинается и где заканчивается — по значениям ключей.
+      const vals: Array<Val | null> = shaped
+        ? await Promise.all(keys.map(async (t) => valOf(await Promise.resolve(prm.getValueAtTime(p.TickTime.createWithSeconds(t))).catch(() => null))))
+        : [];
+      const moves = (i: number) => i >= 0 && i < keys.length - 1 && !sameVal(vals[i], vals[i + 1]);
       keys.forEach((t, i) => {
         let m: number;
         if (kind === "launch") {
-          // Вылет: первый ключ — Linear (сразу на скорости), остальные — Bezier (мягкое торможение).
-          m = i === 0 ? mode("LINEAR")! : mode("BEZIER")!;
+          // Вылет: ключ, с которого начинается движение, — Linear (сразу на скорости); где оно кончается — Bezier (торможение).
+          m = moves(i) && !moves(i - 1) ? mode("LINEAR")! : mode("BEZIER")!;
         } else if (kind === "trampoline") {
-          // Трамплин: последний ключ — Linear (влетает на скорости), остальные — Bezier (мягкий разгон).
-          m = i === keys.length - 1 ? mode("LINEAR")! : mode("BEZIER")!;
+          // Трамплин: ключ, где движение кончается, — Linear (влетает на скорости); старт — Bezier (мягкий разгон).
+          m = moves(i - 1) && !moves(i) ? mode("LINEAR")! : mode("BEZIER")!;
         } else if (kind === "easy-ease") {
           m = i === 0 ? mode("TIME_TRANSITION_START")! : i === keys.length - 1 ? mode("TIME_TRANSITION_END")! : mode("BEZIER")!;
         } else {
