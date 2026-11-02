@@ -16,7 +16,8 @@ const TICKS_PER_SECOND = 254016000000;
 
 export interface BakeOptions {
   /** Шаг ключей в кадрах: 1 — каждый кадр (точнее), 2 — через кадр (легче). */
-  step: 1 | 2;
+  /** 0 — мало ключей (4 отрезка, Bezier: Premiere сам сглаживает — по умолчанию), 1 — каждый кадр, 2 — через кадр. */
+  step: 0 | 1 | 2;
   /** Какие параметры: все анимированные или только движение (Position/Scale/Rotation/Opacity). */
   scope: "all" | "motion";
 }
@@ -125,7 +126,19 @@ function anchors(times: number[], frame: number): { anchors: number[]; dense: nu
     if (inside) dense.push(sorted[i]);
     else keep.push(sorted[i]);
   }
-  return { anchors: keep, dense };
+  // Режим «мало ключей»: серия из FEW_SEGMENTS равных промежутков — внутренние ключи тоже наши.
+  const k2 = keep;
+  const few = new Set<number>();
+  for (let i = 0; i + FEW_SEGMENTS < k2.length; i++) {
+    const g = k2[i + 1] - k2[i];
+    if (g <= frame * 2.5) continue;
+    let equal = true;
+    for (let j = 1; j < FEW_SEGMENTS; j++) {
+      if (Math.abs(k2[i + j + 1] - k2[i + j] - g) > frame * 0.6) equal = false;
+    }
+    if (equal) for (let j = 1; j < FEW_SEGMENTS; j++) few.add(k2[i + j]);
+  }
+  return { anchors: keep.filter((t) => !few.has(t)), dense: [...dense, ...few] };
 }
 
 /** Применить кривую ко всем отрезкам между опорными ключами выделенных клипов. */
@@ -162,8 +175,8 @@ export async function bakeCurve(curve: Curve, opt: BakeOptions): Promise<BakeRes
         if (a === null || b === null || typeof a !== typeof b) continue;
         const t0 = pts[s];
         const t1 = pts[s + 1];
-        const n = Math.floor((t1 - t0) / (frame * opt.step));
-        if (n < 2) continue;
+        const n = opt.step === 0 ? FEW_SEGMENTS : Math.floor((t1 - t0) / (frame * opt.step));
+        if (n < 2 || (t1 - t0) / n < frame * 0.9) continue;
         for (let i = 1; i < n; i++) {
           const t = t0 + ((t1 - t0) * i) / n;
           adds.push({ param: prm, t, v: lerp(a, b, ease(i / n)) });
@@ -196,13 +209,14 @@ export async function bakeCurve(curve: Curve, opt: BakeOptions): Promise<BakeRes
       c.addAction(a.param.createAddKeyframeAction(kf));
     }
   });
-  const LINEAR = p.Constants?.InterpolationMode?.LINEAR;
-  if (typeof LINEAR === "number") {
+  // Мало ключей — Bezier (Premiere сглаживает между ними); каждый кадр — Linear (форму задают сами ключи).
+  const MODE = opt.step === 0 ? p.Constants?.InterpolationMode?.BEZIER : p.Constants?.InterpolationMode?.LINEAR;
+  if (typeof MODE === "number") {
     try {
-      run(project, "Ассистент: график — линейно", (c) => {
-        for (const a of adds) c.addAction(a.param.createSetInterpolationAtKeyframeAction(p.TickTime.createWithSeconds(a.t), LINEAR, false));
+      run(project, "Ассистент: график — плавность", (c) => {
+        for (const a of adds) c.addAction(a.param.createSetInterpolationAtKeyframeAction(p.TickTime.createWithSeconds(a.t), MODE, false));
         for (const [param, pts] of anchorMap) {
-          for (const t of pts) c.addAction(param.createSetInterpolationAtKeyframeAction(p.TickTime.createWithSeconds(t), LINEAR, false));
+          for (const t of pts) c.addAction(param.createSetInterpolationAtKeyframeAction(p.TickTime.createWithSeconds(t), MODE, false));
         }
       });
     } catch {
@@ -244,9 +258,12 @@ export async function unbakeCurve(): Promise<{ removed: number }> {
 }
 
 /** Функция-генератор ключей по кривой (общая с анимациями-пресетами). */
-export function curveKeys(t0: number, t1: number, v0: Val, v1: Val, curve: Curve, frame: number): Array<{ t: number; v: Val }> {
+/** Сколько отрезков в режиме «мало ключей». */
+export const FEW_SEGMENTS = 4;
+
+export function curveKeys(t0: number, t1: number, v0: Val, v1: Val, curve: Curve, frame: number, few = false): Array<{ t: number; v: Val }> {
   const ease = easeFn(curve);
-  const n = Math.max(2, Math.round(Math.abs(t1 - t0) / frame));
+  const n = few ? FEW_SEGMENTS : Math.max(2, Math.round(Math.abs(t1 - t0) / frame));
   const out: Array<{ t: number; v: Val }> = [];
   for (let i = 0; i <= n; i++) out.push({ t: t0 + ((t1 - t0) * i) / n, v: lerp(v0, v1, ease(i / n)) });
   return out;

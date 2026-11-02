@@ -25,19 +25,16 @@ const OPT_KEY = "graphOptions";
 function loadOpts(): BakeOptions {
   try {
     const v = JSON.parse(storageGet(OPT_KEY) || "null");
-    if (v && (v.step === 1 || v.step === 2) && (v.scope === "all" || v.scope === "motion")) return v;
+    if (v && (v.step === 0 || v.step === 1 || v.step === 2) && (v.scope === "all" || v.scope === "motion") && v.v === 2) return v;
   } catch {
     /* по умолчанию */
   }
-  return { step: 1, scope: "all" };
+  return { step: 0, scope: "all" };
 }
 
 const QUICK: Array<{ id: QuickEase; name: string; curve: Curve; hint: string; beta?: boolean }> = [
   { id: "bezier", name: "Плавно", curve: [0.33, 0, 0.67, 1], hint: "Bezier — как «Bezier» в меню ключа" },
   { id: "linear", name: "Линейно", curve: [0, 0, 1, 1], hint: "Linear — ровная скорость" },
-  { id: "easy-ease", name: "Easy Ease", curve: [0.42, 0, 0.58, 1], hint: "Первый ключ — Ease Out, последний — Ease In", beta: true },
-  { id: "ease-out", name: "Ease Out", curve: [0, 0, 0.58, 1], hint: "Мягкий выход из ключа", beta: true },
-  { id: "ease-in", name: "Ease In", curve: [0.42, 0, 1, 1], hint: "Мягкий вход в ключ", beta: true },
   { id: "hold", name: "Ступенька", curve: [0, 0, 1, 1], hint: "Hold — значение держится до следующего ключа" },
 ];
 
@@ -69,7 +66,7 @@ export function GraphView() {
   };
   const setOpts = (o: BakeOptions) => {
     setOptsState(o);
-    storageSet(OPT_KEY, JSON.stringify(o));
+    storageSet(OPT_KEY, JSON.stringify({ ...o, v: 2 }));
   };
 
   const apply = async () => {
@@ -121,7 +118,7 @@ export function GraphView() {
         <div className="hero-card quick-ease">
           <div className="quick-head">
             <span className="graph-name">Быстро</span>
-            <span className="quick-sub">без новых ключей — меняет тип ваших ключей в Effect Controls</span>
+            <span className="quick-sub">без новых ключей — меняет тип ваших ключей, как правый клик в Effect Controls</span>
           </div>
           <div className="quick-row">
             {QUICK.map((q) => (
@@ -140,7 +137,7 @@ export function GraphView() {
           {quickStatus ? <div className={quickStatus.tone === "busy" ? "result" : `result result-${quickStatus.tone}`}>{quickStatus.text}</div> : null}
         </div>
 
-        <div className="pv-group graph-own-title">Свой график (точная кривая — добавляет ключи на каждом кадре)</div>
+        <div className="pv-group graph-own-title">Свой график (форма кривой — добавляет несколько ключей)</div>
 
         <div className="hero-card">
           <div className="graph-head">
@@ -222,14 +219,15 @@ export function GraphView() {
           </div>
           <div className="pv-row pv-row-stack">
             <span className="pv-label">Ключи</span>
-            <Segmented<"1" | "2">
+            <Segmented<"0" | "2" | "1">
               className="segmented-small pv-seg"
               items={[
-                { id: "1", label: "Каждый кадр" },
+                { id: "0", label: "Мало (плавно)" },
                 { id: "2", label: "Через кадр" },
+                { id: "1", label: "Каждый кадр" },
               ]}
-              value={String(opts.step) as "1" | "2"}
-              onChange={(s) => setOpts({ ...opts, step: s === "2" ? 2 : 1 })}
+              value={String(opts.step) as "0" | "2" | "1"}
+              onChange={(v) => setOpts({ ...opts, step: v === "1" ? 1 : v === "2" ? 2 : 0 })}
             />
           </div>
           {status ? <div className={status.tone === "busy" ? "result" : `result result-${status.tone}`}>{status.text}</div> : null}
@@ -242,8 +240,9 @@ export function GraphView() {
             </Button>
           </div>
           <div className="wiz-note">
-            Premiere не даёт плагинам двигать ручки Безье у ключей, поэтому график «запекается»: между вашими ключами ставятся
-            ключи на каждом кадре точно по кривой. Ваши исходные ключи остаются — можно сменить кривую или убрать её.
+            Premiere не даёт плагинам двигать ручки Безье, поэтому форму кривой задают дополнительные ключи. «Мало» — 3 ключа на
+            отрезок, Premiere сглаживает между ними (выглядит естественно); «Каждый кадр» — точная форма, но много ключей.
+            Ваши исходные ключи остаются — кривую можно сменить или убрать.
           </div>
         </div>
       </div>

@@ -243,12 +243,10 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
           const [t0, v0, t1, v1] = s.extremeAt < s.normalAt ? [s.extremeAt, ext, s.normalAt, normal] : [s.normalAt, normal, s.extremeAt, ext];
           const lo = typeof v0 === "number" ? Math.min(v0, v1 as number) : 0;
           const hi = typeof v0 === "number" ? Math.max(v0, v1 as number) : 0;
-          for (const k of curveKeys(t0, t1, v0, v1, curve, frameSec)) {
+          for (const k of curveKeys(t0, t1, v0, v1, curve, frameSec, true)) {
             // Прозрачность и размытие не должны «перелетать» за свои пределы.
             const v = !canOvershoot && typeof k.v === "number" ? Math.max(lo, Math.min(hi, k.v)) : k.v;
-            const key: Key = { param, seconds: k.t, value: v };
-            keys.push(key);
-            linearKeys.add(key);
+            keys.push({ param, seconds: k.t, value: v });
           }
           continue;
         }
@@ -345,7 +343,8 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
 
   // 5. Плавность (Bezier) или линейно; тряска — всегда линейно.
   const modes = p.Constants?.InterpolationMode ?? {};
-  const mode = opt.easing === "bezier" ? modes.BEZIER : modes.LINEAR;
+  // Со своим графиком — несколько ключей по кривой, между ними Bezier (без «частокола» ключей).
+  const mode = curve || opt.easing === "bezier" ? modes.BEZIER : modes.LINEAR;
   if (typeof mode === "number") {
     try {
       run(project, "Ассистент: плавность", (c) => {

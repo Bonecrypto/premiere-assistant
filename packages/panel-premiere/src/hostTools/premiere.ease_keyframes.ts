@@ -6,7 +6,7 @@ interface Input {
   preset?: string;
   bezier?: number[];
   scope?: "all" | "motion";
-  step?: 1 | 2;
+  step?: 0 | 1 | 2;
   remove?: boolean;
   quick?: QuickEase;
 }
@@ -16,22 +16,22 @@ const tool: HostTool<Input> = {
   spec: {
     name: "premiere.ease_keyframes",
     description:
-      "quick (БЕЗ новых ключей, предпочтительно для простых просьб): linear | bezier | hold | ease-in | ease-out | easy-ease — " +
+      "quick (БЕЗ новых ключей, предпочтительно для простых просьб): linear | bezier | hold — " +
       "просто меняет тип интерполяции существующих ключей выделенных клипов, как в меню ключа в Effect Controls. " +
       "Иначе — точная кривая: меняет плавность (график скорости) ключевых кадров у ВЫДЕЛЕННЫХ клипов: между каждой парой ключей ставит ключи на каждом кадре " +
       "по кривой (cubic-bezier), т.к. Premiere API не даёт двигать ручки Безье. preset — готовая кривая: " +
       CURVE_PRESETS.map((p) => `${p.id} (${p.name})`).join(", ") +
       "; или bezier: [x1, y1, x2, y2] как в CSS. scope: all — все анимированные параметры, motion — только позиция/масштаб/поворот/прозрачность. " +
-      "step: 1 — ключ каждый кадр, 2 — через кадр. remove: true — убрать ранее применённый график (вернуть исходные ключи с Bezier).",
+      "step: 0 (по умолчанию) — мало ключей с Bezier, выглядит естественно; 1 — ключ каждый кадр (точно), 2 — через кадр. remove: true — убрать ранее применённый график (вернуть исходные ключи с Bezier).",
     inputSchema: {
       type: "object",
       properties: {
         preset: { type: "string" },
         bezier: { type: "array", items: { type: "number" } },
         scope: { type: "string", enum: ["all", "motion"] },
-        step: { type: "number", enum: [1, 2] },
+        step: { type: "number", enum: [0, 1, 2] },
         remove: { type: "boolean" },
-        quick: { type: "string", enum: ["linear", "bezier", "hold", "ease-in", "ease-out", "easy-ease"] },
+        quick: { type: "string", enum: ["linear", "bezier", "hold"] },
       },
       additionalProperties: false,
     },
@@ -47,7 +47,7 @@ const tool: HostTool<Input> = {
     else if (input.preset) curve = findCurvePreset(input.preset);
     if (!curve) throw new HostToolError(input.preset ? `Нет кривой «${input.preset}».` : "Укажи preset или bezier.");
     if (curve[0] < 0 || curve[0] > 1 || curve[2] < 0 || curve[2] > 1) throw new HostToolError("x1 и x2 должны быть от 0 до 1.");
-    return bakeCurve(curve, { scope: input.scope ?? "all", step: input.step === 2 ? 2 : 1 });
+    return bakeCurve(curve, { scope: input.scope ?? "all", step: input.step === 1 ? 1 : input.step === 2 ? 2 : 0 });
   },
 };
 
