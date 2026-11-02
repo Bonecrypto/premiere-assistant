@@ -55,7 +55,7 @@ function findByKeywords(rules: ColorRules, text: string, allowed: CategoryId[]):
 }
 
 const AUDIO_CATS: CategoryId[] = ["voice", "sfx", "music"];
-const VIDEO_CATS: CategoryId[] = ["graphics"];
+const VIDEO_CATS: CategoryId[] = ["text", "graphics"];
 
 export function classify(clip: ClipInfo, rules: ColorRules): Classification {
   const full = `${clip.clipName} ${clip.mediaPath}`.toLowerCase();
@@ -72,7 +72,11 @@ export function classify(clip: ClipInfo, rules: ColorRules): Classification {
     if (clip.isAdjustment) return { category: "adjustment", reason: "корректирующий слой" };
     const e = ext(clip.mediaPath);
     if (IMAGE_EXT.includes(e)) return { category: "graphics", reason: `файл .${e}` };
-    if (!clip.mediaPath) return { category: "graphics", reason: "клип без медиафайла (графика/титр)" };
+    if (!clip.mediaPath) {
+      // Без медиафайла — титр, текст, .mogrt (Essential Graphics). Если по названию это графика — графика.
+      const g = findByKeywords(rules, `${clip.trackName} ${clip.clipName}`, ["graphics"]);
+      return g ? { category: g, reason: "графика (по названию)" } : { category: "text", reason: "титр/текст (клип без медиафайла)" };
+    }
     const byName = findByKeywords(rules, `${clip.trackName} ${clip.clipName}`, VIDEO_CATS);
     if (byName) return { category: byName, reason: "по названию" };
     return { category: "video", reason: e ? `видеофайл .${e}` : "видео" };

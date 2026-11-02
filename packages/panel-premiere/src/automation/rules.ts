@@ -6,7 +6,7 @@ import { isLabelKey, type LabelKey } from "./labels.ts";
  * пользователь меняет их во вкладке «Авто» или просит ассистента в чате.
  */
 
-export type CategoryId = "music" | "sfx" | "voice" | "camera_audio" | "video" | "graphics" | "adjustment";
+export type CategoryId = "music" | "sfx" | "voice" | "camera_audio" | "video" | "graphics" | "text" | "adjustment";
 
 export interface CategoryRule {
   id: CategoryId;
@@ -33,7 +33,7 @@ export interface ColorRules {
   trackRoles?: Record<string, CategoryId>;
 }
 
-export const CATEGORY_ORDER: CategoryId[] = ["music", "sfx", "voice", "camera_audio", "video", "graphics", "adjustment"];
+export const CATEGORY_ORDER: CategoryId[] = ["music", "sfx", "voice", "camera_audio", "video", "graphics", "text", "adjustment"];
 
 export const DEFAULT_RULES: ColorRules = {
   version: 1,
@@ -66,7 +66,8 @@ export const DEFAULT_RULES: ColorRules = {
     },
     { id: "camera_audio", name: "Звук с камеры", label: "TEAL", enabled: true, keywords: [] },
     { id: "video", name: "Видео", label: "IRIS", enabled: true, keywords: [] },
-    { id: "graphics", name: "Графика и титры", label: "MANGO", enabled: true, keywords: ["title", "титр", "logo", "лого", "graphic", "граф", "text", "текст", "lower third"] },
+    { id: "graphics", name: "Графика", label: "MANGO", enabled: true, keywords: ["logo", "лого", "graphic", "граф", "png", "arrow", "стрел"] },
+    { id: "text", name: "Текст и титры", label: "LAVENDER", enabled: true, keywords: ["title", "титр", "text", "текст", "lower third", "subtitle", "субтитр", "caption", "надпис"] },
     { id: "adjustment", name: "Корректирующие слои", label: "YELLOW", enabled: true, keywords: [] },
   ],
 };
@@ -127,6 +128,12 @@ function sanitize(input: unknown): ColorRules {
         : def.keywords,
     };
   });
+  // Раньше титры входили в «Графику»: слова про текст из её списка переезжают в «Текст и титры».
+  const textCat = base.categories.find((c) => c.id === "text")!;
+  const gfx = base.categories.find((c) => c.id === "graphics")!;
+  const textWords = new Set(DEFAULT_RULES.categories.find((c) => c.id === "text")!.keywords);
+  gfx.keywords = gfx.keywords.filter((k) => !textWords.has(k));
+  if (!cats.some((x) => x && x.id === "text")) textCat.keywords = [...textWords];
   base.overrides = (Array.isArray(src.overrides) ? src.overrides : [])
     .filter((o) => o && typeof o.match === "string" && o.match.trim() && CATEGORY_ORDER.includes(o.category))
     .map((o) => ({ match: o.match.trim().toLowerCase(), category: o.category }));

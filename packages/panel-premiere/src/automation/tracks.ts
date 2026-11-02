@@ -29,6 +29,7 @@ const CATEGORY_TRACK_NAME: Record<CategoryId, string> = {
   camera_audio: "Звук с камеры",
   video: "Видео",
   graphics: "Графика",
+  text: "Текст",
   adjustment: "Корректирующие",
 };
 

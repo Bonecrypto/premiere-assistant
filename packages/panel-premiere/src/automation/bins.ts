@@ -15,6 +15,7 @@ export const BIN_NAMES = {
   voice: "Голос",
   camera_audio: "Видео",
   graphics: "Графика",
+  text: "Титры",
   adjustment: "Графика",
   sequence: "Секвенции",
   other: "Прочее",
