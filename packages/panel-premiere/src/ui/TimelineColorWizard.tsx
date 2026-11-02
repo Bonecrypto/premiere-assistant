@@ -95,6 +95,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
     }
     const steps = planned.plan.byCategory;
     let clips = 0;
+    let focused = false;
     try {
       for (let i = 0; i < steps.length; i++) {
         setState({ kind: "auto", planned, index: i });
@@ -102,7 +103,9 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
         if (!n) continue;
         clips += n;
         await delay(250);
-        await client.send([KEY_TIMELINE_FOCUS, labelCombo(steps[i].label)]);
+        // Shift+3 — только первый раз: если таймлайн уже активен, Premiere по Shift+3 переключает на следующую секвенцию.
+        await client.send(focused ? [labelCombo(steps[i].label)] : [KEY_TIMELINE_FOCUS, labelCombo(steps[i].label)]);
+        focused = true;
         await delay(200);
       }
       setState({ kind: "autoDone", count: steps.length, clips });
