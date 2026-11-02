@@ -193,8 +193,6 @@ export function App() {
           { id: "presets", icon: "presets", label: "Пресеты" },
           { id: "effects", icon: "sparkle", label: "Эффекты" },
           { id: "montage", icon: "scissors", label: "Монтаж" },
-        ]}
-        more={[
           { id: "titles", icon: "title", label: "Титры" },
           { id: "graph", icon: "graph", label: "Графики" },
           { id: "color", icon: "drop", label: "Цвет" },

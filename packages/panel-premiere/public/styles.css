@@ -3164,3 +3164,18 @@ body,
 .wiz-role.is-active {
   background-color: var(--accent);
 }
+
+/* Шапка: все вкладки иконками; в узкой панели — плотнее и без логотипа */
+.tabpill {
+  flex-shrink: 1;
+  min-width: 0;
+}
+.topbar.is-compact .topbar-logo {
+  display: none;
+}
+.topbar.is-compact .tabpill-item {
+  padding: 0 6px;
+}
+.topbar.is-compact .tabpill {
+  padding: 3px;
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { HelloAckMsg } from "@pa/core";
 import type { ConnectionStatus } from "../connection.ts";
 import { Icon, type IconName } from "./Icon.tsx";
@@ -23,53 +23,55 @@ export interface TabDef<T extends string> {
 }
 
 /**
- * Верхняя панель: логотип, главные вкладки в «таблетке», меню «•••» с остальными вкладками,
- * справа — действие текущей вкладки и шестерёнка настроек.
+ * Верхняя панель: логотип, все вкладки иконками в одной «таблетке» (без всплывающих меню — в Premiere они
+ * не нажимаются), подпись у активной — если хватает ширины; справа — действие вкладки и шестерёнка настроек.
  */
 export function TopBar<T extends string>(props: {
   tabs: TabDef<T>[];
-  more?: TabDef<T>[];
   settings?: TabDef<T>;
   tab: T;
   onTab(id: T): void;
   action?: { icon: IconName; title: string; onClick(): void; disabled?: boolean };
 }) {
-  const [open, setOpen] = useState(false);
-  const more = props.more ?? [];
-  const activeMore = more.find((t) => t.id === props.tab);
-  const moreBadge = more.reduce((n, t) => n + (t.badge ?? 0), 0);
-  const item = (t: TabDef<T>) => {
-    const active = t.id === props.tab;
-    return (
-      <div
-        key={t.id}
-        role="tab"
-        aria-selected={active}
-        title={t.label}
-        className={`tabpill-item${active ? " is-active" : ""}`}
-        onClick={() => {
-          setOpen(false);
-          props.onTab(t.id);
-        }}
-      >
-        <Icon name={t.icon} size={15} />
-        {active ? <span className="tabpill-label">{t.label}</span> : null}
-        {t.badge ? <span className="tabpill-badge">{t.badge}</span> : null}
-      </div>
-    );
-  };
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const w = ref.current?.offsetWidth ?? 0;
+      if (w && w !== width) setWidth(w);
+    };
+    measure();
+    const t = setInterval(measure, 800);
+    window.addEventListener("resize", measure);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("resize", measure);
+    };
+  });
+  // Иконка ≈ 30 px; логотип, шестерёнка и действие ≈ 110 px; подпись ≈ 80 px.
+  const showLabel = width >= props.tabs.length * 30 + 110 + 80;
+  const compact = width > 0 && width < props.tabs.length * 30 + 110;
   return (
-    <div className="topbar">
+    <div className={`topbar${compact ? " is-compact" : ""}`} ref={ref}>
       <Logo size={24} className="topbar-logo" />
       <div className="tabpill" role="tablist">
-        {props.tabs.map(item)}
-        {activeMore ? item(activeMore) : null}
-        {more.length ? (
-          <div className={`tabpill-item${open ? " is-open" : ""}`} title="Ещё вкладки" onClick={() => setOpen(!open)}>
-            <Icon name="more" size={15} />
-            {moreBadge && !activeMore ? <span className="tabpill-badge">{moreBadge}</span> : null}
-          </div>
-        ) : null}
+        {props.tabs.map((t) => {
+          const active = t.id === props.tab;
+          return (
+            <div
+              key={t.id}
+              role="tab"
+              aria-selected={active}
+              title={t.label}
+              className={`tabpill-item${active ? " is-active" : ""}`}
+              onClick={() => props.onTab(t.id)}
+            >
+              <Icon name={t.icon} size={15} />
+              {active && showLabel ? <span className="tabpill-label">{t.label}</span> : null}
+              {t.badge ? <span className="tabpill-badge">{t.badge}</span> : null}
+            </div>
+          );
+        })}
       </div>
       <div className="spacer" />
       {props.action ? (
@@ -85,34 +87,10 @@ export function TopBar<T extends string>(props: {
         <div
           className={`icon-btn${props.tab === props.settings.id ? " is-active" : ""}`}
           title={props.settings.label}
-          onClick={() => {
-            setOpen(false);
-            props.onTab(props.settings!.id);
-          }}
+          onClick={() => props.onTab(props.settings!.id)}
         >
           <Icon name={props.settings.icon} size={15} />
         </div>
-      ) : null}
-      {open ? (
-        <>
-          <div className="more-backdrop" onClick={() => setOpen(false)} />
-          <div className="more-menu">
-            {more.map((t) => (
-              <div
-                key={t.id}
-                className={`more-item${t.id === props.tab ? " is-active" : ""}`}
-                onClick={() => {
-                  setOpen(false);
-                  props.onTab(t.id);
-                }}
-              >
-                <Icon name={t.icon} size={15} />
-                <span className="more-label">{t.label}</span>
-                {t.badge ? <span className="tabpill-badge">{t.badge}</span> : null}
-              </div>
-            ))}
-          </div>
-        </>
       ) : null}
     </div>
   );
