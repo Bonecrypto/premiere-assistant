@@ -20,6 +20,9 @@ const (
 // sendKeys нажимает клавиши (на Windows — winSendKeys).
 var sendKeys func(keys []string) error
 
+// onQuit закрывает программу (панель вызывает при обновлении на новую версию).
+var onQuit = func() {}
+
 // Метки 0…15 (порядок Premiere) — те же комбинации, что LABEL_KEYS_COMBOS в packages/core/src/protocol.ts.
 var allow = map[string]bool{"shift+3": true}
 
@@ -71,6 +74,13 @@ func handle(c net.Conn) {
 	switch {
 	case method == "GET" && path == "/ping":
 		reply(c, 200, map[string]any{"ok": true, "app": "premiere-assistant-keys", "version": version})
+	case method == "POST" && path == "/quit":
+		if headers["x-premiere-assistant"] != "1" {
+			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
+			return
+		}
+		reply(c, 200, map[string]any{"ok": true})
+		go onQuit()
 	case method == "POST" && path == "/keys":
 		if headers["x-premiere-assistant"] != "1" {
 			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})

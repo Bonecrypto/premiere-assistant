@@ -58,6 +58,16 @@ async function openHttpClient(): Promise<KeysClient | null> {
         continue;
       }
       if (typeof j.version === "number" && j.version < MIN_VERSION) {
+        // Версии с 5 умеют закрываться по команде — тогда панель сама запустит новую.
+        try {
+          const q: Response = await withTimeout(fetch(`${base}/quit`, { method: "POST", headers: { "X-Premiere-Assistant": "1" } }), 2000);
+          if (q.ok) {
+            await new Promise((r) => setTimeout(r, 1500));
+            return null;
+          }
+        } catch {
+          /* старая версия без /quit */
+        }
         oldVersionRunning = true;
         lastKeysDiag =
           "запущена старая версия программы-нажимателя: нажмите её значок в трее (возле часов) → «Выход», затем «Ещё раз» — панель скачает новую.";

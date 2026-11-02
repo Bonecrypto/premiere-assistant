@@ -346,6 +346,8 @@ func main() {
 	copy(nid.SzTip[:], syscall.StringToUTF16("Premiere Assistant — клавиши для покраски таймлайна"))
 	pShellNotifyIconW.Call(nimAdd, uintptr(unsafe.Pointer(&nid)))
 
+	onQuit = func() { pPostMessageW.Call(hwnd, wmClose, 0, 0) }
+
 	// Выключиться через минуту после закрытия Premiere.
 	go func() {
 		last := time.Now()

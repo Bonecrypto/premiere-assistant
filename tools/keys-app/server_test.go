@@ -52,6 +52,16 @@ func TestServer(t *testing.T) {
 	if !allow["ctrl+alt+shift+q"] || allow["ctrl+alt+shift+f1"] {
 		t.Fatal("набор клавиш не совпадает с core")
 	}
+	quit := make(chan bool, 1)
+	onQuit = func() { quit <- true }
+	if r := req(t, "POST /quit HTTP/1.1\r\nX-Premiere-Assistant: 1\r\nContent-Length: 0\r\n\r\n"); !strings.Contains(r, `"ok":true`) {
+		t.Fatal(r)
+	}
+	select {
+	case <-quit:
+	case <-time.After(time.Second):
+		t.Fatal("quit не вызван")
+	}
 	if len(got) != 1 || got[0][1] != "ctrl+alt+shift+7" {
 		t.Fatalf("нажатия: %v", got)
 	}
