@@ -257,15 +257,19 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
         <div className="result result-error">Не получилось запустить «нажиматель клавиш» — без него панель не может ставить цвет клипам.</div>
         {lastKeysDiag ? <div className="field-hint">Причина: {lastKeysDiag}</div> : null}
         <div className="wiz-setup-steps">
+          {/not accepted|не разреш/i.test(lastKeysDiag) ? (
+            <div>
+              Premiere не дал плагину запустить программу — у установленного плагина нет нужного разрешения.{" "}
+              <b>Переустановите плагин из последнего релиза (.ccx)</b> — обычное «Обновление ↑» разрешения не приносит.
+            </div>
+          ) : (
+            <div>
+              1. Если Premiere спрашивал разрешение открыть файл — разрешите и нажмите <b>«Ещё раз»</b>.
+            </div>
+          )}
           <div>
-            1. Если Premiere спрашивал разрешение открыть файл — разрешите и нажмите <b>«Ещё раз»</b>.
-          </div>
-          <div>
-            2. Если не спрашивал — переустановите плагин из последнего релиза (.ccx): в нём есть разрешение на автозапуск.
-          </div>
-          <div>
-            3. Запасной вариант вручную: скачайте <b>premiere-assistant-keys.exe</b> из релиза и запустите — появится значок в
-            трее (возле часов).
+            Сейчас, без переустановки: скачайте <b>premiere-assistant-keys.exe</b> из релиза и запустите его — появится значок в
+            трее (возле часов), затем «Ещё раз».
           </div>
         </div>
         <div className="wiz-url">github.com/{updateRepo() || "Bonecrypto/premiere-assistant"}/releases/latest</div>

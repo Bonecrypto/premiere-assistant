@@ -4,8 +4,7 @@ import { updateRepo } from "../update/version.ts";
 /**
  * Встроенный «нажиматель клавиш»: маленькая программа без окон (значок в трее, tools/keys-app, Go + Win32).
  * Панель при первом использовании скачивает её из релиза GitHub в свою папку данных и запускает
- * через короткий .cmd (uxp.shell.openPath; в manifest — launchProcess.extensions ".cmd"; консоль мелькает
- * на долю секунды). Программа сама закрывается через минуту после закрытия Premiere.
+ * напрямую (uxp.shell.openPath; в manifest — launchProcess.extensions ".exe"), запасной путь — короткий .cmd. Программа сама закрывается через минуту после закрытия Premiere.
  */
 
 /** Версия программы — менять вместе с `version` в tools/keys-app/server.go, чтобы панель скачала новую. */
@@ -54,12 +53,17 @@ export async function launchKeysHelper(): Promise<string> {
   try {
     const folder = await keysFolder(u);
     await ensureExe(u, folder);
-    const cmd = await folder.createFile("start-keys.cmd", { overwrite: true });
-    await cmd.write(ascii(`@echo off\r\nstart "" "%~dp0${EXE_NAME}"\r\n`), { format: u.storage.formats.binary });
-    const res: string = await u.shell.openPath(
-      cmd.nativePath,
-      "Premiere Assistant запустит маленькую программу (значок в трее), которая нажимает клавиши цветов для покраски таймлайна.",
-    );
+    const note = "Premiere Assistant запустит маленькую программу (значок в трее), которая нажимает клавиши цветов для покраски таймлайна.";
+    // 1) Программа напрямую — без мелькания консоли (manifest: launchProcess.extensions ".exe").
+    const exe = await folder.getEntry(EXE_NAME);
+    let res: string = await u.shell.openPath(exe.nativePath, note).catch((e: Error) => e?.message || String(e));
+    if (res) {
+      // 2) Запасной путь — короткий .cmd (manifest: ".cmd").
+      const cmd = await folder.createFile("start-keys.cmd", { overwrite: true });
+      await cmd.write(ascii(`@echo off\r\nstart "" "%~dp0${EXE_NAME}"\r\n`), { format: u.storage.formats.binary });
+      const res2: string = await u.shell.openPath(cmd.nativePath, note).catch((e: Error) => e?.message || String(e));
+      res = res2 ? `${res} | ${res2}` : "";
+    }
     return res || "";
   } catch (err) {
     return (err as Error)?.message || String(err);
