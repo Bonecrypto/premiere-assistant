@@ -62,15 +62,21 @@ function fromValue(p: any, v: Value): unknown {
   }
 }
 
-function asJson(s: string): Record<string, unknown> | null {
-  const t = s.trim();
-  if (!t.startsWith("{")) return null;
+/** JSON внутри строки (бывает со служебными байтами до и после). */
+function embedded(s: string): { pre: string; obj: Record<string, unknown>; post: string } | null {
+  const a = s.indexOf("{");
+  const b = s.lastIndexOf("}");
+  if (a < 0 || b <= a) return null;
   try {
-    const o = JSON.parse(t);
-    return o && typeof o === "object" && !Array.isArray(o) ? o : null;
+    const o = JSON.parse(s.slice(a, b + 1));
+    return o && typeof o === "object" && !Array.isArray(o) ? { pre: s.slice(0, a), obj: o, post: s.slice(b + 1) } : null;
   } catch {
     return null;
   }
+}
+
+function asJson(s: string): Record<string, unknown> | null {
+  return embedded(s)?.obj ?? null;
 }
 
 /** Стиль из source, текст из target. */
@@ -122,6 +128,30 @@ async function components(item: any): Promise<Array<{ comp: any; match: string; 
   return out;
 }
 
+/** Как выглядят «текстовые» и непонятные параметры образца — чтобы доделать перенос шрифта. */
+export let lastDiag = "";
+
+function describe(v: unknown): string {
+  if (v === null || v === undefined) return "пусто";
+  if (typeof v === "string") return `строка (${v.length}) «${v.slice(0, 160).replace(/\s+/g, " ")}»`;
+  if (typeof v !== "object") return `${typeof v} ${String(v)}`;
+  let keys: string[] = [];
+  try {
+    keys = Object.keys(v as object);
+    let proto = Object.getPrototypeOf(v);
+    for (let d = 0; proto && d < 3; d++, proto = Object.getPrototypeOf(proto)) keys.push(...Object.getOwnPropertyNames(proto).filter((k) => k !== "constructor"));
+  } catch {
+    /* без ключей */
+  }
+  let json = "";
+  try {
+    json = JSON.stringify(v).slice(0, 160);
+  } catch {
+    json = "";
+  }
+  return `объект {${[...new Set(keys)].slice(0, 20).join(", ")}} ${json}`;
+}
+
 export function hasCopiedStyle(): string | null {
   try {
     const v = JSON.parse(storageGet(KEY) || "null") as CopiedStyle | null;
@@ -140,6 +170,7 @@ export async function copyStyle(): Promise<string> {
   const comps: CopiedComponent[] = [];
   let total = 0;
   let textJson = 0;
+  const diag: string[] = [];
   for (const { comp, match, nth } of await components(item)) {
     if (!match) continue;
     const params: CopiedParam[] = [];
@@ -147,7 +178,10 @@ export async function copyStyle(): Promise<string> {
       const prm = comp.getParam(j);
       if (!prm || prm.isTimeVarying?.()) continue;
       try {
-        const value = toValue(await prm.getStartValue());
+        const raw = await prm.getStartValue();
+        const value = toValue(raw);
+        const inner = raw?.value?.value ?? raw?.value ?? raw;
+        if (!value || value.t === "str") diag.push(`${String(prm.displayName ?? j)}: ${describe(inner)}`);
         if (!value) continue;
         if (value.t === "str" && asJson(value.v)) textJson++;
         params.push({ i: j, name: String(prm.displayName ?? ""), value });
@@ -160,6 +194,7 @@ export async function copyStyle(): Promise<string> {
   }
   if (!total) throw new HostToolError("У клипа нет параметров, которые можно скопировать.");
   storageSet(KEY, JSON.stringify({ from: name, components: comps } satisfies CopiedStyle));
+  lastDiag = diag.slice(0, 12).join("\n");
   const fontNote = textJson ? " Шрифт и оформление текста — тоже." : "";
   return `Стиль «${name}» скопирован: ${total} параметр. в ${comps.length} компонент.${fontNote} Теперь выделите другие слои → «Вставить стиль».`;
 }
@@ -201,7 +236,8 @@ export async function pasteStyle(): Promise<string> {
           const srcJson = asJson(sp.value.v);
           const curJson = cur?.t === "str" ? asJson(cur.v) : null;
           if (srcJson && curJson) {
-            value = JSON.stringify(mergeText(srcJson, curJson));
+            const e = embedded(sp.value.v)!;
+            value = e.pre + JSON.stringify(mergeText(srcJson, curJson)) + e.post;
           } else if (cur?.t === "str" && cur.v !== sp.value.v) {
             // Просто строка — это сама надпись: не трогаем.
             keptText++;

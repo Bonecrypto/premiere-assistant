@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { KEY_ADD_EDIT, KEY_ADD_EDIT_ALL, KEY_TIMELINE_FOCUS } from "@pa/core";
 import { openKeysClient, lastKeysDiag } from "../automation/keysClient.ts";
 import { nestSelected, unnestSelected } from "../automation/nest.ts";
-import { copyStyle, pasteStyle } from "../automation/textStyle.ts";
+import { copyStyle, lastDiag, pasteStyle } from "../automation/textStyle.ts";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
 import { storageGet, storageSet } from "../env.ts";
@@ -59,6 +59,7 @@ export function MontageView() {
   const [trim, setTrim] = useState(() => storageGet("montageTrim") !== "0");
   const [dur, setDur] = useState(() => Number(storageGet("montageDur")) || 2);
   const [pack, setPack] = useState(() => storageGet("montagePack") !== "0");
+  const [diag, setDiag] = useState("");
 
   const cut = (all: boolean) =>
     run("Режу…", async () => {
@@ -94,6 +95,10 @@ export function MontageView() {
               Вставить на выделенные
             </Button>
           </div>
+          <div className="pv-link" onClick={() => setDiag(lastDiag || "Сначала нажмите «Копировать стиль» на текстовом слое.")}>
+            Диагностика шрифта
+          </div>
+          {diag ? <div className="diag-box">{diag}</div> : null}
         </Card>
 
         <Card title="Nest" sub="Собрать выделенные клипы во вложенную секвенцию (эффекты сохраняются) — или разобрать выделенный Nest обратно на клипы.">
