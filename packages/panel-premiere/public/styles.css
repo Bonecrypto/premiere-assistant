@@ -2890,3 +2890,15 @@ body,
   color: var(--label-2);
   margin-right: 10px;
 }
+
+/* Окно панели никогда не прокручивается вбок (иначе всё «съезжает» влево); прокрутка — только внутри страниц. */
+html,
+body,
+#root {
+  overflow: hidden;
+  max-width: 100%;
+}
+.app {
+  max-width: 100%;
+  overflow: hidden;
+}

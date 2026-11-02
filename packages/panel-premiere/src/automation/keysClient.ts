@@ -49,6 +49,16 @@ export function openKeysClient(timeoutMs = 2500): Promise<KeysClient> {
     };
     ws.onmessage = (e) => {
       const msg = parseHelperMessage(String(e.data));
+      if (msg && msg.type === "error") {
+        // Старый помощник не знает команду send_keys и отвечает «непонятное сообщение».
+        const err = new Error(
+          "Запущена старая версия помощника — она не умеет нажимать клавиши. В папке проекта выполните git pull, " +
+            "затем stop-helper.cmd и start-helper.cmd (или перезагрузите компьютер, если включён автозапуск).",
+        );
+        waiting.forEach((w) => w.fail(err));
+        waiting.clear();
+        return;
+      }
       if (msg && msg.type === "keys_done") {
         const w = waiting.get(msg.id);
         if (!w) return;
