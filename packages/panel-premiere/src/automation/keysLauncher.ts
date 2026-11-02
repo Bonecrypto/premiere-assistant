@@ -4,12 +4,13 @@ import { updateRepo } from "../update/version.ts";
 /**
  * Встроенный «нажиматель клавиш»: маленькая программа без окон (значок в трее, tools/keys-app, Go + Win32).
  * Панель при первом использовании скачивает её из релиза GitHub в свою папку данных и запускает
- * напрямую (uxp.shell.openPath; в manifest — launchProcess.extensions ".exe"), запасной путь — короткий .cmd. Программа сама закрывается через минуту после закрытия Premiere.
+ * напрямую (uxp.shell.openPath; новая версия при запуске сама закрывает старые копии; в manifest — launchProcess.extensions ".exe"), запасной путь — короткий .cmd. Программа сама закрывается через минуту после закрытия Premiere.
  */
 
 /** Версия программы — менять вместе с `version` в tools/keys-app/server.go, чтобы панель скачала новую. */
-const EXE_VERSION = "6";
-const EXE_NAME = "PremiereAssistantKeys.exe";
+const EXE_VERSION = "7";
+/** Имя с версией: старая копия может быть запущена, а занятый .exe Windows перезаписать не даст. */
+const EXE_NAME = `PremiereAssistantKeys-v${EXE_VERSION}.exe`;
 const VER_KEY = "keysExeVersion";
 
 function ascii(s: string): ArrayBuffer {

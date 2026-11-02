@@ -101,15 +101,22 @@ export async function openKeysClient(): Promise<KeysClient> {
   oldVersionRunning = false;
   const http = await openHttpClient();
   if (http) return http;
-  if (oldVersionRunning) throw new Error("helper");
+  // Старая версия, которая не умеет закрываться по команде, — новая версия при запуске закроет её сама.
+  const hadOld = oldVersionRunning;
   // Нет — запускаем встроенный нажиматель сами и ждём, пока он ответит.
   if (isUXP) {
     const err = await launchKeysHelper();
     if (!err) {
       for (let i = 0; i < 10; i++) {
         await new Promise((r) => setTimeout(r, 800));
+        oldVersionRunning = false;
         const again = await openHttpClient();
         if (again) return again;
+      }
+      if (oldVersionRunning || hadOld) {
+        lastKeysDiag =
+          "в трее осталась старая версия программы-нажимателя: нажмите её значок (возле часов) → «Выход», затем «Ещё раз».";
+        throw new Error("helper");
       }
       lastKeysDiag = `запустил, но не ответил: ${lastKeysDiag}`;
     } else {

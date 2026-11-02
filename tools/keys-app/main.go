@@ -50,6 +50,8 @@ var (
 	pMessageBoxW              = user32.NewProc("MessageBoxW")
 
 	pCreateMutexW              = kernel32.NewProc("CreateMutexW")
+	pTerminateProcess          = kernel32.NewProc("TerminateProcess")
+	pGetCurrentProcessId       = kernel32.NewProc("GetCurrentProcessId")
 	pGetModuleHandleW          = kernel32.NewProc("GetModuleHandleW")
 	pOpenProcess               = kernel32.NewProc("OpenProcess")
 	pCloseHandle               = kernel32.NewProc("CloseHandle")
@@ -132,6 +134,39 @@ func premiereRunning() bool {
 		}
 	}
 	return false
+}
+
+// isOurApp — наш нажиматель (любой версии и под любым из имён, под которыми его скачивали).
+func isOurApp(name string) bool {
+	n := strings.ToLower(name)
+	return strings.HasPrefix(n, "premiereassistantkeys") || strings.HasPrefix(n, "premiere-assistant-keys")
+}
+
+// closeOldCopies закрывает уже запущенные копии нажимателя (старые версии не умеют /quit),
+// чтобы новая версия заняла порт. Трогает только процессы с нашим именем.
+func closeOldCopies() int {
+	self, _, _ := pGetCurrentProcessId.Call()
+	snap, _, _ := pCreateToolhelp32Snapshot.Call(0x2 /* TH32CS_SNAPPROCESS */, 0)
+	if snap == 0 || snap == ^uintptr(0) {
+		return 0
+	}
+	defer pCloseHandle.Call(snap)
+	n := 0
+	var e processEntry32
+	e.Size = uint32(unsafe.Sizeof(e))
+	for r, _, _ := pProcess32FirstW.Call(snap, uintptr(unsafe.Pointer(&e))); r != 0; r, _, _ = pProcess32NextW.Call(snap, uintptr(unsafe.Pointer(&e))) {
+		if uintptr(e.ProcessID) == self || !isOurApp(syscall.UTF16ToString(e.ExeFile[:])) {
+			continue
+		}
+		h, _, _ := pOpenProcess.Call(0x0001 /* PROCESS_TERMINATE */, 0, uintptr(e.ProcessID))
+		if h != 0 {
+			if ok, _, _ := pTerminateProcess.Call(h, 0); ok != 0 {
+				n++
+			}
+			pCloseHandle.Call(h)
+		}
+	}
+	return n
 }
 
 func premiereWindow() uintptr {
@@ -312,14 +347,24 @@ func wndProc(h uintptr, m uint32, w, l uintptr) uintptr {
 }
 
 func main() {
+	// Старые копии (в том числе старых версий без /quit) закрываем — работает только новая.
+	if closeOldCopies() > 0 {
+		time.Sleep(700 * time.Millisecond)
+	}
 	// Только один экземпляр.
 	_, _, e := pCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(utf16("Local\\PremiereAssistantKeys"))))
 	if e == syscall.Errno(183) /* ERROR_ALREADY_EXISTS */ {
 		os.Exit(0)
 	}
 
-	ok4 := serve(fmt.Sprintf("127.0.0.1:%d", port))
-	ok6 := serve(fmt.Sprintf("[::1]:%d", port))
+	ok4, ok6 := false, false
+	for i := 0; i < 10 && !ok4 && !ok6; i++ {
+		ok4 = serve(fmt.Sprintf("127.0.0.1:%d", port))
+		ok6 = serve(fmt.Sprintf("[::1]:%d", port))
+		if !ok4 && !ok6 {
+			time.Sleep(300 * time.Millisecond)
+		}
+	}
 	if !ok4 && !ok6 {
 		pMessageBoxW.Call(0, uintptr(unsafe.Pointer(utf16(fmt.Sprintf("Порт %d занят — возможно, программа уже запущена.", port)))),
 			uintptr(unsafe.Pointer(utf16("Premiere Assistant"))), 0x30)
