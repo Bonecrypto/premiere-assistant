@@ -3385,3 +3385,33 @@ body,
   color: var(--label-3);
   margin: 8px 2px;
 }
+
+/*
+ * Premiere (UXP) не скругляет углы у элементов с градиентным фоном — кнопки и чипы выходят квадратными.
+ * Поэтому у всего скруглённого — сплошной цвет (он уже задан как запасной), без градиента.
+ */
+.btn-primary,
+.tile-blue,
+.tile-indigo,
+.tile-purple,
+.bubble-user,
+.round-send,
+.tile,
+.align-cell.is-active,
+.hero-icon,
+.pv-item.is-active,
+.preview-clip,
+.bento-hero,
+.grad-blue,
+.grad-indigo,
+.grad-orange,
+.grad-green,
+.grad-pink,
+.grad-purple,
+.lib-chip.is-active,
+.wiz-num,
+.ease-ball,
+.ts-item.is-active,
+.more-item.is-active {
+  background-image: none;
+}
