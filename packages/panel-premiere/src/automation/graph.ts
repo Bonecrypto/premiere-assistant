@@ -253,3 +253,69 @@ export function curveKeys(t0: number, t1: number, v0: Val, v1: Val, curve: Curve
 }
 
 export { frameSeconds };
+
+// ───────── Быстрые графики: тип плавности у СУЩЕСТВУЮЩИХ ключей (новые не создаются) ─────────
+
+export type QuickEase = "linear" | "bezier" | "hold" | "ease-in" | "ease-out" | "easy-ease";
+
+export interface QuickResult {
+  clips: number;
+  params: number;
+  keys: number;
+  /** Режим недоступен в этой версии Premiere. */
+  unsupported?: string;
+}
+
+/**
+ * Ставит тип интерполяции ключам выделенных клипов — как правый клик по ключам в Effect Controls.
+ * Premiere UXP API: ComponentParam.createSetInterpolationAtKeyframeAction(time, Constants.InterpolationMode.*).
+ * Linear / Bezier / Hold есть точно. Ease In / Ease Out — через TIME_TRANSITION_END / TIME_TRANSITION_START (проверяется).
+ * «Easy Ease»: первому ключу отрезка — Ease Out, последнему — Ease In, средним — Bezier.
+ * Если на клипе был «запечённый» график — тип ставится только опорным ключам.
+ */
+export async function applyQuickEase(kind: QuickEase, scope: BakeOptions["scope"]): Promise<QuickResult> {
+  const { p, project, sequence, items } = await selectedClips();
+  const M = p.Constants?.InterpolationMode ?? {};
+  const mode = (name: string): number | null => (typeof M[name] === "number" ? M[name] : null);
+  const need: Record<QuickEase, string[]> = {
+    linear: ["LINEAR"],
+    bezier: ["BEZIER"],
+    hold: ["HOLD"],
+    "ease-in": ["TIME_TRANSITION_END"],
+    "ease-out": ["TIME_TRANSITION_START"],
+    "easy-ease": ["TIME_TRANSITION_START", "TIME_TRANSITION_END", "BEZIER"],
+  };
+  const missing = need[kind].filter((n) => mode(n) === null);
+  if (missing.length) throw new HostToolError(`Этот тип плавности недоступен в вашей версии Premiere (${missing.join(", ")}).`);
+
+  const frame = await frameSeconds(sequence);
+  const sets: Array<{ param: any; t: number; m: number }> = [];
+  const res: QuickResult = { clips: 0, params: 0, keys: 0 };
+  for (const item of items) {
+    let used = false;
+    for (const prm of await animatedParams(item, scope)) {
+      const times = (await keyTimes(prm)).sort((a, b) => a - b);
+      if (times.length === 0) continue;
+      const { anchors: pts } = anchors(times, frame);
+      const keys = pts.length ? pts : times;
+      keys.forEach((t, i) => {
+        let m: number;
+        if (kind === "easy-ease") {
+          m = i === 0 ? mode("TIME_TRANSITION_START")! : i === keys.length - 1 ? mode("TIME_TRANSITION_END")! : mode("BEZIER")!;
+        } else {
+          m = mode(need[kind][0])!;
+        }
+        sets.push({ param: prm, t, m });
+      });
+      res.params++;
+      res.keys += keys.length;
+      used = true;
+    }
+    if (used) res.clips++;
+  }
+  if (!sets.length) throw new HostToolError("У выделенных клипов нет ключевых кадров.");
+  run(project, "Ассистент: тип плавности ключей", (c) => {
+    for (const s of sets) c.addAction(s.param.createSetInterpolationAtKeyframeAction(p.TickTime.createWithSeconds(s.t), s.m, true));
+  });
+  return res;
+}

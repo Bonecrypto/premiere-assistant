@@ -2908,3 +2908,64 @@ body,
   margin-bottom: 8px;
   user-select: text;
 }
+
+/* ── Быстрые графики ── */
+.quick-ease {
+  margin-bottom: 14px;
+}
+.quick-head {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.quick-sub {
+  width: 100%;
+  font-size: 11px;
+  color: var(--label-3);
+  margin-top: 2px;
+}
+.quick-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.quick-tile {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.quick-beta {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  color: #ffcc00;
+}
+.graph-own-title {
+  margin: 4px 0 8px 0;
+}
+.hold-a,
+.hold-b,
+.hold-c {
+  position: absolute;
+  background-color: var(--label-2);
+}
+.hold-a {
+  left: 10%;
+  top: 80%;
+  width: 40%;
+  height: 2px;
+}
+.hold-b {
+  left: 50%;
+  top: 20%;
+  width: 2px;
+  height: 60%;
+}
+.hold-c {
+  left: 50%;
+  top: 20%;
+  width: 40%;
+  height: 2px;
+}

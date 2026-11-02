@@ -1,6 +1,6 @@
 import { TextField } from "./TextField.tsx";
 import { useState } from "react";
-import { bakeCurve, unbakeCurve, type BakeOptions } from "../automation/graph.ts";
+import { applyQuickEase, bakeCurve, unbakeCurve, type BakeOptions, type QuickEase } from "../automation/graph.ts";
 import { storageGet, storageSet } from "../env.ts";
 import {
   CURVE_PRESETS,
@@ -30,6 +30,26 @@ function loadOpts(): BakeOptions {
     /* по умолчанию */
   }
   return { step: 1, scope: "all" };
+}
+
+const QUICK: Array<{ id: QuickEase; name: string; curve: Curve; hint: string; beta?: boolean }> = [
+  { id: "bezier", name: "Плавно", curve: [0.33, 0, 0.67, 1], hint: "Bezier — как «Bezier» в меню ключа" },
+  { id: "linear", name: "Линейно", curve: [0, 0, 1, 1], hint: "Linear — ровная скорость" },
+  { id: "easy-ease", name: "Easy Ease", curve: [0.42, 0, 0.58, 1], hint: "Первый ключ — Ease Out, последний — Ease In", beta: true },
+  { id: "ease-out", name: "Ease Out", curve: [0, 0, 0.58, 1], hint: "Мягкий выход из ключа", beta: true },
+  { id: "ease-in", name: "Ease In", curve: [0.42, 0, 1, 1], hint: "Мягкий вход в ключ", beta: true },
+  { id: "hold", name: "Ступенька", curve: [0, 0, 1, 1], hint: "Hold — значение держится до следующего ключа" },
+];
+
+/** Миниатюра «ступеньки» (Hold). */
+function HoldThumb() {
+  return (
+    <div className="curve-thumb">
+      <span className="hold-a" />
+      <span className="hold-b" />
+      <span className="hold-c" />
+    </div>
+  );
 }
 
 /**
@@ -73,6 +93,19 @@ export function GraphView() {
     }
   };
 
+  const [quickStatus, setQuickStatus] = useState<Status>(null);
+  const [lastQuick, setLastQuick] = useState<QuickEase | null>(null);
+  const quick = async (id: QuickEase, name: string) => {
+    setLastQuick(id);
+    setQuickStatus({ tone: "busy", text: `Ставлю «${name}»…` });
+    try {
+      const r = await applyQuickEase(id, opts.scope);
+      setQuickStatus({ tone: "ok", text: `«${name}»: ключей ${r.keys} у ${r.params} параметров (${r.clips} клип.). Новых ключей нет. Отмена — Ctrl+Z.` });
+    } catch (err) {
+      setQuickStatus({ tone: "error", text: (err as Error)?.message || String(err) });
+    }
+  };
+
   const groups = ["Базовые", "Мягкие", "Резкие", "С перелётом"] as const;
   const all: Array<{ title: string; items: CurvePreset[] }> = [
     ...groups.map((g) => ({ title: g, items: CURVE_PRESETS.filter((p) => p.group === g) })),
@@ -83,7 +116,31 @@ export function GraphView() {
     <div className="page">
       <div className="scroll-inner">
         <div className="page-title">Графики</div>
-        <div className="page-sub">Своя плавность для ключевых кадров. Выделите клипы с анимацией, выберите кривую — «Применить».</div>
+        <div className="page-sub">Выделите клипы с ключевыми кадрами и выберите плавность.</div>
+
+        <div className="hero-card quick-ease">
+          <div className="quick-head">
+            <span className="graph-name">Быстро</span>
+            <span className="quick-sub">без новых ключей — меняет тип ваших ключей в Effect Controls</span>
+          </div>
+          <div className="quick-row">
+            {QUICK.map((q) => (
+              <div
+                key={q.id}
+                className={`graph-preset quick-tile${lastQuick === q.id ? " is-active" : ""}`}
+                title={q.hint}
+                onClick={() => void quick(q.id, q.name)}
+              >
+                {q.id === "hold" ? <HoldThumb /> : <CurveThumb curve={q.curve} active={lastQuick === q.id} />}
+                <div className="graph-preset-name">{q.name}</div>
+                {q.beta ? <span className="quick-beta">проверить</span> : null}
+              </div>
+            ))}
+          </div>
+          {quickStatus ? <div className={quickStatus.tone === "busy" ? "result" : `result result-${quickStatus.tone}`}>{quickStatus.text}</div> : null}
+        </div>
+
+        <div className="pv-group graph-own-title">Свой график (точная кривая — добавляет ключи на каждом кадре)</div>
 
         <div className="hero-card">
           <div className="graph-head">
