@@ -32,6 +32,10 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 }
 
+/** Минимальная версия программы-нажимателя (новая схема клавиш меток). */
+const MIN_VERSION = 5;
+let oldVersionRunning = false;
+
 /** Что не получилось при поиске нажимателя — для подсказки пользователю. */
 export let lastKeysDiag = "";
 
@@ -53,6 +57,12 @@ async function openHttpClient(): Promise<KeysClient | null> {
         diag.push(`${host}: ответ ${r.status} ${text.slice(0, 60)}`);
         continue;
       }
+      if (typeof j.version === "number" && j.version < MIN_VERSION) {
+        oldVersionRunning = true;
+        lastKeysDiag =
+          "запущена старая версия программы-нажимателя: нажмите её значок в трее (возле часов) → «Выход», затем «Ещё раз» — панель скачает новую.";
+        return null;
+      }
       return {
         send: async (keys) => {
           const res: Response = await withTimeout(
@@ -72,14 +82,16 @@ async function openHttpClient(): Promise<KeysClient | null> {
       diag.push(`${host}: ${(err as Error)?.message || err}`);
     }
   }
-  lastKeysDiag = diag.join("; ");
+  if (!oldVersionRunning) lastKeysDiag = diag.join("; ");
   return null;
 }
 
 /** Найти, кто нажмёт клавиши: сначала «нажиматель клавиш», затем помощник (Node). Ошибка "helper" — никого нет. */
 export async function openKeysClient(): Promise<KeysClient> {
+  oldVersionRunning = false;
   const http = await openHttpClient();
   if (http) return http;
+  if (oldVersionRunning) throw new Error("helper");
   // Нет — запускаем встроенный нажиматель сами и ждём, пока он ответит.
   if (isUXP) {
     const err = await launchKeysHelper();

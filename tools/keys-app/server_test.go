@@ -49,6 +49,9 @@ func TestServer(t *testing.T) {
 	if r := req(t, fmt.Sprintf("POST /keys HTTP/1.1\r\nX-Premiere-Assistant: 1\r\nContent-Length: %d\r\n\r\n%s", len(bad), bad)); !strings.Contains(r, "400") {
 		t.Fatal("запрещённая комбинация: " + r)
 	}
+	if !allow["ctrl+alt+shift+q"] || allow["ctrl+alt+shift+f1"] {
+		t.Fatal("набор клавиш не совпадает с core")
+	}
 	if len(got) != 1 || got[0][1] != "ctrl+alt+shift+7" {
 		t.Fatalf("нажатия: %v", got)
 	}

@@ -170,12 +170,16 @@ export interface KeysDoneMsg {
   error?: string;
 }
 
-/** Фокус на таймлайн (Shift+3 в Premiere по умолчанию) и клавиши меток: Ctrl+Alt+Shift+1…9, 0, F1…F6. */
+/**
+ * Фокус на таймлайн (Shift+3 в Premiere по умолчанию) и клавиши меток — метка №i (0…15, порядок Premiere) → комбинация.
+ * Ctrl+Alt+Shift+1 и +0 в стандартном наборе заняты (Source Monitor zoom), поэтому Violet → Q, Blue → W;
+ * F-клавиши не используем — у них внутренние коды Premiere в .kys неизвестны (цифры/буквы = 0x80000000 + ASCII).
+ */
 export const KEY_TIMELINE_FOCUS = "shift+3";
 export const LABEL_KEYS_COMBOS = [
-  "ctrl+alt+shift+1", "ctrl+alt+shift+2", "ctrl+alt+shift+3", "ctrl+alt+shift+4", "ctrl+alt+shift+5",
-  "ctrl+alt+shift+6", "ctrl+alt+shift+7", "ctrl+alt+shift+8", "ctrl+alt+shift+9", "ctrl+alt+shift+0",
-  "ctrl+alt+shift+f1", "ctrl+alt+shift+f2", "ctrl+alt+shift+f3", "ctrl+alt+shift+f4", "ctrl+alt+shift+f5", "ctrl+alt+shift+f6",
+  "ctrl+alt+shift+q", "ctrl+alt+shift+2", "ctrl+alt+shift+3", "ctrl+alt+shift+4", "ctrl+alt+shift+5",
+  "ctrl+alt+shift+6", "ctrl+alt+shift+7", "ctrl+alt+shift+8", "ctrl+alt+shift+9", "ctrl+alt+shift+w",
+  "ctrl+alt+shift+e", "ctrl+alt+shift+t", "ctrl+alt+shift+y", "ctrl+alt+shift+u", "ctrl+alt+shift+i", "ctrl+alt+shift+o",
 ];
 export const KEY_ALLOWLIST = new Set<string>([KEY_TIMELINE_FOCUS, ...LABEL_KEYS_COMBOS]);
 

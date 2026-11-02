@@ -165,7 +165,10 @@ func vkOf(key string) (byte, bool) {
 	if len(key) == 1 && key[0] >= '0' && key[0] <= '9' {
 		return key[0], true // VK_0…VK_9 = '0'…'9'
 	}
-	if strings.HasPrefix(key, "f") {
+	if len(key) == 1 && key[0] >= 'a' && key[0] <= 'z' {
+		return key[0] - 'a' + 'A', true // VK_A…VK_Z = 'A'…'Z'
+	}
+	if len(key) > 1 && strings.HasPrefix(key, "f") {
 		if n, err := strconv.Atoi(key[1:]); err == nil && n >= 1 && n <= 12 {
 			return byte(0x70 + n - 1), true
 		}

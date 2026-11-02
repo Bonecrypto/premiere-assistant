@@ -14,20 +14,18 @@ import (
 
 const (
 	port    = 8766
-	version = 4
+	version = 5
 )
 
 // sendKeys нажимает клавиши (на Windows — winSendKeys).
 var sendKeys func(keys []string) error
 
+// Метки 0…15 (порядок Premiere) — те же комбинации, что LABEL_KEYS_COMBOS в packages/core/src/protocol.ts.
 var allow = map[string]bool{"shift+3": true}
 
 func init() {
-	for i := 0; i <= 9; i++ {
-		allow[fmt.Sprintf("ctrl+alt+shift+%d", i)] = true
-	}
-	for i := 1; i <= 6; i++ {
-		allow[fmt.Sprintf("ctrl+alt+shift+f%d", i)] = true
+	for _, k := range []string{"q", "2", "3", "4", "5", "6", "7", "8", "9", "w", "e", "t", "y", "u", "i", "o"} {
+		allow["ctrl+alt+shift+"+k] = true
 	}
 }
 
