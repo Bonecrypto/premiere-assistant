@@ -1,4 +1,4 @@
-import { storageGet, storageSet } from "../env.ts";
+import { storageGet, storageSet, uxp } from "../env.ts";
 import { HostToolError } from "../hostTools/types.ts";
 import { ppro } from "./timeline.ts";
 
@@ -16,7 +16,9 @@ type Value =
   | { t: "bool"; v: boolean }
   | { t: "str"; v: string }
   | { t: "point"; x: number; y: number }
-  | { t: "color"; r: number; g: number; b: number; a: number };
+  | { t: "color"; r: number; g: number; b: number; a: number }
+  /** Текст (Premiere 27+: MogrtText) — переносим только стиль: шрифт, размер, капс, жирный/курсив. */
+  | { t: "mtext"; font?: string; size?: number; allCaps?: boolean; smallCaps?: boolean; bold?: boolean; italic?: boolean };
 
 interface CopiedParam {
   i: number;
@@ -39,7 +41,60 @@ const KEY = "copiedStyle";
 /** Поля JSON, в которых лежит сам текст (их не переносим). */
 const TEXT_KEY = /^(text|textEditValue|mText|mTextString|string|content|sourceText|mStr)$/i;
 
+/** MogrtText (Premiere 27+): объект с getFontName/setFontName. */
+function isMText(v: any): boolean {
+  return !!v && typeof v.getFontName === "function" && typeof v.setFontName === "function";
+}
+
+function readMText(v: any): Value | null {
+  try {
+    if (typeof v.isUniformStyling === "function" && !v.isUniformStyling()) return null;
+    const get = <T,>(fn: string): T | undefined => {
+      try {
+        return typeof v[fn] === "function" ? v[fn]() : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+    return {
+      t: "mtext",
+      font: get<string>("getFontName"),
+      size: get<number>("getFontSize"),
+      allCaps: get<boolean>("getAllCaps"),
+      smallCaps: get<boolean>("getSmallCaps"),
+      bold: get<boolean>("getFauxBold"),
+      italic: get<boolean>("getFauxItalic"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Применить стиль к тексту слоя (сам текст остаётся). */
+function writeMText(target: any, v: Extract<Value, { t: "mtext" }>): boolean {
+  let ok = false;
+  const call = (can: string, fn: string, arg: unknown) => {
+    if (arg === undefined || typeof target[fn] !== "function") return;
+    try {
+      if (typeof target[can] === "function" && !target[can]()) return;
+      target[fn](arg);
+      ok = true;
+    } catch {
+      /* автор шаблона запретил менять */
+    }
+  };
+  call("isFontNameEditable", "setFontName", v.font);
+  call("isFontSizeEditable", "setFontSize", v.size);
+  call("isFauxStylesEditable", "setAllCaps", v.allCaps);
+  call("isFauxStylesEditable", "setSmallCaps", v.smallCaps);
+  call("isFauxStylesEditable", "setFauxBold", v.bold);
+  call("isFauxStylesEditable", "setFauxItalic", v.italic);
+  return ok;
+}
+
 function toValue(raw: any): Value | null {
+  if (isMText(raw)) return readMText(raw);
+  if (isMText(raw?.value)) return readMText(raw.value);
   const v = raw?.value?.value ?? raw?.value ?? raw;
   if (typeof v === "number" && Number.isFinite(v)) return { t: "num", v };
   if (typeof v === "boolean") return { t: "bool", v };
@@ -61,6 +116,8 @@ function fromValue(p: any, v: Value): unknown {
       return new p.PointF(v.x, v.y);
     case "color":
       return typeof p.Color === "function" ? new p.Color(v.r, v.g, v.b, v.a) : null;
+    case "mtext":
+      return null; // применяется отдельно — к тексту самого слоя
   }
 }
 
@@ -196,6 +253,7 @@ export async function copyStyle(): Promise<string> {
   let total = 0;
   let textJson = 0;
   const diag: string[] = [];
+  let emptyText = false;
   for (const { comp, match, nth } of await components(item)) {
     if (!match) continue;
     const params: CopiedParam[] = [];
@@ -212,8 +270,9 @@ export async function copyStyle(): Promise<string> {
         const value = toValue(raw);
         const inner = raw?.value?.value ?? raw?.value ?? raw;
         if (!value || value.t === "str") diag.push(`${String(prm.displayName ?? j)}: ${describe(inner)}`);
+        if (!value && /source text|исходный текст|текст/i.test(String(prm.displayName ?? ""))) emptyText = true;
         if (!value) continue;
-        if (value.t === "str" && asJson(value.v)) textJson++;
+        if ((value.t === "str" && asJson(value.v)) || value.t === "mtext") textJson++;
         params.push({ i: j, name: String(prm.displayName ?? ""), value });
       } catch {
         /* группа/кнопка без значения */
@@ -225,7 +284,12 @@ export async function copyStyle(): Promise<string> {
   if (!total) throw new HostToolError("У клипа нет параметров, которые можно скопировать.");
   storageSet(KEY, JSON.stringify({ from: name, components: comps } satisfies CopiedStyle));
   lastDiag = diag.slice(0, 12).join("\n");
-  const fontNote = textJson ? " Шрифт и оформление текста — тоже." : "";
+  const ver = String((uxp as any)?.host?.version ?? "");
+  const fontNote = textJson
+    ? " Шрифт и размер — тоже."
+    : emptyText
+      ? ` Шрифт и размер ваша версия Premiere${ver ? ` (${ver})` : ""} плагинам не отдаёт — это появилось в Premiere 27. Пока — Master Style в Essential Graphics.`
+      : "";
   return `Стиль «${name}» скопирован: ${total} параметр. в ${comps.length} компонент.${fontNote} Теперь выделите другие слои → «Вставить на выделенные».`;
 }
 
@@ -261,6 +325,17 @@ export async function pasteStyle(): Promise<string> {
           continue;
         }
         let value: unknown = fromValue(p, sp.value);
+        if (sp.value.t === "mtext") {
+          // Premiere 27+: берём текст слоя (MogrtText), меняем только стиль и записываем обратно.
+          let curRaw: any = await prm.getStartValue().catch(() => null);
+          const mt = isMText(curRaw) ? curRaw : isMText(curRaw?.value) ? curRaw.value : null;
+          if (!mt || !writeMText(mt, sp.value)) {
+            skipped++;
+            continue;
+          }
+          value = mt;
+          keptText++;
+        }
         if (sp.value.t === "str") {
           let curRaw = await prm.getStartValue().catch(() => null);
           if ((curRaw?.value?.value ?? curRaw?.value ?? curRaw) == null) curRaw = await prm.getValueAtTime(await item.getInPoint()).catch(() => null);
