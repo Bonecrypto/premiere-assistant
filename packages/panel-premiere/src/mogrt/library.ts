@@ -1,7 +1,7 @@
 import { storageGet, storageSet, uxp } from "../env.ts";
 import { HostToolError } from "../hostTools/types.ts";
 import { ppro } from "../automation/timeline.ts";
-import { listZip, readZipEntry } from "./zip.ts";
+import { base64, listZip, readZipEntry, type ZipEntry } from "./zip.ts";
 
 /**
  * Библиотека титров (.mogrt) внутри плагина.
@@ -183,30 +183,92 @@ export async function removeMogrt(m: Mogrt): Promise<Mogrt[]> {
 // ───────── Превью ─────────
 
 const thumbs = new Map<string, string | null>();
+/** Почему не получилось достать превью — для подсказки на карточке. */
+export const thumbErrors = new Map<string, string>();
+let diskCache: Record<string, string> | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-function toBase64(bytes: Uint8Array): string {
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
+async function cacheFile(create: boolean): Promise<any | null> {
+  const data = await lfs().getDataFolder();
+  try {
+    return await data.getEntry("mogrt-thumbs.json");
+  } catch {
+    return create ? data.createFile("mogrt-thumbs.json", { overwrite: true }) : null;
+  }
 }
 
-/** Картинка-превью из .mogrt (data URI) или null. */
+async function loadDiskCache(): Promise<Record<string, string>> {
+  if (diskCache) return diskCache;
+  diskCache = {};
+  try {
+    const f = await cacheFile(false);
+    if (f) diskCache = JSON.parse(await f.read()) || {};
+  } catch {
+    diskCache = {};
+  }
+  return diskCache ?? {};
+}
+
+function scheduleSave(): void {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      const f = await cacheFile(true);
+      await f.write(JSON.stringify(diskCache ?? {}));
+    } catch {
+      /* кэш — не обязателен */
+    }
+  }, 1500);
+}
+
+const IMG = /\.(png|jpe?g)$/i;
+
+function pickImage(entries: ZipEntry[]): ZipEntry | undefined {
+  const imgs = entries.filter((e) => IMG.test(e.name) && e.size > 0 && e.size < 6_000_000);
+  return (
+    imgs.find((e) => /(^|\/)thumb[^/]*\.(png|jpe?g)$/i.test(e.name)) ??
+    imgs.find((e) => /(preview|poster|cover)/i.test(e.name)) ??
+    imgs.sort((a, b) => b.size - a.size)[0]
+  );
+}
+
+/** Картинка-превью из .mogrt (data URI) или null. Ищет и во вложенном .aegraphic/.prgraphic. */
 export async function thumbnail(m: Mogrt): Promise<string | null> {
   if (thumbs.has(m.id)) return thumbs.get(m.id) ?? null;
+  const cache = await loadDiskCache().catch(() => ({}) as Record<string, string>);
+  const key = `${m.id}|${m.size}`;
+  if (cache[key]) {
+    thumbs.set(m.id, cache[key]);
+    return cache[key];
+  }
   let uri: string | null = null;
   try {
     const f = await fileOf(m);
     const buf = new Uint8Array(await f.read({ format: binaryFormat() }));
     const entries = listZip(buf);
-    const img =
-      entries.find((e) => /(^|\/)thumb[^/]*\.png$/i.test(e.name)) ??
-      entries.find((e) => /\.png$/i.test(e.name)) ??
-      entries.find((e) => /\.jpe?g$/i.test(e.name));
-    if (img && img.size < 4_000_000) {
-      const data = readZipEntry(buf, img);
-      uri = `data:image/${/\.png$/i.test(img.name) ? "png" : "jpeg"};base64,${toBase64(data)}`;
+    let img = pickImage(entries);
+    let data: Uint8Array | null = img ? readZipEntry(buf, img) : null;
+    if (!img) {
+      // Шаблоны из After Effects: превью может лежать внутри вложенного архива.
+      const inner = entries.find((e) => /\.(aegraphic|prgraphic)$/i.test(e.name));
+      if (inner) {
+        const ib = readZipEntry(buf, inner);
+        const ie = listZip(ib);
+        img = pickImage(ie);
+        data = img ? readZipEntry(ib, img) : null;
+      }
     }
-  } catch {
+    if (img && data) {
+      uri = `data:image/${/\.png$/i.test(img.name) ? "png" : "jpeg"};base64,${base64(data)}`;
+      if (uri.length < 1_500_000) {
+        cache[key] = uri;
+        scheduleSave();
+      }
+    } else {
+      thumbErrors.set(m.id, `в шаблоне нет картинки (файлы: ${entries.slice(0, 6).map((e) => e.name).join(", ")})`);
+    }
+  } catch (err) {
+    thumbErrors.set(m.id, (err as Error)?.message || String(err));
     uri = null;
   }
   thumbs.set(m.id, uri);

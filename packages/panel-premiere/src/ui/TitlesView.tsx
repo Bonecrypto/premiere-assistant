@@ -10,12 +10,28 @@ import {
   removeMogrt,
   rescan,
   saveFavorites,
+  thumbErrors,
   thumbnail,
   type Mogrt,
 } from "../mogrt/library.ts";
 import { Button } from "./Button.tsx";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
+
+/** Колонки сетки по ширине панели: узкая — 2, средняя — 3, широкая — 4–5. */
+function useColumns(): number {
+  const calc = () => {
+    const w = typeof window !== "undefined" ? window.innerWidth || 360 : 360;
+    return w >= 1100 ? 5 : w >= 820 ? 4 : w >= 560 ? 3 : 2;
+  };
+  const [cols, setCols] = useState(calc);
+  useEffect(() => {
+    const on = () => setCols(calc());
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return cols;
+}
 
 /** Вкладка «Титры»: свои .mogrt внутри плагина — поиск, разделы, избранное, вставка под плейхед. */
 export function TitlesView() {
@@ -96,8 +112,10 @@ export function TitlesView() {
     saveFavorites(next);
   };
 
+  const cols = useColumns();
   const rows: Mogrt[][] = [];
-  for (let i = 0; i < shown.length; i += 2) rows.push(shown.slice(i, i + 2));
+  for (let i = 0; i < shown.length; i += cols) rows.push(shown.slice(i, i + cols));
+  const cardWidth = `${(100 - 2.5 * (cols - 1)) / cols}%`;
 
   return (
     <div className="pv">
@@ -136,6 +154,8 @@ export function TitlesView() {
                     <div
                       key={m.id}
                       className={`lib-card title-card${m.id === sel ? " is-active" : ""}`}
+                      style={{ width: cardWidth, maxWidth: cardWidth, flexBasis: cardWidth }}
+                      title={thumbs[m.id] === null ? `Нет превью: ${thumbErrors.get(m.id) ?? "неизвестно"}` : m.name}
                       onClick={() => {
                         setSel(m.id);
                         setConfirmDelete(false);
@@ -143,7 +163,13 @@ export function TitlesView() {
                       onDoubleClick={() => void insert(m)}
                     >
                       <div className="title-thumb">
-                        {thumbs[m.id] ? <img className="title-thumb-img" src={thumbs[m.id]!} alt="" /> : <span className="title-thumb-text">{m.name}</span>}
+                        {thumbs[m.id] ? (
+                          <img className="title-thumb-img" src={thumbs[m.id]!} alt="" />
+                        ) : (
+                          <div className="title-thumb-ph">
+                            <span className="title-thumb-text">{m.id in thumbs ? m.name : "…"}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="lib-card-foot">
                         <div className="lib-card-text">
@@ -162,7 +188,9 @@ export function TitlesView() {
                       </div>
                     </div>
                   ))}
-                  {row.length === 1 ? <div className="lib-card lib-card-empty" /> : null}
+                  {Array.from({ length: cols - row.length }, (_, k) => (
+                    <div key={`e${k}`} className="lib-card lib-card-empty" style={{ width: cardWidth, maxWidth: cardWidth, flexBasis: cardWidth }} />
+                  ))}
                 </div>
               ))}
               <div className="titles-tools">

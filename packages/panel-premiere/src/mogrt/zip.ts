@@ -11,6 +11,39 @@ export interface ZipEntry {
   offset: number;
 }
 
+/** UTF-8 → строка без TextDecoder (в UXP его может не быть). */
+export function utf8(b: Uint8Array): string {
+  let out = "";
+  for (let i = 0; i < b.length; ) {
+    const c = b[i++];
+    if (c < 0x80) out += String.fromCharCode(c);
+    else if (c < 0xe0) out += String.fromCharCode(((c & 0x1f) << 6) | (b[i++] & 0x3f));
+    else if (c < 0xf0) out += String.fromCharCode(((c & 0x0f) << 12) | ((b[i++] & 0x3f) << 6) | (b[i++] & 0x3f));
+    else {
+      const cp = (((c & 0x07) << 18) | ((b[i++] & 0x3f) << 12) | ((b[i++] & 0x3f) << 6) | (b[i++] & 0x3f)) - 0x10000;
+      out += String.fromCharCode(0xd800 + (cp >> 10), 0xdc00 + (cp & 0x3ff));
+    }
+  }
+  return out;
+}
+
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/** Base64 без btoa. */
+export function base64(b: Uint8Array): string {
+  let out = "";
+  let i = 0;
+  for (; i + 2 < b.length; i += 3) {
+    const n = (b[i] << 16) | (b[i + 1] << 8) | b[i + 2];
+    out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63] + B64[(n >> 6) & 63] + B64[n & 63];
+  }
+  if (i < b.length) {
+    const n = (b[i] << 16) | ((b[i + 1] ?? 0) << 8);
+    out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63] + (i + 1 < b.length ? B64[(n >> 6) & 63] : "=") + "=";
+  }
+  return out;
+}
+
 export function listZip(buf: Uint8Array): ZipEntry[] {
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   // Конец центрального каталога: сигнатура 0x06054b50, ищем с конца.
@@ -25,7 +58,6 @@ export function listZip(buf: Uint8Array): ZipEntry[] {
   const count = dv.getUint16(eocd + 10, true);
   let p = dv.getUint32(eocd + 16, true);
   const out: ZipEntry[] = [];
-  const dec = new TextDecoder();
   for (let i = 0; i < count && p + 46 <= buf.length; i++) {
     if (dv.getUint32(p, true) !== 0x02014b50) break;
     const method = dv.getUint16(p + 10, true);
@@ -35,7 +67,7 @@ export function listZip(buf: Uint8Array): ZipEntry[] {
     const extraLen = dv.getUint16(p + 30, true);
     const commentLen = dv.getUint16(p + 32, true);
     const offset = dv.getUint32(p + 42, true);
-    const name = dec.decode(buf.subarray(p + 46, p + 46 + nameLen));
+    const name = utf8(buf.subarray(p + 46, p + 46 + nameLen));
     out.push({ name, method, compressedSize, size, offset });
     p += 46 + nameLen + extraLen + commentLen;
   }

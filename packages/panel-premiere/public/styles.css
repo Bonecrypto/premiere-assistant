@@ -2650,3 +2650,83 @@ body,
 .titles-tools .link-small {
   margin-right: 14px;
 }
+
+/* ── Исправления вёрстки в Premiere (UXP): ничего не шире панели, ровные скругления ── */
+.app,
+.page,
+.pv,
+.pv-body,
+.pv-detail,
+.scroll-inner {
+  max-width: 100%;
+}
+.page,
+.pv-detail {
+  overflow-x: hidden;
+}
+.lib-chip {
+  border-radius: 13px;
+  padding: 5px 11px;
+}
+.lib-row {
+  justify-content: space-between;
+}
+.lib-card {
+  flex: 0 0 48.75%;
+  width: 48.75%;
+  max-width: 48.75%;
+  border-radius: 18px;
+}
+.lib-card + .lib-card {
+  margin-left: 0;
+}
+.lib-card-sub {
+  white-space: normal;
+}
+/* Поле ввода — своя скруглённая «капсула», сам input прозрачный */
+.input-box {
+  background-color: var(--fill);
+  border-radius: 12px;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.input-box .text-input,
+.input-box .ai-input {
+  background-color: transparent;
+  border-width: 0;
+  padding: 4px 0;
+  width: 100%;
+}
+/* Превью титров 16:9 при любой ширине */
+.title-thumb {
+  position: relative;
+  height: 0;
+  padding-top: 56.25%;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #000000;
+  margin-bottom: 6px;
+}
+.title-thumb-img,
+.title-thumb-ph {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}
+.title-thumb-img {
+  object-fit: contain;
+}
+.title-thumb-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hero-card,
+.pv-card,
+.bento-tile,
+.bento-list {
+  border-radius: 18px;
+}
