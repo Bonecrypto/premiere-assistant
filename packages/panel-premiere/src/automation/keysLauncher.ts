@@ -1,61 +1,64 @@
-import ps1Text from "../../../../tools/keys-helper/PremiereAssistantKeys.ps1?raw";
-import { uxp } from "../env.ts";
+import { storageGet, storageSet, uxp } from "../env.ts";
+import { updateRepo } from "../update/version.ts";
 
 /**
- * Встроенный «нажиматель клавиш»: скрипт вшит в плагин. Панель сама кладёт его в свою папку данных
- * и запускает свёрнутым окном (uxp.shell.openPath — Windows один раз спросит разрешение; в manifest —
- * launchProcess.extensions ".cmd"). Скрипт сам выключается через минуту после закрытия Premiere.
+ * Встроенный «нажиматель клавиш»: маленькая программа без окон (значок в трее, tools/keys-app, Go + Win32).
+ * Панель при первом использовании скачивает её из релиза GitHub в свою папку данных и запускает
+ * через короткий .cmd (uxp.shell.openPath; в manifest — launchProcess.extensions ".cmd"; консоль мелькает
+ * на долю секунды). Программа сама закрывается через минуту после закрытия Premiere.
  */
 
-/** UTF-8 без TextEncoder (в UXP его может не быть). */
-function utf8Bytes(s: string): Uint8Array {
-  const out: number[] = [];
-  for (let i = 0; i < s.length; i++) {
-    let c = s.charCodeAt(i);
-    if (c >= 0xd800 && c < 0xdc00 && i + 1 < s.length) {
-      c = 0x10000 + ((c - 0xd800) << 10) + (s.charCodeAt(++i) - 0xdc00);
-    }
-    if (c < 0x80) out.push(c);
-    else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
-    else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
-    else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
-  }
-  return new Uint8Array(out);
+/** Версия программы — менять вместе с `version` в tools/keys-app/server.go, чтобы панель скачала новую. */
+const EXE_VERSION = "4";
+const EXE_NAME = "PremiereAssistantKeys.exe";
+const VER_KEY = "keysExeVersion";
+
+function ascii(s: string): ArrayBuffer {
+  const b = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0x7f;
+  return b.buffer;
 }
 
-// Окно с ASCII-заголовком: cmd без chcp читает файл в OEM-кодировке.
-const LAUNCHER = [
-  "@echo off",
-  'start "Premiere Assistant keys" /min powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0PremiereAssistantKeys.ps1"',
-  "",
-].join("\r\n");
+async function keysFolder(u: any): Promise<any> {
+  const data = await u.storage.localFileSystem.getDataFolder();
+  try {
+    return await data.getEntry("keys");
+  } catch {
+    return data.createFolder("keys");
+  }
+}
+
+async function ensureExe(u: any, folder: any): Promise<void> {
+  let exists = false;
+  try {
+    await folder.getEntry(EXE_NAME);
+    exists = true;
+  } catch {
+    /* нет — скачаем */
+  }
+  if (exists && storageGet(VER_KEY) === EXE_VERSION) return;
+  const repo = updateRepo() || "Bonecrypto/premiere-assistant";
+  const res = await fetch(`https://github.com/${repo}/releases/latest/download/premiere-assistant-keys.exe`);
+  if (!res.ok) throw new Error(`не удалось скачать программу (${res.status})`);
+  const buf = await res.arrayBuffer();
+  if (buf.byteLength < 100_000) throw new Error("скачался не тот файл");
+  const f = await folder.createFile(EXE_NAME, { overwrite: true });
+  await f.write(buf, { format: u.storage.formats.binary });
+  storageSet(VER_KEY, EXE_VERSION);
+}
 
 /** Запустить нажиматель. Возвращает "" если запущен, иначе текст ошибки. */
 export async function launchKeysHelper(): Promise<string> {
   const u: any = uxp;
-  const fs = u?.storage?.localFileSystem;
-  if (!fs || !u?.shell?.openPath) return "автозапуск недоступен в этой версии Premiere";
+  if (!u?.storage?.localFileSystem || !u?.shell?.openPath) return "автозапуск недоступен в этой версии Premiere";
   try {
-    const data = await fs.getDataFolder();
-    let folder: any;
-    try {
-      folder = await data.getEntry("keys");
-    } catch {
-      folder = await data.createFolder("keys");
-    }
-    const bin = u.storage.formats.binary;
-    // PowerShell 5 читает UTF-8 только с BOM — иначе русские сообщения будут «кракозябрами».
-    const body = utf8Bytes(ps1Text.replace(/^﻿/, "").replace(/\r?\n/g, "\r\n"));
-    const withBom = new Uint8Array(body.length + 3);
-    withBom.set([0xef, 0xbb, 0xbf]);
-    withBom.set(body, 3);
-    const ps1 = await folder.createFile("PremiereAssistantKeys.ps1", { overwrite: true });
-    await ps1.write(withBom.buffer, { format: bin });
+    const folder = await keysFolder(u);
+    await ensureExe(u, folder);
     const cmd = await folder.createFile("start-keys.cmd", { overwrite: true });
-    await cmd.write(utf8Bytes(LAUNCHER).buffer, { format: bin });
+    await cmd.write(ascii(`@echo off\r\nstart "" "%~dp0${EXE_NAME}"\r\n`), { format: u.storage.formats.binary });
     const res: string = await u.shell.openPath(
       cmd.nativePath,
-      "Premiere Assistant запустит маленький помощник, который нажимает клавиши цветов для покраски таймлайна.",
+      "Premiere Assistant запустит маленькую программу (значок в трее), которая нажимает клавиши цветов для покраски таймлайна.",
     );
     return res || "";
   } catch (err) {

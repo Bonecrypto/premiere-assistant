@@ -35,7 +35,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 /** Что не получилось при поиске нажимателя — для подсказки пользователю. */
 export let lastKeysDiag = "";
 
-/** «Нажиматель клавиш» (PowerShell, без Node) на localhost:8766 — основной путь. */
+/** «Нажиматель клавиш» (программа tools/keys-app, значок в трее) на localhost:8766 — основной путь. */
 async function openHttpClient(): Promise<KeysClient | null> {
   const diag: string[] = [];
   for (const host of ["localhost", "127.0.0.1"]) {

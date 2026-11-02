@@ -143,8 +143,8 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           {state.kind === "scanning" ? "Анализирую таймлайн…" : "Покрасить таймлайн"}
         </Button>
         <div className="wiz-note">
-          Premiere не даёт плагинам менять цвет клипов на таймлайне напрямую, поэтому клавишу цвета нажимает встроенный
-          «нажиматель клавиш» — панель запускает его сама (свёрнутым окном), он выключается после закрытия Premiere. Без него — пошаговый режим вручную.
+          Premiere не даёт плагинам менять цвет клипов на таймлайне напрямую, поэтому клавишу цвета нажимает маленькая
+          встроенная программа — панель запускает её сама (значок в трее, без окон), она выключается после закрытия Premiere. Без него — пошаговый режим вручную.
         </div>
       </div>
     );
@@ -230,7 +230,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
         ))}
         <div className="field-hint">
           Также нужна стандартная клавиша Shift+3 — «перейти на таймлайн» (есть в Premiere по умолчанию). И установлен
-          запущен «нажиматель клавиш» (start-keys.cmd из premiere-assistant-keys.zip — панель подскажет, если его нет).
+          программа‑нажиматель — панель скачает и запустит её сама (значок в трее).
         </div>
         <div className="confirm-actions">
           <Button variant="secondary" className="confirm-btn" onClick={() => setState({ kind: "overview", planned: state.planned })}>
@@ -264,7 +264,8 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
             2. Если не спрашивал — переустановите плагин из последнего релиза (.ccx): в нём есть разрешение на автозапуск.
           </div>
           <div>
-            3. Запасной вариант вручную: скачайте <b>premiere-assistant-keys.zip</b> из релиза и запустите <b>start-keys.cmd</b>.
+            3. Запасной вариант вручную: скачайте <b>premiere-assistant-keys.exe</b> из релиза и запустите — появится значок в
+            трее (возле часов).
           </div>
         </div>
         <div className="wiz-url">github.com/{updateRepo() || "Bonecrypto/premiere-assistant"}/releases/latest</div>
