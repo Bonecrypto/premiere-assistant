@@ -1,3 +1,4 @@
+import { TextField } from "./TextField.tsx";
 import type { HelloAckMsg } from "@pa/core";
 import type { AiMode, AiSettings } from "../agent/settings.ts";
 import { AiKeyCard } from "./AiKeyCard.tsx";
@@ -110,14 +111,7 @@ export function SettingsView(props: {
             <div className="row-label">Порт помощника</div>
           </div>
           {/* Ширина задаётся обёрткой: UXP растягивает поле ввода и игнорирует его width. */}
-          <div className="port-box">
-            <input
-              className="text-input port-input"
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ""))}
-            />
-          </div>
+          <TextField className="port-box" value={value} onChange={(v: string) => setValue(v.replace(/[^0-9]/g, ""))} />
           <Button variant="primary" size="small" disabled={!valid || n === props.port} onClick={() => props.onChangePort(n)}>
             Применить
           </Button>

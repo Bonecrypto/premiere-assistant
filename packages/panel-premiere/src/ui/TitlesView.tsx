@@ -1,3 +1,4 @@
+import { TextField } from "./TextField.tsx";
 import { useEffect, useState } from "react";
 import { isUXP } from "../env.ts";
 import {
@@ -137,9 +138,7 @@ export function TitlesView() {
             </div>
           ) : (
             <>
-              <div className="input-box lib-search">
-                <input className="text-input ai-input" type="text" placeholder={`Поиск среди ${list.length} шаблонов`} value={query} onChange={(e) => setQuery(e.target.value)} />
-              </div>
+              <TextField className="lib-search" placeholder={`Поиск среди ${list.length} шаблонов`} value={query} onChange={(v: string) => setQuery(v)} />
               <div className="lib-chips">
                 {["Все", "★", ...cats].map((c) => (
                   <div key={c} className={`lib-chip${cat === c ? " is-active" : ""}`} onClick={() => setCat(c)}>

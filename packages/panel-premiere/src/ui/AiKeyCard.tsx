@@ -1,3 +1,4 @@
+import { TextField } from "./TextField.tsx";
 import { useEffect, useState } from "react";
 import { isAiConfigured, loadKeyFor, PROVIDER_INFO, type AiProvider, type AiSettings } from "../agent/settings.ts";
 import { Button } from "./Button.tsx";
@@ -54,47 +55,24 @@ export function AiKeyCard(props: { ai: AiSettings; onSave(next: AiSettings): Pro
       {info.needsKey ? (
         <>
           <div className="field-label ai-gap">{info.keyLabel}</div>
-          <div className="input-box">
-            <input
-              className="text-input ai-input"
-              type="password"
-              placeholder="Вставьте ключ (Ctrl+V)"
-              value={draft.apiKey}
-              onChange={(e) => {
-                setDraft({ ...draft, apiKey: e.target.value });
+          <TextField type="password" placeholder="Вставьте ключ (Ctrl+V)" value={draft.apiKey} onChange={(v: string) => {
+                setDraft({ ...draft, apiKey: v });
                 setSaved(null);
-              }}
-            />
-          </div>
+              }} />
         </>
       ) : (
         <>
           <div className="field-label ai-gap">Адрес Ollama</div>
-          <div className="input-box">
-            <input
-              className="text-input ai-input"
-              type="text"
-              value={draft.ollamaUrl}
-              onChange={(e) => setDraft({ ...draft, ollamaUrl: e.target.value })}
-            />
-          </div>
+          <TextField value={draft.ollamaUrl} onChange={(v: string) => setDraft({ ...draft, ollamaUrl: v })} />
         </>
       )}
 
       {!props.compact ? (
         <>
           <div className="field-label ai-gap">Модель (необязательно)</div>
-          <div className="input-box">
-            <input
-              className="text-input ai-input"
-              type="text"
-              placeholder={
+          <TextField placeholder={
                 draft.provider === "openrouter" ? "пусто — бесплатная, выберется сама" : draft.provider === "gemini" ? "gemini-2.5-flash" : "qwen3:8b"
-              }
-              value={draft.model}
-              onChange={(e) => setDraft({ ...draft, model: e.target.value })}
-            />
-          </div>
+              } value={draft.model} onChange={(v: string) => setDraft({ ...draft, model: v })} />
         </>
       ) : null}
 

@@ -1,3 +1,4 @@
+import { TextField } from "./TextField.tsx";
 import { useState } from "react";
 import { bakeCurve, unbakeCurve, type BakeOptions } from "../automation/graph.ts";
 import { storageGet, storageSet } from "../env.ts";
@@ -103,9 +104,7 @@ export function GraphView() {
               </span>
             ) : (
               <div className="pv-save">
-                <div className="input-box pv-save-input">
-                  <input className="text-input ai-input" type="text" placeholder="Название кривой" value={saving} onChange={(e) => setSaving(e.target.value)} />
-                </div>
+                <TextField className="pv-save-input" placeholder="Название кривой" value={saving} onChange={(v: string) => setSaving(v)} />
                 <Button
                   variant="primary"
                   size="small"

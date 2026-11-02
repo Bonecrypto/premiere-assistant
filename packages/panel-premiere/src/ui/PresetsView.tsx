@@ -1,3 +1,4 @@
+import { TextField } from "./TextField.tsx";
 import { useEffect, useState } from "react";
 import { animateSelected } from "../automation/animate.ts";
 import { applyFxPreset, captureFxPreset, loadFxPresets, saveFxPresets, type FxPreset } from "../automation/fxPresets.ts";
@@ -520,15 +521,7 @@ function AnimDetail(props: {
             </span>
           ) : (
             <div className="pv-save">
-              <div className="input-box pv-save-input">
-                <input
-                  className="text-input ai-input"
-                  type="text"
-                  placeholder="Название, например «Мой улёт»"
-                  value={saving}
-                  onChange={(e) => setSaving(e.target.value)}
-                />
-              </div>
+              <TextField className="pv-save-input" placeholder="Название, например «Мой улёт»" value={saving} onChange={(v: string) => setSaving(v)} />
               <Button
                 variant="primary"
                 size="small"
@@ -644,9 +637,7 @@ function FxNewDetail(props: { setAction(a: { run: () => Promise<string> } | null
         </div>
         <div className="pv-row pv-row-stack">
           <span className="pv-label">Название</span>
-          <div className="input-box">
-            <input className="text-input ai-input" type="text" placeholder="Например: Тёплый грейд + блюр" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
+          <TextField placeholder="Например: Тёплый грейд + блюр" value={name} onChange={(v: string) => setName(v)} />
         </div>
         <div className="pv-row">
           <span className="pv-label">Вместе с Motion и Opacity</span>
@@ -745,9 +736,7 @@ function LibraryDetail(props: { setAction(a: { run: () => Promise<string> } | nu
         <span className="pv-hint">{KIND_LABEL[chosen.kind]}</span>
       </div>
 
-      <div className="input-box lib-search">
-        <input className="text-input ai-input" type="text" placeholder="Поиск: влёт, пружина, размытие…" value={query} onChange={(e) => setQuery(e.target.value)} />
-      </div>
+      <TextField className="lib-search" placeholder="Поиск: влёт, пружина, размытие…" value={query} onChange={(v: string) => setQuery(v)} />
 
       <div className="lib-chips">
         {["Все", "★", ...LIB_CATEGORIES].map((c) => (

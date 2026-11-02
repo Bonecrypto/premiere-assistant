@@ -1,3 +1,4 @@
+import { TextField } from "./TextField.tsx";
 import { useState } from "react";
 import { storageSet } from "../env.ts";
 import { installedUpdate } from "../update/loader.ts";
@@ -73,15 +74,7 @@ export function UpdatesSection(props: { update: UpdateInfo | null; onCheck(): Pr
         <div className="row">
           <div className="row-main">
             <div className="row-label">Репозиторий GitHub</div>
-            <div className="input-box">
-              <input
-                className="text-input ai-input"
-                type="text"
-                placeholder="логин/premiere-assistant"
-                value={repo}
-                onChange={(e) => setRepo(e.target.value.trim())}
-              />
-            </div>
+            <TextField placeholder="логин/premiere-assistant" value={repo} onChange={(v: string) => setRepo(v.trim())} />
           </div>
           <Button
             variant="primary"
