@@ -3326,10 +3326,10 @@ body,
   flex-wrap: wrap;
 }
 .act-tile {
-  width: 78px;
-  margin: 0 6px 6px 0;
-  padding: 8px 4px 6px 4px;
-  border-radius: 14px;
+  width: 80px;
+  margin: 0 8px 8px 0;
+  padding: 10px 4px 8px 4px;
+  border-radius: 16px;
   background-color: var(--bg-elevated);
   border: 1.5px solid transparent;
   display: flex;
@@ -3349,14 +3349,18 @@ body,
   justify-content: center;
   margin-bottom: 5px;
 }
+.act-img {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 6px;
+}
 .act-label {
   font-size: 10.5px;
   font-weight: 600;
   text-align: center;
   color: var(--label);
-  line-height: 12px;
-  height: 24px;
-  overflow: hidden;
+  line-height: 13px;
+  min-height: 26px;
 }
 .act-settings {
   margin-top: 6px;
@@ -3373,6 +3377,8 @@ body,
 .act-chip {
   margin-right: 6px;
   margin-bottom: 4px;
+  border-radius: 14px;
+  padding: 4px 10px;
 }
 .act-note {
   font-size: 10.5px;

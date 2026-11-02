@@ -45,6 +45,8 @@ function toValue(raw: any): Value | null {
   if (typeof v === "boolean") return { t: "bool", v };
   if (typeof v === "string") return { t: "str", v };
   if (v && typeof v.x === "number" && typeof v.y === "number") return { t: "point", x: v.x, y: v.y };
+  // Position / Anchor Point приходят массивом [x, y].
+  if (Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === "number")) return { t: "point", x: v[0], y: v[1] };
   if (v && typeof v.red === "number") return { t: "color", r: v.red, g: v.green, b: v.blue, a: v.alpha ?? 1 };
   return null;
 }
@@ -201,7 +203,12 @@ export async function copyStyle(): Promise<string> {
       const prm = comp.getParam(j);
       if (!prm || prm.isTimeVarying?.()) continue;
       try {
-        const raw = await prm.getStartValue();
+        let raw = await prm.getStartValue();
+        const empty = (r: any) => (r?.value?.value ?? r?.value ?? r) === undefined || (r?.value?.value ?? r?.value ?? r) === null;
+        if (empty(raw)) {
+          // Текст: getStartValue пустой — пробуем значение в момент начала клипа.
+          raw = await prm.getValueAtTime(await item.getInPoint()).catch(() => raw);
+        }
         const value = toValue(raw);
         const inner = raw?.value?.value ?? raw?.value ?? raw;
         if (!value || value.t === "str") diag.push(`${String(prm.displayName ?? j)}: ${describe(inner)}`);
@@ -255,7 +262,9 @@ export async function pasteStyle(): Promise<string> {
         }
         let value: unknown = fromValue(p, sp.value);
         if (sp.value.t === "str") {
-          const cur = toValue(await prm.getStartValue().catch(() => null));
+          let curRaw = await prm.getStartValue().catch(() => null);
+          if ((curRaw?.value?.value ?? curRaw?.value ?? curRaw) == null) curRaw = await prm.getValueAtTime(await item.getInPoint()).catch(() => null);
+          const cur = toValue(curRaw);
           const srcJson = asJson(sp.value.v);
           const curJson = cur?.t === "str" ? asJson(cur.v) : null;
           if (srcJson && curJson) {

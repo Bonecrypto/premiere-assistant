@@ -6,6 +6,7 @@ import { copyStyle, lastDiag, pasteStyle } from "../automation/textStyle.ts";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
 import { storageGet, storageSet } from "../env.ts";
+import { APP_ICONS } from "./appIcons.ts";
 import { Icon, type IconName } from "./Icon.tsx";
 import { Slider } from "./Slider.tsx";
 
@@ -28,9 +29,13 @@ function useStatus(): [Status, (busy: string, fn: () => Promise<string>) => Prom
 function Act(props: { icon: IconName; grad: string; label: string; hint: string; onClick(): void }) {
   return (
     <div className="act-tile" title={props.hint} onClick={props.onClick}>
-      <div className={`act-icon grad-${props.grad}`}>
-        <Icon name={props.icon} size={18} />
-      </div>
+      {APP_ICONS[`${props.icon}-${props.grad}`] ? (
+        <img className="act-img" src={APP_ICONS[`${props.icon}-${props.grad}`]} alt="" />
+      ) : (
+        <div className={`act-icon grad-${props.grad}`}>
+          <Icon name={props.icon} size={18} />
+        </div>
+      )}
       <div className="act-label">{props.label}</div>
     </div>
   );
