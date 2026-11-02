@@ -30,14 +30,27 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 }
 
+/** Что не получилось при поиске нажимателя — для подсказки пользователю. */
+export let lastKeysDiag = "";
+
 /** «Нажиматель клавиш» (PowerShell, без Node) на localhost:8766 — основной путь. */
 async function openHttpClient(): Promise<KeysClient | null> {
-  for (const host of ["127.0.0.1", "localhost"]) {
+  const diag: string[] = [];
+  for (const host of ["localhost", "127.0.0.1"]) {
     const base = `http://${host}:${KEYS_PORT}`;
     try {
-      const r: Response = await withTimeout(fetch(`${base}/ping`), 1500);
-      const j: any = await r.json();
-      if (!j?.ok) continue;
+      const r: Response = await withTimeout(fetch(`${base}/ping`), 2000);
+      const text = await r.text();
+      let j: any = null;
+      try {
+        j = JSON.parse(text);
+      } catch {
+        /* не JSON */
+      }
+      if (!j?.ok) {
+        diag.push(`${host}: ответ ${r.status} ${text.slice(0, 60)}`);
+        continue;
+      }
       return {
         send: async (keys) => {
           const res: Response = await withTimeout(
@@ -53,10 +66,11 @@ async function openHttpClient(): Promise<KeysClient | null> {
         },
         close: () => {},
       };
-    } catch {
-      /* пробуем дальше */
+    } catch (err) {
+      diag.push(`${host}: ${(err as Error)?.message || err}`);
     }
   }
+  lastKeysDiag = diag.join("; ");
   return null;
 }
 
@@ -94,10 +108,8 @@ function openWsClient(timeoutMs = 2500): Promise<KeysClient> {
       const msg = parseHelperMessage(String(e.data));
       if (msg && msg.type === "error") {
         // Старый помощник не знает команду send_keys и отвечает «непонятное сообщение».
-        const err = new Error(
-          "Запущена старая версия помощника — она не умеет нажимать клавиши. В папке проекта выполните git pull, " +
-            "затем stop-helper.cmd и start-helper.cmd (или перезагрузите компьютер, если включён автозапуск).",
-        );
+        // Старый помощник (Node) не умеет нажимать клавиши — считаем, что нажимателя нет.
+        const err = new Error("OLD_HELPER");
         waiting.forEach((w) => w.fail(err));
         waiting.clear();
         return;

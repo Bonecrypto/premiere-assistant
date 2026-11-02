@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 
 $Port = 8766
-$Version = 1
+$Version = 2
 $Allow = @('shift+3') + (1..9 | ForEach-Object { "ctrl+alt+shift+$_" }) + @('ctrl+alt+shift+0') + (1..6 | ForEach-Object { "ctrl+alt+shift+f$_" })
 
 # Только один экземпляр.
@@ -72,11 +72,11 @@ while ($listener.IsListening) {
   $ctx = $listener.GetContext()
   try {
     $req = $ctx.Request
-    $origin = $req.Headers['Origin']
-    # Защита от сайтов в браузере: им нельзя (у них Origin http/https и нет нашего заголовка без CORS).
-    if ($origin -and $origin -match '^https?://') { Reply $ctx 403 @{ ok = $false; error = 'forbidden' }; continue }
+    # Защита от сайтов в браузере: команда /keys принимается только с заголовком X-Premiere-Assistant —
+    # браузер не может отправить его на чужой адрес без разрешения CORS, а мы такого разрешения не даём.
     $path = $req.Url.AbsolutePath
     if ($req.HttpMethod -eq 'GET' -and $path -eq '/ping') {
+      Write-Host ("  {0}  панель на связи" -f (Get-Date -Format 'HH:mm:ss'))
       Reply $ctx 200 @{ ok = $true; app = 'premiere-assistant-keys'; version = $Version }
     } elseif ($req.HttpMethod -eq 'POST' -and $path -eq '/keys') {
       if ($req.Headers['X-Premiere-Assistant'] -ne '1') { Reply $ctx 403 @{ ok = $false; error = 'forbidden' }; continue }

@@ -5,7 +5,7 @@ import type { ColorRules } from "../automation/rules.ts";
 import { selectCategory } from "../automation/select.ts";
 import { Button } from "./Button.tsx";
 import { KEY_TIMELINE_FOCUS } from "@pa/core";
-import { comboTitle, labelCombo, openKeysClient } from "../automation/keysClient.ts";
+import { comboTitle, labelCombo, lastKeysDiag, openKeysClient } from "../automation/keysClient.ts";
 import { storageGet, storageSet, uxp } from "../env.ts";
 import { updateRepo } from "../update/version.ts";
 
@@ -40,7 +40,7 @@ type State =
   | { kind: "setup"; planned: PlanWithRefs }
   | { kind: "auto"; planned: PlanWithRefs; index: number }
   | { kind: "autoDone"; count: number; clips: number }
-  | { kind: "noHelper"; planned: PlanWithRefs }
+  | { kind: "noHelper"; planned: PlanWithRefs; oldHelper?: boolean }
   | { kind: "error"; message: string };
 
 function Swatch({ label, size = 14 }: { label: LabelKey; size?: number }) {
@@ -117,7 +117,8 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
       }
       setState({ kind: "autoDone", count: steps.length, clips });
     } catch (err) {
-      setState({ kind: "error", message: (err as Error)?.message || String(err) });
+      if ((err as Error)?.message === "OLD_HELPER") setState({ kind: "noHelper", planned, oldHelper: true });
+      else setState({ kind: "error", message: (err as Error)?.message || String(err) });
     } finally {
       client.close();
     }
@@ -271,6 +272,17 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           </div>
           <div>2. Распакуйте и дважды кликните <b>start-keys.cmd</b> — откроется окно, его можно свернуть.</div>
           <div>3. Вернитесь сюда и нажмите «Запустил — покрасить».</div>
+        </div>
+        {lastKeysDiag ? <div className="field-hint">Проверка связи: {lastKeysDiag}</div> : null}
+        {state.oldHelper ? (
+          <div className="field-hint">
+            Ещё на компьютере работает старый «помощник» из первых версий — он не мешает, но клавиши не нажимает. Его можно
+            убрать из автозагрузки (Win+R → shell:startup → ярлык «Premiere Assistant helper»).
+          </div>
+        ) : null}
+        <div className="field-hint">
+          Если окно start-keys.cmd уже открыто — откройте в браузере <b>http://localhost:8766/ping</b>. Должна появиться строка
+          с «ok»: true. Если её нет — пришлите скриншот окна.
         </div>
         <div className="wiz-url">github.com/{updateRepo() || "Bonecrypto/premiere-assistant"}/releases/latest</div>
         <div className="field-hint">
