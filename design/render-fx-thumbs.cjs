@@ -589,6 +589,46 @@ const drawAll = (W, H) => {
     return c;
   })();
 
+  // ИИ: убрать фон — слева исходник, справа объект на шахматке
+  out["ai-removebg"] = (() => {
+    const c = mk();
+    const ctx = c.getContext("2d");
+    scene(ctx);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(W / 2, 0, W / 2, H);
+    ctx.clip();
+    for (let y = 0; y < H; y += 8) for (let x = W / 2; x < W; x += 8) {
+      ctx.fillStyle = ((x + y) / 8) % 2 ? "#d9d9e0" : "#ffffff";
+      ctx.fillRect(x, y, 8, 8);
+    }
+    // «человек»: голова и плечи
+    ctx.fillStyle = "#4b0cb4";
+    ctx.beginPath();
+    ctx.arc(W * 0.5, H * 0.42, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(W * 0.5, H * 0.98, 34, 30, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W / 2, H);
+    ctx.clip();
+    ctx.fillStyle = "#2b0e55";
+    ctx.beginPath();
+    ctx.arc(W * 0.5, H * 0.42, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(W * 0.5, H * 0.98, 34, 30, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(W / 2 - 1, 0, 2, H);
+    label(ctx, "AI", 8, 16, "#ffffff", 12);
+    return c;
+  })();
+
   // ── Цвет (Lumetri) ──
   out["warm"] = withFilter("sepia(0.3) saturate(1.25) hue-rotate(-8deg)", (ctx) => tone(ctx, "#ff9a3c", "soft-light", 0.5));
   out["cold"] = withFilter("saturate(0.85) hue-rotate(15deg)", (ctx) => tone(ctx, "#3c7dff", "soft-light", 0.65));

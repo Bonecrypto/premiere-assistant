@@ -54,11 +54,13 @@ jobs:
         with:
           go-version: "1.22"
 
-      - name: Нажиматель клавиш (программа для Windows, значок в трее)
+      - name: Нажиматель клавиш (программа для Windows, значок в трее; с v8 — и нейросеть удаления фона, cgo)
         run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gcc-mingw-w64-x86-64
           cd tools/keys-app
           go test ./...
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-H windowsgui -s -w" -o ../../premiere-assistant-keys.exe .
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -trimpath -ldflags "-H windowsgui -s -w" -o ../../premiere-assistant-keys.exe .
 
       - name: Релиз
         env:

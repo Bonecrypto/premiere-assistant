@@ -24,6 +24,8 @@ export function comboTitle(combo: string): string {
 export interface KeysClient {
   send(keys: string[]): Promise<void>;
   close(): void;
+  /** Адрес программы в трее (только для HTTP-пути) — для ИИ-функций (удаление фона). */
+  base?: string;
 }
 
 const KEYS_PORT = 8766;
@@ -35,6 +37,8 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 /** Минимальная версия программы-нажимателя (новая схема клавиш меток). */
 const MIN_VERSION = 6;
 let oldVersionRunning = false;
+/** Какая версия нужна сейчас (ИИ-функции требуют новее, чем клавиши). */
+let needVersion = MIN_VERSION;
 
 /** Что не получилось при поиске нажимателя — для подсказки пользователю. */
 export let lastKeysDiag = "";
@@ -57,7 +61,7 @@ async function openHttpClient(): Promise<KeysClient | null> {
         diag.push(`${host}: ответ ${r.status} ${text.slice(0, 60)}`);
         continue;
       }
-      if (typeof j.version === "number" && j.version < MIN_VERSION) {
+      if (typeof j.version === "number" && j.version < needVersion) {
         // Версии с 5 умеют закрываться по команде — тогда панель сама запустит новую.
         try {
           const q: Response = await withTimeout(fetch(`${base}/quit`, { method: "POST", headers: { "X-Premiere-Assistant": "1" } }), 2000);
@@ -74,6 +78,7 @@ async function openHttpClient(): Promise<KeysClient | null> {
         return null;
       }
       return {
+        base,
         send: async (keys) => {
           const res: Response = await withTimeout(
             fetch(`${base}/keys`, {
@@ -97,8 +102,9 @@ async function openHttpClient(): Promise<KeysClient | null> {
 }
 
 /** Найти, кто нажмёт клавиши: сначала «нажиматель клавиш», затем помощник (Node). Ошибка "helper" — никого нет. */
-export async function openKeysClient(): Promise<KeysClient> {
+export async function openKeysClient(minVersion = MIN_VERSION): Promise<KeysClient> {
   oldVersionRunning = false;
+  needVersion = minVersion;
   const http = await openHttpClient();
   if (http) return http;
   // Старая версия, которая не умеет закрываться по команде, — новая версия при запуске закроет её сама.

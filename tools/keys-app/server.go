@@ -14,7 +14,7 @@ import (
 
 const (
 	port    = 8766
-	version = 7
+	version = 8
 )
 
 // sendKeys нажимает клавиши (на Windows — winSendKeys).
@@ -71,6 +71,20 @@ func handle(c net.Conn) {
 		}
 	}
 	lastRequest = time.Now()
+	body := func(maxLen int) ([]byte, bool) {
+		n, _ := strconv.Atoi(headers["content-length"])
+		if n <= 0 || n > maxLen {
+			return nil, false
+		}
+		b := make([]byte, n)
+		if _, err := io.ReadFull(r, b); err != nil {
+			return nil, false
+		}
+		return b, true
+	}
+	if handleAI(c, method, path, headers, body) {
+		return
+	}
 	switch {
 	case method == "GET" && path == "/ping":
 		reply(c, 200, map[string]any{"ok": true, "app": "premiere-assistant-keys", "version": version})

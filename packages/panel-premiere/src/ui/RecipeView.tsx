@@ -13,6 +13,7 @@ import { Button } from "./Button.tsx";
 import { FX_THUMBS } from "./fxThumbs.ts";
 import { useFitTiles, useSize } from "./useSize.ts";
 import { flashSelected } from "../automation/flash.ts";
+import { removeBackgroundSelected } from "../automation/removeBg.ts";
 import { Slider } from "./Slider.tsx";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
@@ -28,7 +29,7 @@ interface Tile {
   thumb?: string;
   /** Применять сразу по клику (без «Применить»). */
   instant?: boolean;
-  run(strength: number): Promise<string>;
+  run(strength: number, report?: (text: string) => void): Promise<string>;
 }
 
 const SWATCH: Record<string, [string, string]> = {
@@ -155,6 +156,18 @@ function effectsTiles(): Tile[] {
     instant: true,
     run: () => flashSelected(f.kind, 4),
   }));
+  const ai: Tile[] = [
+    {
+      key: "ai-removebg",
+      name: "Убрать фон",
+      desc: "Нейросеть на компьютере: вырезает человека/объект с картинки (PNG/JPG) и кладёт над исходником — для «текста за человеком»",
+      group: "ИИ",
+      swatch: ["#9f18ec", "#22045e"],
+      thumb: FX_THUMBS["ai-removebg"],
+      instant: true,
+      run: (_s, report) => removeBackgroundSelected(report),
+    },
+  ];
   const create: Tile[] = CREATE.map((c) => ({
     key: c.id,
     name: c.name,
@@ -165,16 +178,17 @@ function effectsTiles(): Tile[] {
     instant: true,
     run: c.run,
   }));
-  return [...create, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
+  return [...ai, ...create, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
 }
 
 export function EffectsView() {
   return (
     <RecipeView
       title="Эффекты"
-      groupOrder={["Создать", "Ключи", "Стиль", "Картинка", "Свечение", "Углы", "Движение", "Мои"]}
+      groupOrder={["ИИ", "Создать", "Ключи", "Стиль", "Картинка", "Свечение", "Углы", "Движение", "Мои"]}
       tiles={effectsTiles()}
       hints={{
+        ИИ: "Выделите картинку и нажмите — первый раз панель предложит скачать нейросеть (~250 МБ).",
         Создать: "Под плейхед на свободную дорожку над V1; выделены клипы — на их длину. Adjustment Layer: один раз File → New → Adjustment Layer.",
         Ключи: "Поставьте 2 ключа (Position, Scale…) в Effect Controls, выделите клип и нажмите — применится сразу.",
         Свечение: "«Контур» и «Неон» — для PNG, текста, логотипов.",
@@ -236,7 +250,7 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
     if (!tile) return;
     setStatus({ tone: "busy", text: `Применяю «${tile.name}»…` });
     try {
-      setStatus({ tone: "ok", text: await tile.run(strength / 100) });
+      setStatus({ tone: "ok", text: await tile.run(strength / 100, (text) => setStatus({ tone: "busy", text })) });
     } catch (err) {
       setStatus({ tone: "error", text: (err as Error)?.message || String(err) });
     }
