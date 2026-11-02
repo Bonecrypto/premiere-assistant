@@ -185,6 +185,9 @@ export async function removeMogrt(m: Mogrt): Promise<Mogrt[]> {
 const thumbs = new Map<string, string | null>();
 /** Почему не получилось достать превью — для подсказки на карточке. */
 export const thumbErrors = new Map<string, string>();
+/** Видео-превью внутри шаблона (имя файла) — если есть. Пока только для подсказки, проигрывание — следующим шагом. */
+export const videoPreviews = new Map<string, string>();
+const VIDEO = /\.(mp4|mov|webm|m4v)$/i;
 let diskCache: Record<string, string> | null = null;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -237,6 +240,7 @@ export async function thumbnail(m: Mogrt): Promise<string | null> {
   if (thumbs.has(m.id)) return thumbs.get(m.id) ?? null;
   const cache = await loadDiskCache().catch(() => ({}) as Record<string, string>);
   const key = `${m.id}|${m.size}`;
+  if (cache[`${key}#video`]) videoPreviews.set(m.id, cache[`${key}#video`]);
   if (cache[key]) {
     thumbs.set(m.id, cache[key]);
     return cache[key];
@@ -246,6 +250,11 @@ export async function thumbnail(m: Mogrt): Promise<string | null> {
     const f = await fileOf(m);
     const buf = new Uint8Array(await f.read({ format: binaryFormat() }));
     const entries = listZip(buf);
+    const vid = entries.find((e) => VIDEO.test(e.name));
+    if (vid) {
+      videoPreviews.set(m.id, vid.name);
+      cache[`${key}#video`] = vid.name;
+    }
     let img = pickImage(entries);
     let data: Uint8Array | null = img ? readZipEntry(buf, img) : null;
     if (!img) {
@@ -401,4 +410,44 @@ export async function moveToSection(m: Mogrt, section: string): Promise<{ list: 
   storageSet(RECENT_KEY, JSON.stringify(loadRecent().map((x) => (x === m.id ? id : x))));
   thumbs.delete(m.id);
   return { list: await rescan(), id };
+}
+
+// ───────── Повторы ─────────
+
+/** Ключ для поиска повторов: без точек/пробелов в начале, без регистра. */
+export function dupKey(m: Mogrt): string {
+  return m.name.replace(/^[.\s_-]+/, "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/**
+ * Группы повторов: для каждой — кого оставить (с превью; при равенстве — без точки в начале и из своего раздела)
+ * и кого можно убрать.
+ */
+export function findDuplicates(list: Mogrt[], hasThumb: (m: Mogrt) => boolean): Array<{ keep: Mogrt; extra: Mogrt[] }> {
+  const by = new Map<string, Mogrt[]>();
+  for (const m of list) by.set(dupKey(m), [...(by.get(dupKey(m)) ?? []), m]);
+  const out: Array<{ keep: Mogrt; extra: Mogrt[] }> = [];
+  for (const items of by.values()) {
+    if (items.length < 2) continue;
+    const score = (m: Mogrt) =>
+      (hasThumb(m) ? 4 : 0) + (/^[.\s_-]/.test(m.name) ? 0 : 2) + (m.category !== DEFAULT_CATEGORY ? 1 : 0);
+    const sorted = [...items].sort((a, b) => score(b) - score(a));
+    out.push({ keep: sorted[0], extra: sorted.slice(1) });
+  }
+  return out;
+}
+
+/** Удалить лишние копии (после подтверждения пользователя). */
+export async function removeDuplicates(extra: Mogrt[]): Promise<{ removed: number; list: Mogrt[] }> {
+  let removed = 0;
+  for (const m of extra) {
+    try {
+      const f = await fileOf(m);
+      await f.delete();
+      removed++;
+    } catch {
+      /* пропускаем */
+    }
+  }
+  return { removed, list: await rescan() };
 }

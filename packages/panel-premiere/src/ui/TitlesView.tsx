@@ -1,5 +1,5 @@
 import { TextField } from "./TextField.tsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isUXP } from "../env.ts";
 import {
   DEFAULT_CATEGORY,
@@ -13,14 +13,18 @@ import {
   loadRecent,
   moveToSection,
   pushRecent,
+  findDuplicates,
+  removeDuplicates,
   removeMogrt,
   rescan,
   saveFavorites,
   thumbErrors,
+  videoPreviews,
   thumbnail,
   type Mogrt,
 } from "../mogrt/library.ts";
 import { Button } from "./Button.tsx";
+import { TitleThumb } from "./TitleThumb.tsx";
 import { Segmented } from "./Segmented.tsx";
 import { storageGet, storageSet } from "../env.ts";
 
@@ -30,15 +34,25 @@ const AUTO_ORDER = ["Появление", "Исчезновение", "Плаш�
 const SIZE_KEY = "titlesSize";
 const COLLAPSED_KEY = "titlesCollapsed";
 
-function useWidth(): number {
-  const get = () => (typeof window !== "undefined" ? window.innerWidth || 360 : 360);
-  const [w, setW] = useState(get);
+/** Ширина элемента в пикселях (window.innerWidth в Premiere ненадёжен — меряем саму панель). */
+function useMeasure(): [React.RefObject<HTMLDivElement>, number] {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(0);
   useEffect(() => {
-    const on = () => setW(get());
-    window.addEventListener("resize", on);
-    return () => window.removeEventListener("resize", on);
-  }, []);
-  return w;
+    const measure = () => {
+      const el = ref.current;
+      const v = el ? el.offsetWidth || el.clientWidth || el.getBoundingClientRect?.().width || 0 : 0;
+      if (v && Math.abs(v - w) >= 1) setW(Math.round(v));
+    };
+    measure();
+    const t = setInterval(measure, 700);
+    window.addEventListener("resize", measure);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("resize", measure);
+    };
+  });
+  return [ref, w];
 }
 
 function loadCollapsed(): string[] {
@@ -65,8 +79,11 @@ export function TitlesView() {
   const [newSection, setNewSection] = useState("");
   const [size, setSizeState] = useState<"big" | "small">(() => (storageGet(SIZE_KEY) === "small" ? "small" : "big"));
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed);
-  const width = useWidth();
-  const wide = width >= 600;
+  const [rootRef, rootW] = useMeasure();
+  const [gridRef, gridW] = useMeasure();
+  const wide = rootW >= 600;
+  const [confirmDups, setConfirmDups] = useState(false);
+  const [hover, setHover] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isUXP) return;
@@ -93,8 +110,10 @@ export function TitlesView() {
   // Разделы: свои папки + автоматические по названиям.
   const families = familiesOf(list);
   const groupById = new Map(list.map((m) => [m.id, groupOf(m, families)]));
+  const dups = findDuplicates(list, (m) => Boolean(thumbs[m.id]));
+  const hidden = new Set(dups.flatMap((d) => d.extra.map((x) => x.id)));
   const counts = new Map<string, number>();
-  for (const g of groupById.values()) counts.set(g, (counts.get(g) ?? 0) + 1);
+  for (const [id, g] of groupById) if (!hidden.has(id)) counts.set(g, (counts.get(g) ?? 0) + 1);
   const userGroups = [...new Set(list.filter((m) => m.category !== DEFAULT_CATEGORY).map((m) => m.category))].sort((a, b) => a.localeCompare(b, "ru"));
   const autoGroups = [...counts.keys()].filter((g) => !userGroups.includes(g));
   const rank = (g: string) => {
@@ -109,14 +128,17 @@ export function TitlesView() {
   const matches = (m: Mogrt) => !q || m.name.toLowerCase().includes(q) || (groupById.get(m.id) ?? "").toLowerCase().includes(q);
   const inGroup = (m: Mogrt) =>
     group === "Все" ? true : group === "★" ? favs.includes(m.id) : group === "Недавние" ? recent.includes(m.id) : groupById.get(m.id) === group;
-  let shown = list.filter((m) => inGroup(m) && matches(m));
+  let shown = list.filter((m) => !hidden.has(m.id) && inGroup(m) && matches(m));
   if (group === "Недавние") shown = recent.map((id) => shown.find((m) => m.id === id)).filter(Boolean) as Mogrt[];
   const chosen = list.find((m) => m.id === sel) ?? null;
 
   // Колонки — по ширине области карточек и размеру.
-  const areaW = (wide ? width * 0.68 : width) - 28;
-  const cols = Math.max(2, Math.min(7, Math.floor(areaW / (size === "big" ? 180 : 118))));
-  const cardWidth = `${(100 - 2.5 * (cols - 1)) / cols}%`;
+  // Колонки и точная ширина карточки в пикселях — по реальной ширине области (проценты в UXP «плывут»).
+  const GAP = 10;
+  const areaW = Math.max(200, gridW || 340);
+  const cols = Math.max(2, Math.min(8, Math.floor((areaW + GAP) / ((size === "big" ? 190 : 125) + GAP))));
+  const cardPx = Math.floor((areaW - GAP * (cols - 1)) / cols) - 1;
+  const cardWidth = `${cardPx}px`;
 
   const run = async (busy: string, fn: () => Promise<string | null>) => {
     setStatus({ tone: "busy", text: busy });
@@ -179,23 +201,31 @@ export function TitlesView() {
     const rows: Mogrt[][] = [];
     for (let i = 0; i < items.length; i += cols) rows.push(items.slice(i, i + cols));
     return rows.map((row, i) => (
-      <div key={i} className="lib-row">
-        {row.map((m) => (
+      <div key={i} className="lib-row ts-row">
+        {row.map((m, k) => (
           <div
             key={m.id}
             className={`lib-card title-card${size === "small" ? " is-small" : ""}${m.id === sel ? " is-active" : ""}`}
-            style={{ width: cardWidth, maxWidth: cardWidth, flexBasis: cardWidth }}
-            title={thumbs[m.id] === null ? `Нет превью: ${thumbErrors.get(m.id) ?? "неизвестно"}` : m.name}
+            style={{ width: cardWidth, maxWidth: cardWidth, minWidth: cardWidth, flexBasis: cardWidth, marginRight: k < cols - 1 ? GAP : 0 }}
+            title={
+              thumbs[m.id] === null
+                ? `Нет превью: ${thumbErrors.get(m.id) ?? "неизвестно"}`
+                : videoPreviews.has(m.id)
+                  ? `${m.name} · внутри есть видео-превью (${videoPreviews.get(m.id)})`
+                  : m.name
+            }
             onClick={() => {
               setSel(m.id);
               setConfirmDelete(false);
               setMoving(false);
             }}
             onDoubleClick={() => void insert(m)}
+            onMouseEnter={() => setHover(m.id)}
+            onMouseLeave={() => setHover((h) => (h === m.id ? null : h))}
           >
             <div className="title-thumb">
               {thumbs[m.id] ? (
-                <img className="title-thumb-img" src={thumbs[m.id]!} alt="" />
+                <TitleThumb src={thumbs[m.id]!} name={m.name} playing={hover === m.id || m.id === sel} />
               ) : (
                 <div className="title-thumb-ph">
                   <span className="title-thumb-text">{m.id in thumbs ? m.name : "…"}</span>
@@ -219,15 +249,13 @@ export function TitlesView() {
             </div>
           </div>
         ))}
-        {Array.from({ length: cols - row.length }, (_, k) => (
-          <div key={`e${k}`} className="lib-card lib-card-empty" style={{ width: cardWidth, maxWidth: cardWidth, flexBasis: cardWidth }} />
-        ))}
+
       </div>
     ));
   };
 
   const special = [
-    { id: "Все", label: "Все", n: list.length },
+    { id: "Все", label: "Все", n: list.length - hidden.size },
     { id: "★", label: "★ Избранное", n: favs.filter((id) => list.some((m) => m.id === id)).length },
     { id: "Недавние", label: "Недавние", n: recent.filter((id) => list.some((m) => m.id === id)).length },
   ];
@@ -260,7 +288,7 @@ export function TitlesView() {
   const sectioned = group === "Все" && !q;
 
   return (
-    <div className="pv">
+    <div className="pv" ref={rootRef}>
       <div className="pv-body">
         {list.length ? nav : null}
         <div className="page titles-page">
@@ -311,6 +339,34 @@ export function TitlesView() {
                   </div>
                 ) : null}
 
+                {dups.length ? (
+                  <div className="ts-dups">
+                    <span className="ts-dups-text">
+                      Повторов: {dups.reduce((n, d) => n + d.extra.length, 0)} (одинаковые названия, например «{dups[0].keep.name.replace(/^[.\s_-]+/, "")}») — показываю по одному.
+                    </span>
+                    {confirmDups ? (
+                      <span
+                        className="link-small pv-delete"
+                        onClick={() =>
+                          void run("Убираю повторы…", async () => {
+                            const r = await removeDuplicates(dups.flatMap((d) => d.extra));
+                            setList(r.list);
+                            setConfirmDups(false);
+                            return `Убрано копий: ${r.removed}. Осталось шаблонов: ${r.list.length}.`;
+                          })
+                        }
+                      >
+                        Удалить копии из плагина?
+                      </span>
+                    ) : (
+                      <span className="link-small" onClick={() => setConfirmDups(true)}>
+                        Убрать повторы
+                      </span>
+                    )}
+                  </div>
+                ) : null}
+
+                <div ref={gridRef} className="ts-grid">
                 {shown.length === 0 ? (
                   <div className="pv-hint-block">
                     {group === "★" ? "Отметьте звёздочкой частые шаблоны." : group === "Недавние" ? "Здесь появятся шаблоны, которые вы вставляли." : "Ничего не нашлось."}
@@ -344,6 +400,8 @@ export function TitlesView() {
                       );
                     })
                   : grid(shown)}
+
+                </div>
 
                 {chosen && moving ? (
                   <div className="hero-card ts-move">

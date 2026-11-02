@@ -2866,3 +2866,27 @@ body,
 .title-card.is-small .title-thumb-ph {
   border-radius: 9px;
 }
+.ts-row {
+  justify-content: flex-start;
+}
+.ts-grid {
+  width: 100%;
+}
+.ts-dups {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background-color: rgba(255, 204, 0, 0.08);
+  border: 1px solid rgba(255, 204, 0, 0.2);
+}
+.ts-dups-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--label-2);
+  margin-right: 10px;
+}
