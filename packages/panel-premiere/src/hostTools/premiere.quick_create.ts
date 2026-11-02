@@ -1,8 +1,8 @@
-import { adjustmentLayer, blackVideo, colorMatte } from "../automation/quickCreate.ts";
+import { adjustmentLayer, adjustmentWithTransform, blackVideo, colorMatte } from "../automation/quickCreate.ts";
 import { HostToolError, type HostTool } from "./types.ts";
 
 interface Input {
-  kind: "black_video" | "color_matte" | "adjustment_layer";
+  kind: "black_video" | "color_matte" | "adjustment_layer" | "adjustment_transform";
   color?: string;
 }
 
@@ -13,11 +13,12 @@ const tool: HostTool<Input> = {
     description:
       "Положить на таймлайн под плейхед (а если выделены клипы — на их длину) на свободную видеодорожку над V1: " +
       "black_video — чёрный кадр; color_matte — однотонная плашка цвета color (#RRGGBB); adjustment_layer — корректирующий слой " +
+      "adjustment_transform — корректирующий слой сразу с Transform (моушн-блюр 360) " +
       "(берётся уже существующий в проекте: создать новый API не даёт — тогда попроси пользователя один раз File → New → Adjustment Layer).",
     inputSchema: {
       type: "object",
       properties: {
-        kind: { type: "string", enum: ["black_video", "color_matte", "adjustment_layer"] },
+        kind: { type: "string", enum: ["black_video", "color_matte", "adjustment_layer", "adjustment_transform"] },
         color: { type: "string", description: "#RRGGBB для color_matte" },
       },
       required: ["kind"],
@@ -38,6 +39,8 @@ const tool: HostTool<Input> = {
       }
       case "adjustment_layer":
         return adjustmentLayer();
+      case "adjustment_transform":
+        return adjustmentWithTransform();
     }
   },
 };

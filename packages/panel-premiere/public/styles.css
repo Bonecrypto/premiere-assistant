@@ -3199,3 +3199,96 @@ body,
   color: var(--label-3);
   margin: 2px 2px 8px 2px;
 }
+
+/* «Эффекты»/«Цвет» — всё на одном экране: размер плиток подбирается под панель */
+.recipe-head {
+  padding: 8px 16px 0 16px;
+}
+.recipe-area {
+  flex: 1;
+  overflow: hidden;
+  padding: 0 16px;
+}
+.recipe-group {
+  margin-top: 0;
+}
+.recipe-group-label {
+  height: 18px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-2);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.recipe-group-hint {
+  font-weight: 400;
+  color: var(--label-3);
+}
+.recipe-grid .recipe-tile {
+  margin: 0 6px 6px 0;
+  padding: 3px;
+  border-radius: 10px;
+}
+.recipe-thumb {
+  display: block;
+  border-radius: 7px;
+  margin-bottom: 3px;
+  background-color: #000;
+}
+.recipe-tile .recipe-name {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px 2px 2px;
+}
+.recipe-tile.is-small .recipe-name {
+  font-size: 9.5px;
+  font-weight: 500;
+}
+
+/* «Элементы» */
+.el-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.el-color {
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  margin-right: 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+}
+.el-color.is-active {
+  border: 2px solid var(--accent);
+}
+.el-anims {
+  flex: 1;
+}
+.recipe-label-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 6px 6px 0;
+  padding: 2px;
+  border-radius: 10px;
+  background-color: rgba(159, 24, 236, 0.16);
+  color: var(--accent-text);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-align: center;
+  overflow: hidden;
+  padding: 0;
+}
+.recipe-tile.is-small .recipe-name {
+  white-space: normal;
+  line-height: 10px;
+  height: 20px;
+  text-overflow: clip;
+}
+.recipe-head .lib-chips {
+  margin-top: 2px;
+}

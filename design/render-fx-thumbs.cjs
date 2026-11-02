@@ -534,6 +534,61 @@ const drawAll = (W, H) => {
     "#ffffff",
   );
 
+  out["create-adjust-tf"] = timeline(
+    (ctx, x, y, w, h) => {
+      const g = ctx.createLinearGradient(x, 0, x + w, 0);
+      g.addColorStop(0, "#9f18ec");
+      g.addColorStop(1, "#4fc3ff");
+      ctx.fillStyle = g;
+      rr(ctx, x, y, w, h, 3);
+      ctx.fill();
+    },
+    "Adj + Transform",
+    "#ffffff",
+  );
+  // Вспышка: кадр-«до», яркий кадр, кадр-«после»
+  out["flash-bright"] = (() => {
+    const c = mk();
+    const ctx = c.getContext("2d");
+    dark(ctx);
+    const fr = (x, f) => {
+      const t = document.createElement("canvas");
+      t.width = 52;
+      t.height = 60;
+      const tc = t.getContext("2d");
+      tc.filter = f;
+      scene(tc, 52, 60);
+      ctx.save();
+      rr(ctx, x, 22, 52, 60, 6);
+      ctx.clip();
+      ctx.drawImage(t, x, 22);
+      ctx.restore();
+    };
+    fr(8, "none");
+    ctx.save();
+    ctx.shadowColor = "#fff";
+    ctx.shadowBlur = 18;
+    fr(66, "brightness(2.3) saturate(0.6)");
+    ctx.restore();
+    fr(124, "none");
+    label(ctx, "4 кадра", 64, 98, "rgba(255,255,255,0.6)", 9);
+    return c;
+  })();
+  out["flash-glow"] = (() => {
+    const c = alphaGlow(14, "#ffffff");
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    const cx = 160, cy = 22;
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      const r = i % 2 ? 4 : 13;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    ctx.fill();
+    return c;
+  })();
+
   // ── Цвет (Lumetri) ──
   out["warm"] = withFilter("sepia(0.3) saturate(1.25) hue-rotate(-8deg)", (ctx) => tone(ctx, "#ff9a3c", "soft-light", 0.5));
   out["cold"] = withFilter("saturate(0.85) hue-rotate(15deg)", (ctx) => tone(ctx, "#3c7dff", "soft-light", 0.65));

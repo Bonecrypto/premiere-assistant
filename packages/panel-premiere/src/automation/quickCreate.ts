@@ -1,5 +1,7 @@
 import { uxp } from "../env.ts";
 import { HostToolError } from "../hostTools/types.ts";
+import { transformBlur } from "../presets/fxLibrary.ts";
+import { applyRecipe } from "./fxRecipes.ts";
 import { ppro } from "./timeline.ts";
 
 /**
@@ -38,18 +40,13 @@ function chunk(type: string, data: Uint8Array): Uint8Array[] {
   return [u32(data.length), t, data, u32(crc32([t, data]))];
 }
 
-/** Однотонный PNG (RGB) w×h. */
-export function solidPng(w: number, h: number, r: number, g: number, b: number): Uint8Array {
-  const row = 1 + w * 3;
+/** PNG из сырых пикселей: channels 3 — RGB, 4 — RGBA. Сжатия нет (stored deflate) — для локальных файлов это не важно. */
+export function encodePng(w: number, h: number, px: Uint8Array, channels: 3 | 4): Uint8Array {
+  const row = 1 + w * channels;
   const raw = new Uint8Array(row * h);
   for (let y = 0; y < h; y++) {
     raw[y * row] = 0;
-    for (let x = 0; x < w; x++) {
-      const o = y * row + 1 + x * 3;
-      raw[o] = r;
-      raw[o + 1] = g;
-      raw[o + 2] = b;
-    }
+    raw.set(px.subarray(y * w * channels, (y + 1) * w * channels), y * row + 1);
   }
   // zlib: заголовок + блоки stored по 65535 байт + adler32
   const blocks: Uint8Array[] = [new Uint8Array([0x78, 0x01])];
@@ -65,14 +62,13 @@ export function solidPng(w: number, h: number, r: number, g: number, b: number):
     b2 = (b2 + a) % 65521;
   }
   blocks.push(u32(((b2 << 16) | a) >>> 0));
-  const idatLen = blocks.reduce((n, p) => n + p.length, 0);
-  const idat = new Uint8Array(idatLen);
+  const idat = new Uint8Array(blocks.reduce((n, p) => n + p.length, 0));
   let off = 0;
   for (const p of blocks) {
     idat.set(p, off);
     off += p.length;
   }
-  const ihdr = new Uint8Array([...u32(w), ...u32(h), 8, 2, 0, 0, 0]);
+  const ihdr = new Uint8Array([...u32(w), ...u32(h), 8, channels === 4 ? 6 : 2, 0, 0, 0]);
   const parts = [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), ...chunk("IHDR", ihdr), ...chunk("IDAT", idat), ...chunk("IEND", new Uint8Array())];
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   off = 0;
@@ -81,6 +77,17 @@ export function solidPng(w: number, h: number, r: number, g: number, b: number):
     off += p.length;
   }
   return out;
+}
+
+/** Однотонный PNG (RGB) w×h. */
+export function solidPng(w: number, h: number, r: number, g: number, b: number): Uint8Array {
+  const px = new Uint8Array(w * h * 3);
+  for (let i = 0; i < w * h; i++) {
+    px[i * 3] = r;
+    px[i * 3 + 1] = g;
+    px[i * 3 + 2] = b;
+  }
+  return encodePng(w, h, px, 3);
 }
 
 // ───────── Premiere ─────────
@@ -120,8 +127,8 @@ async function findByPath(p: any, project: any, path: string): Promise<any | nul
   return null;
 }
 
-/** Однотонный кадр как элемент проекта (создаёт PNG и импортирует при первом использовании). */
-async function solidItem(name: string, hex: string): Promise<any> {
+/** Файл из папки данных плагина как элемент проекта: создаёт (make) при первом использовании и импортирует. */
+export async function dataFileItem(folderName: string, file: string, make: () => Uint8Array, scaleToFrame: boolean): Promise<any> {
   const p = ppro() as any;
   const u: any = uxp;
   const project = await p.Project.getActiveProject();
@@ -129,34 +136,39 @@ async function solidItem(name: string, hex: string): Promise<any> {
   const data = await u.storage.localFileSystem.getDataFolder();
   let folder: any;
   try {
-    folder = await data.getEntry("solids");
+    folder = await data.getEntry(folderName);
   } catch {
-    folder = await data.createFolder("solids");
+    folder = await data.createFolder(folderName);
   }
-  const file = `${name}.png`;
   let entry: any;
   try {
     entry = await folder.getEntry(file);
   } catch {
-    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex) ?? ["", "00", "00", "00"];
-    const png = solidPng(320, 180, parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
     entry = await folder.createFile(file, { overwrite: true });
-    await entry.write(png.buffer, { format: u.storage.formats.binary });
+    await entry.write(make().buffer, { format: u.storage.formats.binary });
   }
   let item = await findByPath(p, project, entry.nativePath);
   if (!item) {
     const ok = await project.importFiles([entry.nativePath], true);
-    if (!ok) throw new HostToolError("Premiere не импортировал кадр.");
+    if (!ok) throw new HostToolError("Premiere не импортировал файл.");
     item = await findByPath(p, project, entry.nativePath);
-    if (!item) throw new HostToolError("Не нашёл импортированный кадр в проекте.");
-    const clip = p.ClipProjectItem.cast(item);
-    try {
-      run(project, "Ассистент: растянуть на кадр", (c) => c.addAction(clip.createSetScaleToFrameSizeAction()));
-    } catch {
-      /* не критично — PNG 16:9 */
+    if (!item) throw new HostToolError("Не нашёл импортированный файл в проекте.");
+    if (scaleToFrame) {
+      const clip = p.ClipProjectItem.cast(item);
+      try {
+        run(project, "Ассистент: растянуть на кадр", (c) => c.addAction(clip.createSetScaleToFrameSizeAction()));
+      } catch {
+        /* не критично */
+      }
     }
   }
   return item;
+}
+
+/** Однотонный кадр как элемент проекта (создаёт PNG и импортирует при первом использовании). */
+async function solidItem(name: string, hex: string): Promise<any> {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex) ?? ["", "00", "00", "00"];
+  return dataFileItem("solids", `${name}.png`, () => solidPng(320, 180, parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)), true);
 }
 
 /** Существующий корректирующий слой проекта или null. */
@@ -183,14 +195,16 @@ async function adjustmentItem(): Promise<any | null> {
   return null;
 }
 
-interface Placed {
+export interface Placed {
   track: number;
   start: number;
   end: number | null;
+  /** Положенный клип на таймлайне (если нашёлся). */
+  item: any | null;
 }
 
 /** Положить элемент под плейхед (или на диапазон выделенных клипов) на свободную видеодорожку над V1. */
-async function place(item: any, title: string): Promise<Placed> {
+export async function place(item: any, title: string, opt: { useSelection?: boolean; seconds?: number } = {}): Promise<Placed> {
   const p = ppro() as any;
   const project = await p.Project.getActiveProject();
   const seq = await project.getActiveSequence();
@@ -199,13 +213,14 @@ async function place(item: any, title: string): Promise<Placed> {
   const selected: any[] = (await sel?.getTrackItems()) ?? [];
   let start: number;
   let end: number | null = null;
-  if (selected.length) {
+  if (selected.length && opt.useSelection !== false) {
     const starts = await Promise.all(selected.map(async (it) => (await it.getStartTime()).seconds as number));
     const ends = await Promise.all(selected.map(async (it) => (await it.getEndTime()).seconds as number));
     start = Math.min(...starts);
     end = Math.max(...ends);
   } else {
     start = (await seq.getPlayerPosition()).seconds;
+    if (opt.seconds) end = start + opt.seconds;
   }
   const CLIP = p.Constants?.TrackItemType?.CLIP ?? 1;
   const count: number = await seq.getVideoTrackCount();
@@ -229,22 +244,23 @@ async function place(item: any, title: string): Promise<Placed> {
   }
   const editor = p.SequenceEditor.getEditor(seq);
   run(project, title, (c) => c.addAction(editor.createOverwriteItemAction(item, p.TickTime.createWithSeconds(start), track, -1)));
-  if (end !== null) {
-    // Подогнать длину под выделенные клипы.
-    const t = await seq.getVideoTrack(track);
-    for (const it of (await t?.getTrackItems(CLIP, false)) ?? []) {
-      const s = (await it.getStartTime()).seconds;
-      if (Math.abs(s - start) < 0.01) {
-        try {
-          run(project, `${title} — длина`, (c) => c.addAction(it.createSetEndAction(p.TickTime.createWithSeconds(end!))));
-        } catch {
-          /* длина по умолчанию */
-        }
-        break;
-      }
+  // Найти положенный клип и подогнать длину.
+  let placed: any = null;
+  const t = await seq.getVideoTrack(track);
+  for (const it of (await t?.getTrackItems(CLIP, false)) ?? []) {
+    if (Math.abs((await it.getStartTime()).seconds - start) < 0.01) {
+      placed = it;
+      break;
     }
   }
-  return { track, start, end };
+  if (placed && end !== null) {
+    try {
+      run(project, `${title} — длина`, (c) => c.addAction(placed.createSetEndAction(p.TickTime.createWithSeconds(end!))));
+    } catch {
+      /* длина по умолчанию */
+    }
+  }
+  return { track, start, end, item: placed };
 }
 
 const where = (r: Placed) => `V${r.track + 1}, ${r.start.toFixed(2)} с${r.end !== null ? ` — до ${r.end.toFixed(2)} с` : ""}`;
@@ -261,12 +277,31 @@ export async function colorMatte(hex: string): Promise<string> {
 }
 
 export async function adjustmentLayer(): Promise<string> {
+  const r = await placeAdjustment();
+  return `Adjustment Layer — на ${where(r)}. Отмена — Ctrl+Z.`;
+}
+
+/** Корректирующий слой сразу с Transform (моушн-блюр 360): двигаете Transform — двигается всё, что ниже. */
+export async function adjustmentWithTransform(): Promise<string> {
+  const r = await placeAdjustment();
+  if (!r.item) return `Adjustment Layer — на ${where(r)}, но не нашёл его, чтобы добавить Transform.`;
+  const p = ppro() as any;
+  const seq = await (await p.Project.getActiveProject()).getActiveSequence();
+  p.TrackItemSelection.createEmptySelection((sel: any) => {
+    sel.addItem(r.item, true);
+    seq.setSelection(sel);
+  });
+  const res = await applyRecipe({ id: "adj-transform", name: "Transform", group: "", desc: "", steps: [transformBlur] }, 1);
+  const miss = res.missing.length ? ` Не нашёл: ${res.missing.join(", ")}.` : "";
+  return `Adjustment Layer + Transform (блюр 360) — на ${where(r)}. Анимируйте Position/Scale в Transform — двигается всё, что ниже. Отмена — Ctrl+Z.${miss}`;
+}
+
+async function placeAdjustment(): Promise<Placed> {
   const item = await adjustmentItem();
   if (!item) {
     throw new HostToolError(
       "В проекте нет корректирующего слоя, а создать новый Premiere плагину не даёт. Создайте один раз: File → New → Adjustment Layer — дальше панель будет класть его сама.",
     );
   }
-  const r = await place(item, "Ассистент: Adjustment Layer");
-  return `Adjustment Layer — на ${where(r)}. Отмена — Ctrl+Z.`;
+  return place(item, "Ассистент: Adjustment Layer");
 }

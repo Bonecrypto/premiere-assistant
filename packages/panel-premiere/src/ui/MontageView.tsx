@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { KEY_ADD_EDIT, KEY_ADD_EDIT_ALL, KEY_TIMELINE_FOCUS } from "@pa/core";
 import { openKeysClient, lastKeysDiag } from "../automation/keysClient.ts";
+import { nestSelected, unnestSelected } from "../automation/nest.ts";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
 import { storageGet, storageSet } from "../env.ts";
@@ -82,6 +83,17 @@ export function MontageView() {
         <div className="page-title">Монтаж</div>
         <div className="page-sub">Быстрые действия с выделенными клипами. Каждое — одна отмена Ctrl+Z.</div>
         <StatusLine status={status} />
+
+        <Card title="Nest" sub="Собрать выделенные клипы во вложенную секвенцию (эффекты сохраняются) — или разобрать выделенный Nest обратно на клипы.">
+          <div className="confirm-actions">
+            <Button variant="primary" className="confirm-btn" onClick={() => void run("Собираю Nest…", () => nestSelected())}>
+              Nest
+            </Button>
+            <Button variant="secondary" className="confirm-btn" onClick={() => void run("Разбираю…", () => unnestSelected())}>
+              Разобрать Nest
+            </Button>
+          </div>
+        </Card>
 
         <Card title="Разрез под плейхедом" sub="Через стандартные клавиши Premiere (Ctrl+K / Ctrl+Shift+K) — их нажимает программа-нажиматель.">
           <div className="confirm-actions">

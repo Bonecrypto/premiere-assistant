@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { animateSelected } from "../automation/animate.ts";
 import { applyFxPreset, loadFxPresets } from "../automation/fxPresets.ts";
 import { applyRecipe, type FxRecipe } from "../automation/fxRecipes.ts";
@@ -8,9 +8,11 @@ import { storageGet, storageSet } from "../env.ts";
 import { loadAnimOptions } from "../presets/animations.ts";
 import { COLOR_RECIPES, FX_MOTION, FX_RECIPES } from "../presets/fxLibrary.ts";
 import { LIBRARY } from "../presets/library.ts";
-import { adjustmentLayer, blackVideo, colorMatte } from "../automation/quickCreate.ts";
+import { adjustmentLayer, adjustmentWithTransform, blackVideo, colorMatte } from "../automation/quickCreate.ts";
 import { Button } from "./Button.tsx";
 import { FX_THUMBS } from "./fxThumbs.ts";
+import { useFitTiles, useSize } from "./useSize.ts";
+import { flashSelected } from "../automation/flash.ts";
 import { Slider } from "./Slider.tsx";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
@@ -83,6 +85,7 @@ const KEY_CURVES: Array<{ id: string; name: string; desc: string; swatch: [strin
 const CREATE: Array<{ id: string; name: string; desc: string; run: () => Promise<string> }> = [
   { id: "create-black", name: "Black Video", desc: "Чёрный кадр на свободную дорожку", run: blackVideo },
   { id: "create-adjust", name: "Adjustment Layer", desc: "Корректирующий слой — эффекты на всё ниже", run: adjustmentLayer },
+  { id: "create-adjust-tf", name: "Adjust. + Transform", desc: "Корректирующий слой сразу с Transform (блюр 360): двигаете его — двигается всё ниже", run: adjustmentWithTransform },
   { id: "create-white", name: "Белый фон", desc: "Color Matte белого цвета", run: () => colorMatte("#ffffff") },
   { id: "create-green", name: "Хромакей", desc: "Зелёная плашка (Color Matte)", run: () => colorMatte("#00b140") },
   { id: "create-purple", name: "Фиолетовая", desc: "Color Matte фирменного цвета", run: () => colorMatte("#9f18ec") },
@@ -139,6 +142,19 @@ function effectsTiles(): Tile[] {
       return `«${k.name}»: ${r.segments} отрезк., +${r.keys} ключ. Повторный клик пересчитает, «Убрать» — вернёт как было. Ctrl+Z — отмена.${skip}`;
     },
   }));
+  const flash: Tile[] = [
+    { key: "flash-bright", name: "Вспышка", desc: "Объект вспыхивает на 4 кадра и возвращается (от плейхеда или с начала клипа)", kind: "bright" as const },
+    { key: "flash-glow", name: "Блик контура", desc: "Контур PNG/текста светится 4 кадра (Alpha Glow)", kind: "glow" as const },
+  ].map((f) => ({
+    key: f.key,
+    name: f.name,
+    desc: f.desc,
+    group: "Свечение",
+    swatch: ["#ffffff", "#9f18ec"],
+    thumb: FX_THUMBS[f.key],
+    instant: true,
+    run: () => flashSelected(f.kind, 4),
+  }));
   const create: Tile[] = CREATE.map((c) => ({
     key: c.id,
     name: c.name,
@@ -149,7 +165,7 @@ function effectsTiles(): Tile[] {
     instant: true,
     run: c.run,
   }));
-  return [...create, ...keys, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
+  return [...create, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
 }
 
 export function EffectsView() {
@@ -182,6 +198,23 @@ export function ColorView() {
   );
 }
 
+const ALL = "Все";
+const GAP = 6;
+const LABEL_H = 18;
+
+/** Размер плитки, при котором всё помещается без прокрутки (от 104 до 52 px). */
+function fitTile(w: number, h: number, counts: number[]): number {
+  if (!w || !h) return 92;
+  for (let s = 104; s >= 52; s -= 4) {
+    const cols = Math.max(1, Math.floor((w + GAP) / (s + GAP)));
+    const nameH = s >= 80 ? 18 : 14;
+    const tileH = Math.round((s * 9) / 16) + nameH + 8;
+    const total = counts.reduce((n, c) => n + Math.ceil(c / cols) * (tileH + GAP) + LABEL_H, 0);
+    if (total <= h) return s;
+  }
+  return 52;
+}
+
 function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolean; hints: Record<string, string>; storeKey: string; groupOrder?: string[] }) {
   const [sel, setSel] = useState<string | null>(() => storageGet(props.storeKey));
   const [strength, setStrength] = useState(() => Number(storageGet(`${props.storeKey}:strength`)) || 100);
@@ -191,9 +224,13 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
   const groups = [...(props.groupOrder ?? []).filter((g) => present.has(g)), ...[...present].filter((g) => !props.groupOrder?.includes(g))];
   const [group, setGroup] = useState<string>(() => {
     const g = storageGet(`${props.storeKey}:group`);
-    return g && present.has(g) ? g : (chosen?.group ?? groups[0]);
+    return g && (present.has(g) || g === ALL) ? g : ALL;
   });
-  const shown = props.tiles.filter((t) => t.group === group);
+  const visible = group === ALL ? groups : [group];
+  const [areaRef, area] = useSize();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const size = useFitTiles(area, fitTile(area.w, area.h, visible.map((g) => props.tiles.filter((t) => t.group === g).length)), contentRef, [group]);
+  const small = size < 80;
 
   const apply = async (tile: Tile | null = chosen) => {
     if (!tile) return;
@@ -207,63 +244,74 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
 
   return (
     <div className="pv">
-      <div className="page">
-        <div className="scroll-inner">
-          <div className="page-title recipe-title">{props.title}</div>
-          <div className="lib-chips recipe-chips">
-            {groups.map((g) => (
-              <div
-                key={g}
-                className={`lib-chip${g === group ? " is-active" : ""}`}
-                onClick={() => {
-                  setGroup(g);
-                  storageSet(`${props.storeKey}:group`, g);
-                }}
-              >
-                {g}
-              </div>
-            ))}
-          </div>
-          {props.withStrength ? (
-            <div className="recipe-strength">
-              <Slider
-                label="Сила"
-                value={strength}
-                min={10}
-                max={150}
-                step={5}
-                unit="%"
-                onChange={(v) => {
-                  setStrength(v);
-                  storageSet(`${props.storeKey}:strength`, String(v));
-                }}
-              />
+      <div className="recipe-head">
+        <div className="lib-chips recipe-chips">
+          {[ALL, ...groups].map((g) => (
+            <div
+              key={g}
+              className={`lib-chip${g === group ? " is-active" : ""}`}
+              onClick={() => {
+                setGroup(g);
+                storageSet(`${props.storeKey}:group`, g);
+              }}
+            >
+              {g}
             </div>
-          ) : null}
-          <div className="recipe-grid">
-            {shown.map((t) => (
-              <div
-                key={t.key}
-                className={`recipe-tile${t.key === sel ? " is-active" : ""}`}
-                onClick={() => {
-                  setSel(t.key);
-                  storageSet(props.storeKey, t.key);
-                  if (t.instant) void apply(t);
-                  else setStatus(null);
-                }}
-                onDoubleClick={() => !t.instant && void apply(t)}
-                title={t.desc}
-              >
-                {t.thumb ? (
-                  <img className="recipe-swatch recipe-thumb" src={t.thumb} alt="" />
-                ) : (
-                  <div className="recipe-swatch" style={{ backgroundColor: t.swatch[1], backgroundImage: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} />
-                )}
-                <div className="recipe-name">{t.name}</div>
-              </div>
-            ))}
+          ))}
+        </div>
+        {props.withStrength ? (
+          <div className="recipe-strength">
+            <Slider
+              label="Сила"
+              value={strength}
+              min={10}
+              max={150}
+              step={5}
+              unit="%"
+              onChange={(v) => {
+                setStrength(v);
+                storageSet(`${props.storeKey}:strength`, String(v));
+              }}
+            />
           </div>
-          {props.hints[group] ? <div className="recipe-hint-line">{props.hints[group]}</div> : null}
+        ) : null}
+      </div>
+      <div className="recipe-area" ref={areaRef}>
+        <div ref={contentRef}>
+        <div className="recipe-grid">
+          {visible.map((g) => [
+            <div key={`label-${g}`} className="recipe-label-cell" style={{ width: size }} title={props.hints[g] ?? g}>
+              {g}
+            </div>,
+            ...props.tiles
+              .filter((t) => t.group === g)
+              .map((t) => (
+                <div
+                  key={t.key}
+                  className={`recipe-tile${small ? " is-small" : ""}${t.key === sel ? " is-active" : ""}`}
+                  style={{ width: size }}
+                  onClick={() => {
+                    setSel(t.key);
+                    storageSet(props.storeKey, t.key);
+                    if (t.instant) void apply(t);
+                    else setStatus(null);
+                  }}
+                  onDoubleClick={() => !t.instant && void apply(t)}
+                  title={`${t.name}: ${t.desc}`}
+                >
+                  {t.thumb ? (
+                    <img className="recipe-thumb" src={t.thumb} alt="" style={{ width: size - 6, height: Math.round(((size - 6) * 9) / 16) }} />
+                  ) : (
+                    <div
+                      className="recipe-thumb"
+                      style={{ width: size - 6, height: Math.round(((size - 6) * 9) / 16), backgroundColor: t.swatch[1], backgroundImage: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }}
+                    />
+                  )}
+                  <div className="recipe-name">{t.name}</div>
+                </div>
+              )),
+          ])}
+        </div>
         </div>
       </div>
       <div className="pv-footer">
@@ -274,7 +322,7 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
               ? chosen.instant
                 ? `${chosen.name}: ${chosen.desc}`
                 : `${chosen.name}: ${chosen.desc}. Выделите клипы → «Применить» (или двойной клик)`
-              : "Выберите плитку — описание появится здесь"}
+              : props.hints[group] ?? "Наведите на плитку — подсказка; клик — выбрать"}
         </span>
         <Button variant="primary" className="pv-apply" onClick={() => void apply()} disabled={!chosen || chosen.instant || status?.tone === "busy"}>
           Применить

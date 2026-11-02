@@ -1,3 +1,4 @@
+import { ElementsView } from "./ui/ElementsView.tsx";
 import { makeId, type ToolCallMsg } from "@pa/core";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { EmbeddedTransport } from "./agent/embedded.ts";
@@ -22,14 +23,14 @@ import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
-type Tab = "chat" | "auto" | "presets" | "effects" | "montage" | "graph" | "titles" | "color" | "sound" | "tasks" | "settings";
+type Tab = "chat" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "titles" | "color" | "sound" | "tasks" | "settings";
 
 const ONBOARDING_KEY = "onboardingDone";
 const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return (["auto", "presets", "effects", "montage", "graph", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
+  return (["auto", "presets", "effects", "elements", "montage", "graph", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
 }
 
 export function App() {
@@ -192,6 +193,7 @@ export function App() {
           { id: "auto", icon: "bolt", label: "Авто" },
           { id: "presets", icon: "presets", label: "Пресеты" },
           { id: "effects", icon: "sparkle", label: "Эффекты" },
+          { id: "elements", icon: "shapes", label: "Элементы" },
           { id: "montage", icon: "scissors", label: "Монтаж" },
           { id: "titles", icon: "title", label: "Титры" },
           { id: "graph", icon: "graph", label: "Графики" },
@@ -237,6 +239,7 @@ export function App() {
       {tab === "graph" ? <GraphView /> : null}
       {tab === "titles" ? <TitlesView /> : null}
       {tab === "effects" ? <EffectsView /> : null}
+      {tab === "elements" ? <ElementsView /> : null}
       {tab === "color" ? <ColorView /> : null}
       {tab === "montage" ? <MontageView /> : null}
       {tab === "sound" ? <SoundView /> : null}

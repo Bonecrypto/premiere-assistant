@@ -1,8 +1,9 @@
+import { nestSelected, unnestSelected } from "../automation/nest.ts";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { HostToolError, type HostTool } from "./types.ts";
 
 interface Input {
-  action: "close_gaps" | "place_on_markers" | "set_duration" | "toggle_enabled";
+  action: "close_gaps" | "place_on_markers" | "set_duration" | "toggle_enabled" | "nest" | "unnest";
   seconds?: number;
   trim?: boolean;
   pack?: boolean;
@@ -15,11 +16,11 @@ const tool: HostTool<Input> = {
     description:
       "Действия с ВЫДЕЛЕННЫМИ клипами: close_gaps — убрать пустоты (вплотную на каждой дорожке); place_on_markers — разложить по маркерам " +
       "секвенции по порядку (trim: обрезать до следующего маркера); set_duration — одинаковая длительность seconds (pack: сразу вплотную); " +
-      "toggle_enabled — выключить/включить. Разрезать под плейхедом — только кнопкой во вкладке «Монтаж» (через клавиши).",
+      "toggle_enabled — выключить/включить; nest — собрать выделенное во вложенную секвенцию; unnest — разобрать выделенный Nest обратно (эффекты внутренних клипов не переносятся). Разрезать под плейхедом — только кнопкой во вкладке «Монтаж» (через клавиши).",
     inputSchema: {
       type: "object",
       properties: {
-        action: { type: "string", enum: ["close_gaps", "place_on_markers", "set_duration", "toggle_enabled"] },
+        action: { type: "string", enum: ["close_gaps", "place_on_markers", "set_duration", "toggle_enabled", "nest", "unnest"] },
         seconds: { type: "number", minimum: 0.04 },
         trim: { type: "boolean" },
         pack: { type: "boolean" },
@@ -42,6 +43,10 @@ const tool: HostTool<Input> = {
         return setDuration(input.seconds, input.pack ?? true);
       case "toggle_enabled":
         return toggleEnabled();
+      case "nest":
+        return nestSelected();
+      case "unnest":
+        return unnestSelected();
     }
   },
 };
