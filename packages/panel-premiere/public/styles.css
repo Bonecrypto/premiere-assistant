@@ -2602,3 +2602,51 @@ body,
   font-size: 11px;
   padding: 2px 8px;
 }
+
+/* ── Титры ── */
+.titles-page {
+  flex: 1 1 auto;
+}
+.titles-empty-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--label);
+  margin-bottom: 4px;
+}
+.titles-empty-text {
+  font-size: 12px;
+  color: var(--label-2);
+  margin-bottom: 12px;
+}
+.title-thumb {
+  height: 70px;
+  border-radius: 11px;
+  background-color: #000000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.title-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.title-thumb-text {
+  color: var(--label-2);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  padding: 0 6px;
+}
+.titles-tools {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 6px 0 16px 0;
+}
+.titles-tools .link-small {
+  margin-right: 14px;
+}

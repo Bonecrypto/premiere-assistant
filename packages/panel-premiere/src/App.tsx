@@ -15,18 +15,19 @@ import { checkForUpdate, type UpdateInfo } from "./update/updater.ts";
 import { Onboarding } from "./ui/Onboarding.tsx";
 import { AutoView } from "./ui/AutoView.tsx";
 import { GraphView } from "./ui/GraphView.tsx";
+import { TitlesView } from "./ui/TitlesView.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
-type Tab = "chat" | "auto" | "presets" | "graph" | "tasks" | "settings";
+type Tab = "chat" | "auto" | "presets" | "graph" | "titles" | "tasks" | "settings";
 
 const ONBOARDING_KEY = "onboardingDone";
 const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return t === "auto" || t === "presets" || t === "graph" || t === "tasks" || t === "settings" ? t : "chat";
+  return t === "auto" || t === "presets" || t === "graph" || t === "titles" || t === "tasks" || t === "settings" ? t : "chat";
 }
 
 export function App() {
@@ -189,6 +190,7 @@ export function App() {
           { id: "auto", icon: "bolt", label: "Авто" },
           { id: "presets", icon: "presets", label: "Пресеты" },
           { id: "graph", icon: "graph", label: "Графики" },
+          { id: "titles", icon: "title", label: "Титры" },
           { id: "tasks", icon: "tasks", label: "Задачи", badge: activeTasks },
           { id: "settings", icon: "settings", label: "Настройки" },
         ]}
@@ -226,6 +228,7 @@ export function App() {
       {tab === "auto" ? <AutoView /> : null}
       {tab === "presets" ? <PresetsView /> : null}
       {tab === "graph" ? <GraphView /> : null}
+      {tab === "titles" ? <TitlesView /> : null}
       {tab === "tasks" ? <TasksView tasks={state.tasks} onClear={() => dispatch({ type: "clear_tasks" })} /> : null}
       {tab === "settings" ? (
         <SettingsView
