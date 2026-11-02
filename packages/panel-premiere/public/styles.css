@@ -2772,3 +2772,97 @@ body,
   max-width: 80px;
   margin-right: 8px;
 }
+
+/* ── Титры: разделы ── */
+.titles-side {
+  width: 32%;
+  max-width: 260px;
+  min-width: 170px;
+  padding: 10px 8px;
+  overflow-y: auto;
+}
+.ts-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--label-2);
+  font-size: 12px;
+}
+.ts-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--label);
+}
+.ts-item.is-active {
+  background-color: var(--accent);
+  background-image: var(--accent-gradient);
+  color: #ffffff;
+}
+.ts-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.ts-count {
+  font-size: 11px;
+  color: var(--label-3);
+  margin-left: 6px;
+}
+.ts-item.is-active .ts-count {
+  color: rgba(255, 255, 255, 0.8);
+}
+.chip-count {
+  opacity: 0.6;
+  font-weight: 500;
+}
+.titles-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.titles-size {
+  width: 130px;
+}
+.ts-section {
+  margin-top: 8px;
+}
+.ts-section-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 2px 8px 2px;
+  cursor: pointer;
+}
+.ts-chev {
+  width: 14px;
+  color: var(--label-3);
+  font-size: 13px;
+}
+.ts-section-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--label);
+}
+.ts-move {
+  margin: 6px 0 10px 0;
+}
+.ts-move-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.title-card.is-small .lib-card-title {
+  font-size: 11px;
+}
+.title-card.is-small {
+  padding: 5px;
+  border-radius: 14px;
+}
+.title-card.is-small .title-thumb,
+.title-card.is-small .title-thumb-img,
+.title-card.is-small .title-thumb-ph {
+  border-radius: 9px;
+}

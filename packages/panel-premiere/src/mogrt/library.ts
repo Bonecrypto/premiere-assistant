@@ -329,3 +329,76 @@ export function findMogrt(query: string): Mogrt | null {
   const list = loadIndex();
   return list.find((m) => m.id.toLowerCase() === q || m.name.toLowerCase() === q) ?? list.find((m) => m.name.toLowerCase().includes(q)) ?? null;
 }
+
+// ───────── Структура: авто-разделы, недавние, перемещение ─────────
+
+const RECENT_KEY = "mogrtRecent";
+
+export function loadRecent(): string[] {
+  try {
+    const v = JSON.parse(storageGet(RECENT_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+export function pushRecent(id: string): string[] {
+  const next = [id, ...loadRecent().filter((x) => x !== id)].slice(0, 16);
+  storageSet(RECENT_KEY, JSON.stringify(next));
+  return next;
+}
+
+const norm = (name: string) => name.replace(/^[.\s_-]+/, "").trim().toLowerCase();
+const firstWord = (name: string) => norm(name).split(/[\s_-]+/)[0] ?? "";
+const titleCase = (w: string) => (w ? w[0].toUpperCase() + w.slice(1) : w);
+
+const RULES: Array<{ group: string; re: RegExp }> = [
+  { group: "Плашки", re: /lower|third|плашк|name ?tag|\bname\b|\btag\b|callout|label/ },
+  { group: "Субтитры", re: /\bsub|субтит|caption/ },
+  { group: "Стили и эффекты", re: /glitch|neon|rainbow|fluor|old ?tv|\bvhs|retro|wave|warp|chrome|fire|shadow|outline|grey|gray|green|3d|glow|gradient|aesthetic|stroke|typewriter|scramble/ },
+  { group: "Заголовки и текст", re: /title|headline|заголов|text|текст|essential|premade|word|quote/ },
+];
+
+/**
+ * Раздел шаблона. Свой раздел (подпапка) главнее; для «Общих» — по названию:
+ * «… in» → Появление, «… out» → Исчезновение, серии с общим первым словом (≥3), затем ключевые слова.
+ */
+export function groupOf(m: Mogrt, families: Set<string>): string {
+  if (m.category !== DEFAULT_CATEGORY) return m.category;
+  const n = norm(m.name);
+  if (/(^|\s)(in|появление)$/.test(n) || /\bin\b.*\b(left|right|top|bottom|up|down)\b/.test(n)) return "Появление";
+  if (/(^|\s)(out|исчезновение)$/.test(n)) return "Исчезновение";
+  const fw = firstWord(m.name);
+  if (families.has(fw)) return titleCase(fw);
+  for (const r of RULES) if (r.re.test(n)) return r.group;
+  return "Другое";
+}
+
+/** Первые слова, с которых начинаются ≥3 «общих» шаблона, — это серии (Apple, Aesthetic…). */
+export function familiesOf(list: Mogrt[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const m of list) {
+    if (m.category !== DEFAULT_CATEGORY) continue;
+    const n = norm(m.name);
+    if (/(^|\s)(in|out)$/.test(n)) continue;
+    const w = firstWord(m.name);
+    if (w.length >= 3) counts.set(w, (counts.get(w) ?? 0) + 1);
+  }
+  return new Set([...counts].filter(([, c]) => c >= 3).map(([w]) => w));
+}
+
+/** Переместить шаблон в свой раздел (папку). Возвращает новый список и новый id. */
+export async function moveToSection(m: Mogrt, section: string): Promise<{ list: Mogrt[]; id: string }> {
+  const target = safeName(section);
+  const f = await fileOf(m);
+  const dest = await subfolder(await root(), target);
+  await f.moveTo(dest, { overwrite: true });
+  const id = `${target}/${f.name}`;
+  // Перенести избранное и недавние на новый id.
+  const fav = loadFavorites().map((x) => (x === m.id ? id : x));
+  saveFavorites(fav);
+  storageSet(RECENT_KEY, JSON.stringify(loadRecent().map((x) => (x === m.id ? id : x))));
+  thumbs.delete(m.id);
+  return { list: await rescan(), id };
+}
