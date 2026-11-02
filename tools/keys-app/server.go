@@ -14,7 +14,7 @@ import (
 
 const (
 	port    = 8766
-	version = 5
+	version = 6
 )
 
 // sendKeys нажимает клавиши (на Windows — winSendKeys).
@@ -24,7 +24,7 @@ var sendKeys func(keys []string) error
 var onQuit = func() {}
 
 // Метки 0…15 (порядок Premiere) — те же комбинации, что LABEL_KEYS_COMBOS в packages/core/src/protocol.ts.
-var allow = map[string]bool{"shift+3": true}
+var allow = map[string]bool{"shift+3": true, "ctrl+k": true, "ctrl+shift+k": true}
 
 func init() {
 	for _, k := range []string{"q", "2", "3", "4", "5", "6", "7", "8", "9", "w", "e", "t", "y", "u", "i", "o"} {

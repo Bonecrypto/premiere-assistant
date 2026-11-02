@@ -33,7 +33,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 }
 
 /** Минимальная версия программы-нажимателя (новая схема клавиш меток). */
-const MIN_VERSION = 5;
+const MIN_VERSION = 6;
 let oldVersionRunning = false;
 
 /** Что не получилось при поиске нажимателя — для подсказки пользователю. */

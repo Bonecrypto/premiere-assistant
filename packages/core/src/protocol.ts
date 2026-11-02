@@ -181,7 +181,10 @@ export const LABEL_KEYS_COMBOS = [
   "ctrl+alt+shift+6", "ctrl+alt+shift+7", "ctrl+alt+shift+8", "ctrl+alt+shift+9", "ctrl+alt+shift+w",
   "ctrl+alt+shift+e", "ctrl+alt+shift+t", "ctrl+alt+shift+y", "ctrl+alt+shift+u", "ctrl+alt+shift+i", "ctrl+alt+shift+o",
 ];
-export const KEY_ALLOWLIST = new Set<string>([KEY_TIMELINE_FOCUS, ...LABEL_KEYS_COMBOS]);
+/** «Монтаж»: Add Edit (разрез под плейхедом на выбранных дорожках) и Add Edit to All Tracks — стандартные клавиши Premiere. */
+export const KEY_ADD_EDIT = "ctrl+k";
+export const KEY_ADD_EDIT_ALL = "ctrl+shift+k";
+export const KEY_ALLOWLIST = new Set<string>([KEY_TIMELINE_FOCUS, ...LABEL_KEYS_COMBOS, KEY_ADD_EDIT, KEY_ADD_EDIT_ALL]);
 
 // ───────────── Утилиты ─────────────
 
