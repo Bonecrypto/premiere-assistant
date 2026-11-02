@@ -135,6 +135,8 @@ function clipsWord(n: number): string {
  */
 export function PresetsView() {
   const [selected, setSelectedState] = useState<Selected>(loadSelected);
+  const [libKey, setLibKey] = useState<string>(() => storageGet("libSelected") || "");
+  const [, setFavTick] = useState(0);
   const [user, setUser] = useState<AnimPreset[]>(loadUserAnims);
   const [fx, setFx] = useState<FxPreset[]>(loadFxPresets);
   const [status, setStatus] = useState<Status>(null);
@@ -169,6 +171,10 @@ export function PresetsView() {
     saveUserAnims(list);
   };
 
+  const favLib = loadFavorites(storageGet)
+    .map((id) => LIBRARY.find((a) => a.id === id))
+    .filter((a): a is AnimPreset => Boolean(a));
+
   return (
     <div className="pv">
       <div className="pv-body">
@@ -180,6 +186,20 @@ export function PresetsView() {
             active={selected.kind === "lib"}
             onClick={() => select({ kind: "lib", id: "all" })}
           />
+          {favLib.length ? <div className="pv-group">★ Избранное</div> : null}
+          {favLib.map((a) => (
+            <SideItem
+              key={a.id}
+              title={a.name}
+              subtitle={a.category ?? ""}
+              active={selected.kind === "lib" && libKey === a.id}
+              onClick={() => {
+                storageSet("libSelected", a.id);
+                setLibKey(a.id);
+                select({ kind: "lib", id: "all" });
+              }}
+            />
+          ))}
           <div className="pv-group">Настроить</div>
           {ANIM_ITEMS.map((i) => (
             <SideItem
@@ -231,7 +251,9 @@ export function PresetsView() {
         <div className="pv-detail">
           {selected.kind === "lib" ? (
             <LibraryDetail
+              key={libKey}
               setAction={setAction}
+              onFavsChanged={() => setFavTick((n) => n + 1)}
               onCustomize={(a) => {
                 const preset = { ...a, id: `u${Date.now().toString(36)}`, name: `${a.name} — моя`, builtin: false, category: undefined };
                 saveUser([...user, preset]);
@@ -694,7 +716,7 @@ const LIB_SEL_KEY = "libSelected";
 const LIB_CAT_KEY = "libCategory";
 
 /** Библиотека готовых анимаций: поиск, разделы, избранное, сетка карточек с превью. */
-function LibraryDetail(props: { setAction(a: { run: () => Promise<string> } | null): void; onCustomize(a: AnimPreset): void }) {
+function LibraryDetail(props: { setAction(a: { run: () => Promise<string> } | null): void; onCustomize(a: AnimPreset): void; onFavsChanged?: () => void }) {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<string>(() => storageGet(LIB_CAT_KEY) || "Все");
   const [favs, setFavs] = useState<string[]>(() => loadFavorites(storageGet));
@@ -723,6 +745,7 @@ function LibraryDetail(props: { setAction(a: { run: () => Promise<string> } | nu
     const next = favs.includes(id) ? favs.filter((x) => x !== id) : [...favs, id];
     setFavs(next);
     saveFavorites(storageSet, next);
+    props.onFavsChanged?.();
   };
 
   const rows: AnimPreset[][] = [];

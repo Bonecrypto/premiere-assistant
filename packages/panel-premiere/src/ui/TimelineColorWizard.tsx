@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { applyPlan, planColoring, type PlanWithRefs } from "../automation/coloring.ts";
 import { LABELS, type LabelKey } from "../automation/labels.ts";
-import type { ColorRules } from "../automation/rules.ts";
+import { categoryName, saveRules, type CategoryId, type ColorRules } from "../automation/rules.ts";
+import { classify } from "../automation/classify.ts";
+import { readTimeline } from "../automation/timeline.ts";
 import { selectCategory } from "../automation/select.ts";
 import { Button } from "./Button.tsx";
 import { KEY_TIMELINE_FOCUS } from "@pa/core";
@@ -37,14 +39,47 @@ function Swatch({ label, size = 14 }: { label: LabelKey; size?: number }) {
   return <span className="label-swatch" style={{ width: size, height: size, backgroundColor: LABELS[label].swatch }} />;
 }
 
+/** Роли, которые можно выбрать для аудиодорожки (по кругу). */
+const ROLE_CYCLE: Array<CategoryId | null> = [null, "voice", "music", "sfx", "camera_audio"];
+
+interface TrackInfo {
+  key: string;
+  count: number;
+  /** Что панель решила бы сама (без роли). */
+  auto: CategoryId;
+  role: CategoryId | null;
+}
+
+async function audioTracks(rules: ColorRules): Promise<TrackInfo[]> {
+  const data = await readTimeline();
+  const noRoles: ColorRules = { ...rules, trackRoles: {} };
+  const by = new Map<string, Map<CategoryId, number>>();
+  for (const c of data.clips) {
+    if (c.kind !== "audio" || !c.trackKey) continue;
+    const cat = classify(c, noRoles).category;
+    const m = by.get(c.trackKey) ?? new Map<CategoryId, number>();
+    m.set(cat, (m.get(cat) ?? 0) + 1);
+    by.set(c.trackKey, m);
+  }
+  return [...by.entries()]
+    .map(([key, m]) => {
+      const auto = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      return { key, count: [...m.values()].reduce((a, b) => a + b, 0), auto, role: rules.trackRoles?.[key] ?? null };
+    })
+    .sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)));
+}
+
 export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): void }) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [alsoProject, setAlsoProject] = useState(true);
 
-  const scan = async () => {
+  const [tracks, setTracks] = useState<TrackInfo[]>([]);
+
+  const scan = async (rules: ColorRules = props.rules) => {
     setState({ kind: "scanning" });
     try {
-      const planned = await planColoring(props.rules);
+      const planned = await planColoring(rules);
+      setTracks(await audioTracks(rules).catch(() => []));
       setState({ kind: "overview", planned });
     } catch (err) {
       setState({ kind: "error", message: (err as Error)?.message || String(err) });
@@ -142,7 +177,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           </div>
         </div>
         {state.kind === "error" ? <div className="result result-error">{state.message}</div> : null}
-        <Button variant="primary" className="wide hero-btn" onClick={scan} disabled={state.kind === "scanning"}>
+        <Button variant="primary" className="wide hero-btn" onClick={() => void scan()} disabled={state.kind === "scanning"}>
           {state.kind === "scanning" ? "Анализирую таймлайн…" : "Покрасить таймлайн"}
         </Button>
         <div className="wiz-note">
@@ -179,6 +214,33 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
             <span className="wiz-label-name">{LABELS[c.label].name}</span>
           </div>
         ))}
+        {tracks.length ? (
+          <div className="wiz-roles">
+            <div className="wiz-roles-title">Роли аудиодорожек</div>
+            <div className="field-hint">Нажмите, чтобы указать точно — так голос не спутается с музыкой.</div>
+            {tracks.map((t) => (
+              <div key={t.key} className="plan-row">
+                <span className="kbd wiz-kbd">{t.key}</span>
+                <span className="plan-name wiz-role-count">{t.count} кл.</span>
+                <div className="spacer" />
+                <div
+                  className={`lib-chip wiz-role${t.role ? " is-active" : ""}`}
+                  onClick={() => {
+                    const i = ROLE_CYCLE.indexOf(t.role);
+                    const next = ROLE_CYCLE[(i + 1) % ROLE_CYCLE.length];
+                    const roles = { ...(props.rules.trackRoles ?? {}) };
+                    if (next) roles[t.key] = next;
+                    else delete roles[t.key];
+                    const saved = saveRules({ ...props.rules, trackRoles: roles });
+                    void scan(saved);
+                  }}
+                >
+                  {t.role ? categoryName(props.rules, t.role) : `Авто: ${categoryName(props.rules, t.auto)}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className="pv-row wiz-toggle">
           <span className="pv-label">Заодно покрасить файлы в проекте</span>
           <div className="spacer" />

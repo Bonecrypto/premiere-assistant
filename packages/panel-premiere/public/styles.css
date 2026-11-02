@@ -3116,3 +3116,51 @@ body,
 .gain-btn:hover {
   background-color: rgba(255, 255, 255, 0.12);
 }
+.wiz-roles {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--separator);
+}
+.wiz-roles-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--label);
+}
+.wiz-role-count {
+  margin-left: 8px;
+  color: var(--label-3);
+}
+.wiz-role {
+  margin: 0;
+}
+
+/* ── Быстрые команды в чате ── */
+.quick-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 6px 12px 0 12px;
+}
+.quick-chip {
+  flex-shrink: 0;
+  margin-right: 6px;
+  padding: 5px 11px;
+  border-radius: 13px;
+  background-color: rgba(255, 255, 255, 0.07);
+  color: var(--label-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.quick-chip:hover {
+  color: var(--label);
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.wiz-role {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.wiz-role.is-active {
+  background-color: var(--accent);
+}

@@ -7,7 +7,7 @@ import { isUXP, storageGet, storageSet } from "./env.ts";
 import { isAutoLabelOn, startAutoLabel, stopAutoLabel } from "./automation/autoLabel.ts";
 import { getHostTool } from "./hostTools/index.ts";
 import { initialState, reducer } from "./state.ts";
-import { ChatView } from "./ui/ChatView.tsx";
+import { ChatView, QuickBar } from "./ui/ChatView.tsx";
 import { Composer } from "./ui/Composer.tsx";
 import { TopBar, health } from "./ui/Header.tsx";
 import { StatusBar } from "./ui/StatusBar.tsx";
@@ -223,6 +223,7 @@ export function App() {
             onOpenSettings={() => setTab("settings")}
             embedded={ai?.mode !== "helper"}
           />
+          {state.items.length ? <QuickBar onPick={setDraft} /> : null}
           <Composer
             disabled={state.connection !== "connected"}
             busy={state.busy}

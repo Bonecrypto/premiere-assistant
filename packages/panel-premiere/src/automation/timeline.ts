@@ -111,6 +111,7 @@ async function readItem(
     projectItemId,
     currentLabel,
     trackItem: item,
+    trackKey: `${kind === "video" ? "V" : "A"}${trackIndex + 1}`,
   };
 }
 

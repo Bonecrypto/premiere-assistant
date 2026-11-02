@@ -16,6 +16,19 @@ const SUGGESTIONS: Array<{ title: string; text: string; icon: IconName; tone: st
   { title: "Подпиши дорожки", text: "Подпиши звуковые дорожки по содержимому", icon: "tasks", tone: "blue" },
   { title: "Переходы на стыки", text: "Поставь растворение 0.5 с на все стыки выделенных клипов", icon: "fliph", tone: "indigo" },
   { title: "Что открыто?", text: "Что за проект и секвенция открыты?", icon: "chat", tone: "green" },
+  { title: "Музыка под голос", text: "Приглуши музыку под голосом на −12 дБ", icon: "speaker", tone: "orange" },
+  { title: "Шейк на ударах", text: "Сделай шейк на выделенных клипах", icon: "sparkle", tone: "purple" },
+];
+
+/** Быстрые команды над полем ввода (подставляются в поле — можно поправить перед отправкой). */
+export const QUICK_COMMANDS: string[] = [
+  "Покрась таймлайн",
+  "Тёплый цвет на выделенных",
+  "Шейк на выделенных",
+  "Убери пустоты между выделенными",
+  "Приглуши музыку под голосом",
+  "Фейды на выделенный звук",
+  "Разложи проект по папкам",
 ];
 
 export function ChatView(props: {
@@ -104,7 +117,7 @@ function EmptyState(props: { health: HealthState; embedded: boolean; onSuggestio
       <div className="empty-text">Спросите о монтаже или поручите действие. Всё, что меняет проект, я сначала покажу.</div>
       {ready ? (
         <div className="suggest-grid">
-          {[0, 2].map((r) => (
+          {[0, 2, 4].map((r) => (
             <div key={r} className="bento-row">
               {SUGGESTIONS.slice(r, r + 2).map((s) => (
                 <div key={s.title} className="bento-tile suggest-tile" onClick={() => props.onSuggestion(s.text)}>
@@ -133,6 +146,19 @@ function EmptyState(props: { health: HealthState; embedded: boolean; onSuggestio
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Строка быстрых команд над полем ввода. */
+export function QuickBar(props: { onPick(text: string): void }) {
+  return (
+    <div className="quick-bar">
+      {QUICK_COMMANDS.map((q) => (
+        <div key={q} className="quick-chip" onClick={() => props.onPick(q)}>
+          {q}
+        </div>
+      ))}
     </div>
   );
 }

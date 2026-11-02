@@ -29,6 +29,8 @@ export interface ColorRules {
   overrides: Override[];
   /** Аудиофайл длиннее — скорее музыка; короче — скорее звуковой эффект (если слова не подсказали). */
   musicMinSeconds: number;
+  /** Роли дорожек, заданные пользователем: «A1» → voice. Главнее названий и длительности. */
+  trackRoles?: Record<string, CategoryId>;
 }
 
 export const CATEGORY_ORDER: CategoryId[] = ["music", "sfx", "voice", "camera_audio", "video", "graphics", "adjustment"];
@@ -129,5 +131,9 @@ function sanitize(input: unknown): ColorRules {
     .filter((o) => o && typeof o.match === "string" && o.match.trim() && CATEGORY_ORDER.includes(o.category))
     .map((o) => ({ match: o.match.trim().toLowerCase(), category: o.category }));
   if (typeof src.musicMinSeconds === "number" && src.musicMinSeconds > 0) base.musicMinSeconds = src.musicMinSeconds;
+  base.trackRoles = {};
+  for (const [k, v] of Object.entries(src.trackRoles ?? {})) {
+    if (/^[AV]\d{1,2}$/.test(k) && CATEGORY_ORDER.includes(v as CategoryId)) base.trackRoles[k] = v as CategoryId;
+  }
   return base;
 }

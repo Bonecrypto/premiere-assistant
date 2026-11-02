@@ -8,6 +8,8 @@ export interface ClipInfo {
   mediaPath: string;
   durationSeconds: number;
   isAdjustment: boolean;
+  /** «A1», «V2» — для ролей дорожек. */
+  trackKey?: string;
 }
 
 export interface Classification {
@@ -62,6 +64,9 @@ export function classify(clip: ClipInfo, rules: ColorRules): Classification {
   for (const o of rules.overrides) {
     if (full.includes(o.match)) return { category: o.category, reason: `ваше правило «${o.match}»` };
   }
+  // 2. Роль дорожки, заданная пользователем (A1 — голос и т. п.).
+  const role = clip.trackKey ? rules.trackRoles?.[clip.trackKey] : undefined;
+  if (role && !(clip.kind === "video" && clip.isAdjustment)) return { category: role, reason: `роль дорожки ${clip.trackKey}` };
 
   if (clip.kind === "video") {
     if (clip.isAdjustment) return { category: "adjustment", reason: "корректирующий слой" };
