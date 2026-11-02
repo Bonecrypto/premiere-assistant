@@ -428,11 +428,15 @@ const drawAll = (W, H) => {
     label(ctx, opt.tag || "скорость", 8, 13, "rgba(255,255,255,0.45)", 9);
     return c;
   };
-  out["launch"] = speed((t) => Math.pow(1 - t, 1.6));
-  out["trampoline"] = speed((t) => Math.pow(t, 1.6));
+  // Быстрый вылет / Трамплин: «ступени» скорости между ключами через 1, 2, 4, 8 кадров.
+  const steps = (ts, f) => (t) => {
+    for (let i = 0; i < ts.length - 1; i++) if (t <= ts[i + 1]) return f((ts[i] + ts[i + 1]) / 2);
+    return 0;
+  };
+  const LT = [0, 0.06, 0.12, 0.25, 0.5, 1];
+  out["launch"] = speed(steps(LT, (t) => Math.pow(1 - t, 4)), { extra: [0.06, 0.12, 0.25, 0.5] });
+  out["trampoline"] = speed(steps(LT.map((t) => 1 - t).reverse(), (t) => Math.pow(t, 4)), { extra: [0.5, 0.75, 0.88, 0.94] });
   out["smooth"] = speed((t) => Math.sin(Math.PI * t) * 0.9);
-  out["fast-launch"] = speed((t) => Math.pow(1 - t, 5), { extra: [0.06, 0.14, 0.3] });
-  out["trampoline-exact"] = speed((t) => Math.pow(t, 5), { extra: [0.7, 0.86, 0.94] });
   out["unbake"] = speed((t) => Math.sin(Math.PI * t) * 0.9, {
     extra: [0.25, 0.5, 0.75],
     after: (ctx) => {

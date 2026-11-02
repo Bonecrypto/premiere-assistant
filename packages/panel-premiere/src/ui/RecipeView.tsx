@@ -71,14 +71,12 @@ function recipeTiles(list: FxRecipe[]): Tile[] {
   }));
 }
 
-/** Кривые «одним кликом» для ключей, которые пользователь поставил сам. */
-const KEY_CURVES: Array<{ id: string; name: string; desc: string; swatch: [string, string]; quick?: "launch" | "trampoline" | "bezier" }> = [
-  { id: "launch", name: "Быстрый вылет", desc: "Без новых ключей: старт сразу на скорости, мягкое торможение", swatch: ["#ff5e3a", "#7a1cf0"], quick: "launch" },
-  { id: "trampoline", name: "Трамплин", desc: "Без новых ключей: мягкий разгон, вылет на скорости в конце", swatch: ["#7a1cf0", "#ff5e3a"], quick: "trampoline" },
+/** Ключи «одним кликом» — для ключей, которые пользователь поставил сам. */
+const KEY_CURVES: Array<{ id: string; name: string; desc: string; swatch: [string, string]; shape?: "launch" | "trampoline"; quick?: "bezier" }> = [
+  { id: "launch", name: "Быстрый вылет", desc: "Пик скорости на старте и плавный спад (+3–6 ключей у начала)", swatch: ["#ff5e3a", "#7a1cf0"], shape: "launch" },
+  { id: "trampoline", name: "Трамплин", desc: "Медленный разгон и вылет на максимальной скорости в конце", swatch: ["#7a1cf0", "#ff5e3a"], shape: "trampoline" },
   { id: "smooth", name: "Плавно", desc: "Без новых ключей: мягкий старт и остановка (Bezier)", swatch: ["#5a6fe8", "#2d9ee0"], quick: "bezier" },
-  { id: "fast-launch", name: "Вылет — точно", desc: "Максимальная скорость на старте: +1–3 доп. ключа по кривой", swatch: ["#ff2d55", "#4b0cb4"] },
-  { id: "trampoline-exact", name: "Трамплин — точно", desc: "Резкий вылет в самом конце: +1–3 доп. ключа", swatch: ["#4b0cb4", "#ff2d55"] },
-  { id: "unbake", name: "Убрать", desc: "Убрать доп. ключи, вернуть Bezier", swatch: ["#3a3a44", "#1a1a20"] },
+  { id: "unbake", name: "Убрать", desc: "Убрать доп. ключи, оставить только ваши", swatch: ["#3a3a44", "#1a1a20"] },
 ];
 
 /** «Создать»: элементы на таймлайн одним кликом. */
@@ -89,17 +87,6 @@ const CREATE: Array<{ id: string; name: string; desc: string; run: () => Promise
   { id: "create-green", name: "Хромакей", desc: "Зелёная плашка (Color Matte)", run: () => colorMatte("#00b140") },
   { id: "create-purple", name: "Фиолетовая", desc: "Color Matte фирменного цвета", run: () => colorMatte("#9f18ec") },
 ];
-
-/** Плотность ключей — как выбрано во вкладке «Графики» (по умолчанию «мало»). */
-function graphStep(): 0 | 1 | 2 {
-  try {
-    const v = JSON.parse(storageGet("graphOptions") || "null");
-    if (v && (v.step === 0 || v.step === 1 || v.step === 2)) return v.step;
-  } catch {
-    /* по умолчанию */
-  }
-  return 0;
-}
 
 /** Плитки вкладки «Эффекты»: пачки + движение + свои пачки из «Пресеты → Эффекты». */
 function effectsTiles(): Tile[] {
@@ -121,7 +108,7 @@ function effectsTiles(): Tile[] {
     key: `my-${f.id}`,
     name: f.name,
     desc: `${f.components.length} эфф. · ${f.kind === "video" ? "видео" : "звук"}`,
-    group: "Мои пачки",
+    group: "Мои",
     swatch: ["#2a2a35", "#15151b"],
     thumb: FX_THUMBS.mine,
     run: async () => {
@@ -133,31 +120,30 @@ function effectsTiles(): Tile[] {
     key: k.id,
     name: k.name,
     desc: k.desc,
-    group: "Ключи — ваши ключи в Effect Controls",
+    group: "Ключи",
     swatch: k.swatch,
     thumb: FX_THUMBS[k.id],
     instant: true,
     run: async () => {
       if (k.id === "unbake") {
-        const r = await unbakeCurve();
+        const r = await unbakeCurve(true);
         return `Убрано доп. ключей: ${r.removed}. Ваши ключи остались.`;
       }
       if (k.quick) {
         const r = await applyQuickEase(k.quick, "all");
         return `«${k.name}»: ключей ${r.keys} у ${r.params} парам. — новых ключей нет. Отмена — Ctrl+Z.`;
       }
-      const curveId = k.id === "trampoline-exact" ? "trampoline" : k.id;
-      const curve = CURVE_PRESETS.find((c) => c.id === curveId)!.curve;
-      const r = await bakeCurve(curve, { step: graphStep(), scope: "all" });
+      const curve = CURVE_PRESETS.find((c) => c.id === (k.shape === "launch" ? "fast-launch" : "trampoline"))!.curve;
+      const r = await bakeCurve(curve, { step: 0, scope: "all", shape: k.shape });
       const skip = r.skipped.length ? ` Пропущено: ${r.skipped[0]}.` : "";
-      return `«${k.name}»: ${r.segments} отрезк. у ${r.params} парам. Отмена — Ctrl+Z.${skip}`;
+      return `«${k.name}»: ${r.segments} отрезк., +${r.keys} ключ. Повторный клик пересчитает, «Убрать» — вернёт как было. Ctrl+Z — отмена.${skip}`;
     },
   }));
   const create: Tile[] = CREATE.map((c) => ({
     key: c.id,
     name: c.name,
     desc: c.desc,
-    group: "Создать — под плейхед или на длину выделенных",
+    group: "Создать",
     swatch: ["#000000", "#000000"],
     thumb: FX_THUMBS[c.id],
     instant: true,
@@ -170,9 +156,14 @@ export function EffectsView() {
   return (
     <RecipeView
       title="Эффекты"
-      sub="Готовые пачки из стандартных эффектов Premiere — выделите клипы и примените."
+      groupOrder={["Создать", "Ключи", "Стиль", "Картинка", "Свечение", "Углы", "Движение", "Мои"]}
       tiles={effectsTiles()}
-      hint="«Создать»: клик кладёт элемент под плейхед на свободную дорожку над V1; если выделены клипы — накрывает их по длине. Adjustment Layer берётся из проекта — создайте его один раз (File → New → Adjustment Layer). «Свечение контура» и «Неон» — для PNG, текста, логотипов. «Ключи»: поставьте ключи в Effect Controls (например, Position), выделите клип и нажмите плитку — применится сразу. «Быстрый вылет», «Трамплин», «Плавно» меняют только тип ваших ключей (Linear/Bezier), новых не создают. Максимальная скорость, как если тянуть ручку в Speed Graph, плагину недоступна — для неё «… — точно»: +1–3 доп. ключа по кривой; «Убрать» возвращает как было. Свою пачку эффектов можно сохранить с клипа: «Пресеты → Эффекты → Сохранить с клипа»."
+      hints={{
+        Создать: "Под плейхед на свободную дорожку над V1; выделены клипы — на их длину. Adjustment Layer: один раз File → New → Adjustment Layer.",
+        Ключи: "Поставьте 2 ключа (Position, Scale…) в Effect Controls, выделите клип и нажмите — применится сразу.",
+        Свечение: "«Контур» и «Неон» — для PNG, текста, логотипов.",
+        Мои: "Сохраняются с клипа: «Пресеты → Эффекты → Сохранить с клипа».",
+      }}
       storeKey="fxSelected"
     />
   );
@@ -182,21 +173,27 @@ export function ColorView() {
   return (
     <RecipeView
       title="Цвет"
-      sub="Пресеты Lumetri Color в один клик. Если Lumetri уже есть на клипе — он перенастраивается."
+
       tiles={recipeTiles(COLOR_RECIPES)}
       withStrength
-      hint="Тонкая настройка — как обычно, в панели Lumetri Color: все значения остаются редактируемыми."
+      hints={{}}
       storeKey="colorSelected"
     />
   );
 }
 
-function RecipeView(props: { title: string; sub: string; tiles: Tile[]; withStrength?: boolean; hint: string; storeKey: string }) {
+function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolean; hints: Record<string, string>; storeKey: string; groupOrder?: string[] }) {
   const [sel, setSel] = useState<string | null>(() => storageGet(props.storeKey));
   const [strength, setStrength] = useState(() => Number(storageGet(`${props.storeKey}:strength`)) || 100);
   const [status, setStatus] = useState<Status>(null);
   const chosen = props.tiles.find((t) => t.key === sel) ?? null;
-  const groups = [...new Set(props.tiles.map((t) => t.group))];
+  const present = new Set(props.tiles.map((t) => t.group));
+  const groups = [...(props.groupOrder ?? []).filter((g) => present.has(g)), ...[...present].filter((g) => !props.groupOrder?.includes(g))];
+  const [group, setGroup] = useState<string>(() => {
+    const g = storageGet(`${props.storeKey}:group`);
+    return g && present.has(g) ? g : (chosen?.group ?? groups[0]);
+  });
+  const shown = props.tiles.filter((t) => t.group === group);
 
   const apply = async (tile: Tile | null = chosen) => {
     if (!tile) return;
@@ -212,10 +209,23 @@ function RecipeView(props: { title: string; sub: string; tiles: Tile[]; withStre
     <div className="pv">
       <div className="page">
         <div className="scroll-inner">
-          <div className="page-title">{props.title}</div>
-          <div className="page-sub">{props.sub}</div>
+          <div className="page-title recipe-title">{props.title}</div>
+          <div className="lib-chips recipe-chips">
+            {groups.map((g) => (
+              <div
+                key={g}
+                className={`lib-chip${g === group ? " is-active" : ""}`}
+                onClick={() => {
+                  setGroup(g);
+                  storageSet(`${props.storeKey}:group`, g);
+                }}
+              >
+                {g}
+              </div>
+            ))}
+          </div>
           {props.withStrength ? (
-            <div className="hero-card recipe-strength">
+            <div className="recipe-strength">
               <Slider
                 label="Сила"
                 value={strength}
@@ -230,45 +240,43 @@ function RecipeView(props: { title: string; sub: string; tiles: Tile[]; withStre
               />
             </div>
           ) : null}
-          {groups.map((g) => (
-            <div key={g} className="recipe-group">
-              <div className="pv-group">{g}</div>
-              <div className="recipe-grid">
-                {props.tiles
-                  .filter((t) => t.group === g)
-                  .map((t) => (
-                    <div
-                      key={t.key}
-                      className={`recipe-tile${t.key === sel ? " is-active" : ""}`}
-                      onClick={() => {
-                        setSel(t.key);
-                        storageSet(props.storeKey, t.key);
-                        if (t.instant) void apply(t);
-                        else setStatus(null);
-                      }}
-                      onDoubleClick={() => !t.instant && void apply(t)}
-                      title={t.desc}
-                    >
-                      {t.thumb ? (
-                        <img className="recipe-swatch recipe-thumb" src={t.thumb} alt="" />
-                      ) : (
-                        <div className="recipe-swatch" style={{ backgroundColor: t.swatch[1], backgroundImage: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} />
-                      )}
-                      <div className="recipe-name">{t.name}</div>
-                      <div className="recipe-desc">{t.desc}</div>
-                    </div>
-                  ))}
+          <div className="recipe-grid">
+            {shown.map((t) => (
+              <div
+                key={t.key}
+                className={`recipe-tile${t.key === sel ? " is-active" : ""}`}
+                onClick={() => {
+                  setSel(t.key);
+                  storageSet(props.storeKey, t.key);
+                  if (t.instant) void apply(t);
+                  else setStatus(null);
+                }}
+                onDoubleClick={() => !t.instant && void apply(t)}
+                title={t.desc}
+              >
+                {t.thumb ? (
+                  <img className="recipe-swatch recipe-thumb" src={t.thumb} alt="" />
+                ) : (
+                  <div className="recipe-swatch" style={{ backgroundColor: t.swatch[1], backgroundImage: `linear-gradient(135deg, ${t.swatch[0]}, ${t.swatch[1]})` }} />
+                )}
+                <div className="recipe-name">{t.name}</div>
               </div>
-            </div>
-          ))}
-          <div className="pv-hint-block recipe-hint">{props.hint}</div>
+            ))}
+          </div>
+          {props.hints[group] ? <div className="recipe-hint-line">{props.hints[group]}</div> : null}
         </div>
       </div>
       <div className="pv-footer">
         <span className={`pv-footer-text${status ? ` status-${status.tone}` : ""}`}>
-          {status ? status.text : chosen ? `${chosen.name} — выделите клипы и «Применить» (или двойной клик)` : "Выберите плитку"}
+          {status
+            ? status.text
+            : chosen
+              ? chosen.instant
+                ? `${chosen.name}: ${chosen.desc}`
+                : `${chosen.name}: ${chosen.desc}. Выделите клипы → «Применить» (или двойной клик)`
+              : "Выберите плитку — описание появится здесь"}
         </span>
-        <Button variant="primary" className="pv-apply" onClick={() => void apply()} disabled={!chosen || status?.tone === "busy"}>
+        <Button variant="primary" className="pv-apply" onClick={() => void apply()} disabled={!chosen || chosen.instant || status?.tone === "busy"}>
           Применить
         </Button>
       </div>

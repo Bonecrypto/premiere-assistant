@@ -21,6 +21,11 @@ export interface BakeOptions {
   step: 0 | 1 | 2;
   /** Какие параметры: все анимированные или только движение (Position/Scale/Rotation/Opacity). */
   scope: "all" | "motion";
+  /**
+   * Форма «как ручка в Speed Graph»: launch — пик скорости на старте и спад (ключи через 1, 2, 4, 8… кадров от начала),
+   * trampoline — наоборот (от конца). Между ключами — Linear: график скорости — убывающие/растущие «ступени».
+   */
+  shape?: "launch" | "trampoline";
 }
 
 export interface BakeResult {
@@ -206,6 +211,19 @@ function fewTimes(t0: number, t1: number, fr: number[], frame: number): number[]
   return out;
 }
 
+/**
+ * Времена доп. ключей для формы launch/trampoline: 1, 2, 4, 8… кадров от начала (или от конца) —
+ * густо там, где скорость максимальная, и редко дальше. Не ближе кадра к опорным ключам.
+ */
+export function shapeTimes(t0: number, t1: number, frame: number, shape: "launch" | "trampoline"): number[] {
+  const len = t1 - t0;
+  const out: number[] = [];
+  for (let k = 1; k * frame < len - frame * 0.99; k *= 2) {
+    out.push(shape === "launch" ? t0 + k * frame : t1 - k * frame);
+  }
+  return out.sort((a, b) => a - b);
+}
+
 /** Применить кривую ко всем отрезкам между опорными ключами выделенных клипов. */
 export async function bakeCurve(curve: Curve, opt: BakeOptions): Promise<BakeResult> {
   const { p, project, sequence, items } = await selectedClips();
@@ -243,7 +261,14 @@ export async function bakeCurve(curve: Curve, opt: BakeOptions): Promise<BakeRes
         if (a === null || b === null || typeof a !== typeof b) continue;
         const t0 = pts[s];
         const t1 = pts[s + 1];
-        if (opt.step === 0) {
+        if (opt.shape) {
+          const ts = shapeTimes(t0, t1, frame, opt.shape);
+          if (!ts.length) continue;
+          for (const t of ts) {
+            adds.push({ param: prm, t, v: lerp(a, b, ease((t - t0) / (t1 - t0))) });
+            newReg.push(t);
+          }
+        } else if (opt.step === 0) {
           const ts = fewTimes(t0, t1, fewFractions(curve), frame);
           if (!ts.length) continue;
           for (const t of ts) {
@@ -290,7 +315,7 @@ export async function bakeCurve(curve: Curve, opt: BakeOptions): Promise<BakeRes
     }
   });
   // Мало ключей — Bezier (Premiere сглаживает между ними); каждый кадр — Linear (форму задают сами ключи).
-  const MODE = opt.step === 0 ? p.Constants?.InterpolationMode?.BEZIER : p.Constants?.InterpolationMode?.LINEAR;
+  const MODE = opt.step === 0 && !opt.shape ? p.Constants?.InterpolationMode?.BEZIER : p.Constants?.InterpolationMode?.LINEAR;
   if (typeof MODE === "number") {
     try {
       run(project, "Ассистент: график — плавность", (c) => {

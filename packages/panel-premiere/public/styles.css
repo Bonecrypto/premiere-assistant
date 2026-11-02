@@ -3187,3 +3187,15 @@ body,
   height: 52px;
   background-color: #000;
 }
+.recipe-title {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+.recipe-chips {
+  margin-bottom: 8px;
+}
+.recipe-hint-line {
+  font-size: 11px;
+  color: var(--label-3);
+  margin: 2px 2px 8px 2px;
+}
