@@ -6,20 +6,10 @@ import { selectCategory } from "../automation/select.ts";
 import { Button } from "./Button.tsx";
 import { KEY_TIMELINE_FOCUS } from "@pa/core";
 import { comboTitle, labelCombo, lastKeysDiag, openKeysClient } from "../automation/keysClient.ts";
-import { storageGet, storageSet, uxp } from "../env.ts";
+import { storageGet, storageSet } from "../env.ts";
 import { updateRepo } from "../update/version.ts";
 
 const KEYS_READY = "autoKeysReady";
-function openReleases(): void {
-  const repo = updateRepo() || "Bonecrypto/premiere-assistant";
-  const url = `https://github.com/${repo}/releases/latest`;
-  try {
-    (uxp as any)?.shell?.openExternal(url);
-  } catch {
-    /* нет доступа — ссылка есть в тексте */
-  }
-}
-
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -153,8 +143,8 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           {state.kind === "scanning" ? "Анализирую таймлайн…" : "Покрасить таймлайн"}
         </Button>
         <div className="wiz-note">
-          Premiere не даёт плагинам менять цвет клипов на таймлайне напрямую, поэтому клавишу цвета нажимает маленький
-          «нажиматель клавиш» на вашем компьютере (окно start-keys.cmd). Без него — пошаговый режим вручную.
+          Premiere не даёт плагинам менять цвет клипов на таймлайне напрямую, поэтому клавишу цвета нажимает встроенный
+          «нажиматель клавиш» — панель запускает его сама (свёрнутым окном), он выключается после закрытия Premiere. Без него — пошаговый режим вручную.
         </div>
       </div>
     );
@@ -264,43 +254,27 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
   if (state.kind === "noHelper") {
     return (
       <div className="hero-card">
-        <div className="result result-error">Не запущен «нажиматель клавиш» — без него панель не может ставить цвет клипам.</div>
-        <div className="wiz-step-head">ОДИН РАЗ, 1 МИНУТА</div>
+        <div className="result result-error">Не получилось запустить «нажиматель клавиш» — без него панель не может ставить цвет клипам.</div>
+        {lastKeysDiag ? <div className="field-hint">Причина: {lastKeysDiag}</div> : null}
         <div className="wiz-setup-steps">
           <div>
-            1. Скачайте <b>premiere-assistant-keys.zip</b> со страницы релизов (кнопка ниже).
+            1. Если Premiere спрашивал разрешение открыть файл — разрешите и нажмите <b>«Ещё раз»</b>.
           </div>
-          <div>2. Распакуйте и дважды кликните <b>start-keys.cmd</b> — откроется окно, его можно свернуть.</div>
-          <div>3. Вернитесь сюда и нажмите «Запустил — покрасить».</div>
-        </div>
-        {lastKeysDiag ? <div className="field-hint">Проверка связи: {lastKeysDiag}</div> : null}
-        {state.oldHelper ? (
-          <div className="field-hint">
-            Ещё на компьютере работает старый «помощник» из первых версий — он не мешает, но клавиши не нажимает. Его можно
-            убрать из автозагрузки (Win+R → shell:startup → ярлык «Premiere Assistant helper»).
+          <div>
+            2. Если не спрашивал — переустановите плагин из последнего релиза (.ccx): в нём есть разрешение на автозапуск.
           </div>
-        ) : null}
-        <div className="field-hint">
-          Если окно start-keys.cmd уже открыто — откройте в браузере <b>http://localhost:8766/ping</b>. Должна появиться строка
-          с «ok»: true. Если её нет — пришлите скриншот окна.
+          <div>
+            3. Запасной вариант вручную: скачайте <b>premiere-assistant-keys.zip</b> из релиза и запустите <b>start-keys.cmd</b>.
+          </div>
         </div>
         <div className="wiz-url">github.com/{updateRepo() || "Bonecrypto/premiere-assistant"}/releases/latest</div>
-        <div className="field-hint">
-          Это обычный текстовый скрипт PowerShell (можно открыть Блокнотом): нажимает только клавиши цветов в Premiere и
-          работает, пока открыто его окно. Ничего не устанавливает. Если окно уже запускали — просто откройте его снова.
-        </div>
         <div className="confirm-actions">
-          <Button variant="secondary" className="confirm-btn" onClick={() => openReleases()}>
-            Открыть релизы
+          <Button variant="secondary" className="confirm-btn" onClick={() => void start(state.planned)}>
+            Пошагово вручную
           </Button>
           <Button variant="primary" className="confirm-btn" onClick={() => void runAuto(state.planned)}>
-            Запустил — покрасить
+            Ещё раз
           </Button>
-        </div>
-        <div className="wiz-links">
-          <span className="link-small" onClick={() => void start(state.planned)}>
-            Пошагово вручную
-          </span>
         </div>
       </div>
     );

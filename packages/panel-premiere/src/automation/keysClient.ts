@@ -1,6 +1,8 @@
 import { LABEL_KEYS_COMBOS, parseHelperMessage } from "@pa/core";
 import { getSavedPort } from "../connection.ts";
 import { LABEL_KEYS, type LabelKey } from "./labels.ts";
+import { launchKeysHelper } from "./keysLauncher.ts";
+import { isUXP } from "../env.ts";
 
 /**
  * Связь с помощником для нажатия клавиш в Premiere (автопокраска клипов на таймлайне).
@@ -78,6 +80,20 @@ async function openHttpClient(): Promise<KeysClient | null> {
 export async function openKeysClient(): Promise<KeysClient> {
   const http = await openHttpClient();
   if (http) return http;
+  // Нет — запускаем встроенный нажиматель сами и ждём, пока он ответит.
+  if (isUXP) {
+    const err = await launchKeysHelper();
+    if (!err) {
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 800));
+        const again = await openHttpClient();
+        if (again) return again;
+      }
+      lastKeysDiag = `запустил, но не ответил: ${lastKeysDiag}`;
+    } else {
+      lastKeysDiag = `не удалось запустить: ${err}`;
+    }
+  }
   return openWsClient();
 }
 

@@ -2,12 +2,13 @@
 # Слушает только этот компьютер (localhost:8766). Принимает от панели Premiere Assistant
 # только разрешённые комбинации: Shift+3 (фокус таймлайна) и клавиши меток Ctrl+Alt+Shift+1…9, 0, F1…F6.
 # Ничего другого не умеет. Работает, пока открыто окно; закройте окно — выключится.
+# Сам выключается через минуту после закрытия Premiere. Панель запускает его сама, когда нужно.
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 
 $Port = 8766
-$Version = 2
+$Version = 3
 $Allow = @('shift+3') + (1..9 | ForEach-Object { "ctrl+alt+shift+$_" }) + @('ctrl+alt+shift+0') + (1..6 | ForEach-Object { "ctrl+alt+shift+f$_" })
 
 # Только один экземпляр.
@@ -68,8 +69,21 @@ function Reply($ctx, [int]$code, $obj) {
   $ctx.Response.OutputStream.Close()
 }
 
+function Premiere-Running { [bool](Get-Process | Where-Object { $_.ProcessName -like 'Adobe Premiere Pro*' } | Select-Object -First 1) }
+
+# Сам выключается, если Premiere закрыт дольше минуты (панель снова запустит, когда понадобится).
+$lastPremiere = Get-Date
 while ($listener.IsListening) {
-  $ctx = $listener.GetContext()
+  $async = $listener.BeginGetContext($null, $null)
+  while (-not $async.AsyncWaitHandle.WaitOne(15000)) {
+    if (Premiere-Running) { $lastPremiere = Get-Date }
+    elseif (((Get-Date) - $lastPremiere).TotalSeconds -gt 60) {
+      Write-Host '  Premiere закрыт — выключаюсь.'
+      $listener.Stop()
+      exit 0
+    }
+  }
+  $ctx = $listener.EndGetContext($async)
   try {
     $req = $ctx.Request
     # Защита от сайтов в браузере: команда /keys принимается только с заголовком X-Premiere-Assistant —

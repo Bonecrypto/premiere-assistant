@@ -18,7 +18,9 @@
       "schemes": [
         "https"
       ],
-      "extensions": []
+      "extensions": [
+        ".cmd"
+      ]
     }
   },
   "entrypoints": [
