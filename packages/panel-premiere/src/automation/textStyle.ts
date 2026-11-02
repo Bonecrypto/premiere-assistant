@@ -37,7 +37,7 @@ interface CopiedStyle {
 
 const KEY = "copiedStyle";
 /** Поля JSON, в которых лежит сам текст (их не переносим). */
-const TEXT_KEY = /^(text|textEditValue|mText|string|content|value|sourceText)$/i;
+const TEXT_KEY = /^(text|textEditValue|mText|mTextString|string|content|sourceText|mStr)$/i;
 
 function toValue(raw: any): Value | null {
   const v = raw?.value?.value ?? raw?.value ?? raw;
@@ -79,11 +79,34 @@ function asJson(s: string): Record<string, unknown> | null {
   return embedded(s)?.obj ?? null;
 }
 
-/** Стиль из source, текст из target. */
-function mergeText(source: Record<string, unknown>, target: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...source };
-  for (const [k, v] of Object.entries(target)) if (TEXT_KEY.test(k)) out[k] = v;
+/** Стиль из source, текст из target — на любой глубине (текст бывает вложен: {mTextParam: {mText, mStyleSheet…}}). */
+function mergeText(source: unknown, target: unknown): unknown {
+  const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+  if (!isObj(source) || !isObj(target)) return source;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(source)) {
+    if (TEXT_KEY.test(k) && k in target) out[k] = target[k];
+    // Длины «кусков» стиля привязаны к длине текста слоя — их тоже берём у слоя.
+    else if (/run|length|count|range|index/i.test(k) && k in target) out[k] = target[k];
+    else if (k in target) out[k] = mergeText(v, target[k]);
+    else out[k] = v;
+  }
+  // Поля с текстом, которых у образца нет, — оставить как у слоя.
+  for (const [k, v] of Object.entries(target)) if (TEXT_KEY.test(k) && !(k in out)) out[k] = v;
   return out;
+}
+
+/** Если перед JSON 4 служебных символа — это может быть его длина: пересчитать под новый JSON. */
+function fixPrefix(pre: string, oldJson: string, newJson: string): string {
+  if (pre.length !== 4) return pre;
+  const codes = [...pre].map((c) => c.charCodeAt(0) & 255);
+  const be = ((codes[0] << 24) | (codes[1] << 16) | (codes[2] << 8) | codes[3]) >>> 0;
+  const le = ((codes[3] << 24) | (codes[2] << 16) | (codes[1] << 8) | codes[0]) >>> 0;
+  const n = newJson.length;
+  const enc = (b: number[]) => String.fromCharCode(...b);
+  if (be === oldJson.length) return enc([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]);
+  if (le === oldJson.length) return enc([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]);
+  return pre;
 }
 
 function run(project: any, title: string, fill: (c: any) => void): void {
@@ -196,7 +219,7 @@ export async function copyStyle(): Promise<string> {
   storageSet(KEY, JSON.stringify({ from: name, components: comps } satisfies CopiedStyle));
   lastDiag = diag.slice(0, 12).join("\n");
   const fontNote = textJson ? " Шрифт и оформление текста — тоже." : "";
-  return `Стиль «${name}» скопирован: ${total} параметр. в ${comps.length} компонент.${fontNote} Теперь выделите другие слои → «Вставить стиль».`;
+  return `Стиль «${name}» скопирован: ${total} параметр. в ${comps.length} компонент.${fontNote} Теперь выделите другие слои → «Вставить на выделенные».`;
 }
 
 /** Вставить скопированный стиль на все выделенные клипы (текст каждого остаётся своим). */
@@ -237,7 +260,8 @@ export async function pasteStyle(): Promise<string> {
           const curJson = cur?.t === "str" ? asJson(cur.v) : null;
           if (srcJson && curJson) {
             const e = embedded(sp.value.v)!;
-            value = e.pre + JSON.stringify(mergeText(srcJson, curJson)) + e.post;
+            const json = JSON.stringify(mergeText(srcJson, curJson));
+            value = fixPrefix(e.pre, sp.value.v.slice(e.pre.length, sp.value.v.length - e.post.length), json) + json + e.post;
           } else if (cur?.t === "str" && cur.v !== sp.value.v) {
             // Просто строка — это сама надпись: не трогаем.
             keptText++;

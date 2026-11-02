@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { KEY_ADD_EDIT, KEY_ADD_EDIT_ALL, KEY_TIMELINE_FOCUS } from "@pa/core";
 import { openKeysClient, lastKeysDiag } from "../automation/keysClient.ts";
 import { nestSelected, unnestSelected } from "../automation/nest.ts";
@@ -6,7 +6,7 @@ import { copyStyle, lastDiag, pasteStyle } from "../automation/textStyle.ts";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
 import { storageGet, storageSet } from "../env.ts";
-import { Button } from "./Button.tsx";
+import { Icon, type IconName } from "./Icon.tsx";
 import { Slider } from "./Slider.tsx";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
@@ -24,24 +24,24 @@ function useStatus(): [Status, (busy: string, fn: () => Promise<string>) => Prom
   return [status, run];
 }
 
-function Card(props: { title: string; sub: string; children: ReactNode }) {
+/** Плитка-действие: иконка в цветном квадрате + подпись. */
+function Act(props: { icon: IconName; grad: string; label: string; hint: string; onClick(): void }) {
   return (
-    <div className="hero-card tool-card">
-      <div className="tool-title">{props.title}</div>
-      <div className="tool-sub">{props.sub}</div>
-      {props.children}
+    <div className="act-tile" title={props.hint} onClick={props.onClick}>
+      <div className={`act-icon grad-${props.grad}`}>
+        <Icon name={props.icon} size={18} />
+      </div>
+      <div className="act-label">{props.label}</div>
     </div>
   );
 }
 
-function Toggle(props: { label: string; value: boolean; onChange(v: boolean): void }) {
+/** Маленький переключатель-чип для настроек. */
+function Chip(props: { label: string; value: boolean; onChange(v: boolean): void }) {
   return (
-    <div className="pv-row">
-      <span className="pv-label">{props.label}</span>
-      <div className="spacer" />
-      <div className={`switch${props.value ? " is-on" : ""}`} onClick={() => props.onChange(!props.value)}>
-        <div className="switch-knob" />
-      </div>
+    <div className={`lib-chip act-chip${props.value ? " is-active" : ""}`} onClick={() => props.onChange(!props.value)}>
+      {props.value ? "✓ " : ""}
+      {props.label}
     </div>
   );
 }
@@ -53,7 +53,7 @@ function StatusLine({ status }: { status: Status }) {
 
 const skippedNote = (s: string[]) => (s.length ? ` Пропущено: ${s.slice(0, 2).join("; ")}.` : "");
 
-/** Вкладка «Монтаж». */
+/** Вкладка «Монтаж»: всё на одном экране — плитки с иконками, настройки внизу. */
 export function MontageView() {
   const [status, run] = useStatus();
   const [trim, setTrim] = useState(() => storageGet("montageTrim") !== "0");
@@ -74,96 +74,88 @@ export function MontageView() {
       } finally {
         client.close();
       }
-      return all
-        ? "Разрезал все дорожки под плейхедом (Ctrl+Shift+K). Отмена — Ctrl+Z."
-        : "Разрезал выбранные дорожки под плейхедом (Ctrl+K). Отмена — Ctrl+Z.";
+      return all ? "Разрезал все дорожки под плейхедом. Отмена — Ctrl+Z." : "Разрезал выбранные дорожки под плейхедом. Отмена — Ctrl+Z.";
     });
 
   return (
     <div className="page">
-      <div className="scroll-inner">
-        <div className="page-title">Монтаж</div>
-        <div className="page-sub">Быстрые действия с выделенными клипами. Каждое — одна отмена Ctrl+Z.</div>
+      <div className="scroll-inner act-page">
         <StatusLine status={status} />
-
-        <Card title="Стиль текста" sub="Как у образца: шрифт, размер, заливка, обводка, выравнивание, позиция, масштаб. Текст каждого слоя остаётся своим.">
-          <div className="confirm-actions">
-            <Button variant="secondary" className="confirm-btn" onClick={() => void run("Копирую стиль…", () => copyStyle())}>
-              Копировать стиль
-            </Button>
-            <Button variant="primary" className="confirm-btn" onClick={() => void run("Вставляю стиль…", () => pasteStyle())}>
-              Вставить на выделенные
-            </Button>
-          </div>
-          <div className="pv-link" onClick={() => setDiag(lastDiag || "Сначала нажмите «Копировать стиль» на текстовом слое.")}>
-            Диагностика шрифта
-          </div>
-          {diag ? <div className="diag-box">{diag}</div> : null}
-        </Card>
-
-        <Card title="Nest" sub="Собрать выделенные клипы во вложенную секвенцию (эффекты сохраняются) — или разобрать выделенный Nest обратно на клипы.">
-          <div className="confirm-actions">
-            <Button variant="primary" className="confirm-btn" onClick={() => void run("Собираю Nest…", () => nestSelected())}>
-              Nest
-            </Button>
-            <Button variant="secondary" className="confirm-btn" onClick={() => void run("Разбираю…", () => unnestSelected())}>
-              Разобрать Nest
-            </Button>
-          </div>
-        </Card>
-
-        <Card title="Разрез под плейхедом" sub="Через стандартные клавиши Premiere (Ctrl+K / Ctrl+Shift+K) — их нажимает программа-нажиматель.">
-          <div className="confirm-actions">
-            <Button variant="secondary" className="confirm-btn" onClick={() => void cut(false)}>
-              Выбранные дорожки
-            </Button>
-            <Button variant="primary" className="confirm-btn" onClick={() => void cut(true)}>
-              Все дорожки
-            </Button>
-          </div>
-        </Card>
-
-        <Card title="Убрать пустоты" sub="Выделенные клипы встают вплотную (на каждой дорожке отдельно). Если между ними есть невыделенный клип — дорожка пропускается.">
-          <Button
-            variant="primary"
-            className="wide"
+        <div className="act-section">Текст</div>
+        <div className="act-grid">
+          <Act
+            icon="copystyle"
+            grad="purple"
+            label="Копировать стиль"
+            hint="С самого раннего выделенного слоя: шрифт, размер, заливка, обводка, позиция, масштаб"
+            onClick={() =>
+              void run("Копирую стиль…", async () => {
+                const r = await copyStyle();
+                setDiag(lastDiag);
+                return r;
+              })
+            }
+          />
+          <Act icon="pastestyle" grad="indigo" label="Вставить стиль" hint="На все выделенные слои — текст каждого остаётся своим" onClick={() => void run("Вставляю стиль…", () => pasteStyle())} />
+        </div>
+        <div className="act-section">Монтаж</div>
+        <div className="act-grid">
+          <Act icon="nest" grad="purple" label="Nest" hint="Собрать выделенное во вложенную секвенцию (эффекты сохраняются)" onClick={() => void run("Собираю Nest…", () => nestSelected())} />
+          <Act icon="unnest" grad="indigo" label="Разобрать Nest" hint="Разложить выделенный Nest обратно (эффекты внутренних клипов не переносятся)" onClick={() => void run("Разбираю…", () => unnestSelected())} />
+          <Act icon="scissors" grad="pink" label="Разрез" hint="Ctrl+K под плейхедом на выбранных дорожках" onClick={() => void cut(false)} />
+          <Act icon="cutall" grad="pink" label="Разрез всех" hint="Ctrl+Shift+K — все дорожки под плейхедом" onClick={() => void cut(true)} />
+          <Act
+            icon="gaps"
+            grad="blue"
+            label="Убрать пустоты"
+            hint="Выделенные клипы встают вплотную (на каждой дорожке)"
             onClick={() =>
               void run("Сдвигаю…", async () => {
                 const r = await closeGaps();
                 return `Сдвинуто клипов: ${r.changed}.${skippedNote(r.skipped)}`;
               })
             }
-          >
-            Убрать пустоты
-          </Button>
-        </Card>
-
-        <Card title="Разложить по маркерам" sub="Клипы по порядку встают на маркеры секвенции — удобно под биты музыки (маркеры: клавиша M или «Авто → Маркеры»).">
-          <Toggle
-            label="Обрезать до следующего маркера"
-            value={trim}
-            onChange={(v) => {
-              setTrim(v);
-              storageSet("montageTrim", v ? "1" : "0");
-            }}
           />
-          <Button
-            variant="primary"
-            className="wide"
+          <Act
+            icon="marker"
+            grad="orange"
+            label="По маркерам"
+            hint="Клипы по порядку встают на маркеры секвенции (под биты)"
             onClick={() =>
               void run("Раскладываю…", async () => {
                 const r = await placeOnMarkers(trim);
-                return `Разложено клипов: ${r.changed}.${skippedNote(r.skipped)} Связанный звук может не сдвинуться вместе с видео — лучше для фото и графики.`;
+                return `Разложено клипов: ${r.changed}.${skippedNote(r.skipped)}`;
               })
             }
-          >
-            Разложить по маркерам
-          </Button>
-        </Card>
-
-        <Card title="Одинаковая длина" sub="Для фото, графики и нарезки: все выделенные клипы — одной длительности.">
+          />
+          <Act
+            icon="clock"
+            grad="green"
+            label={`Длина ${dur.toFixed(1)} с`}
+            hint="Все выделенные клипы — одной длительности"
+            onClick={() =>
+              void run("Меняю длительность…", async () => {
+                const r = await setDuration(dur, pack);
+                return `Длительность ${dur.toFixed(1)} с — клипов: ${r.changed}.`;
+              })
+            }
+          />
+          <Act
+            icon="eye"
+            grad="indigo"
+            label="Вкл / выкл"
+            hint="Как Shift+E: клипы остаются, но не видны и не слышны"
+            onClick={() =>
+              void run("…", async () => {
+                const r = await toggleEnabled();
+                return `Переключено клипов: ${r.changed}.`;
+              })
+            }
+          />
+        </div>
+        <div className="act-settings">
           <Slider
-            label="Длительность"
+            label="Длина для «Длина … с»"
             value={dur}
             min={0.2}
             max={10}
@@ -175,48 +167,18 @@ export function MontageView() {
               storageSet("montageDur", String(v));
             }}
           />
-          <Toggle
-            label="И сразу вплотную друг к другу"
-            value={pack}
-            onChange={(v) => {
-              setPack(v);
-              storageSet("montagePack", v ? "1" : "0");
-            }}
-          />
-          <Button
-            variant="primary"
-            className="wide"
-            onClick={() =>
-              void run("Меняю длительность…", async () => {
-                const r = await setDuration(dur, pack);
-                return `Длительность ${dur.toFixed(1)} с — клипов: ${r.changed}.`;
-              })
-            }
-          >
-            Применить
-          </Button>
-        </Card>
-
-        <Card title="Выключить / включить" sub="Как Shift+E: клипы остаются на таймлайне, но не видны и не слышны.">
-          <Button
-            variant="secondary"
-            className="wide"
-            onClick={() =>
-              void run("…", async () => {
-                const r = await toggleEnabled();
-                return `Переключено клипов: ${r.changed}.`;
-              })
-            }
-          >
-            Выключить / включить выделенные
-          </Button>
-        </Card>
+          <div className="act-chips">
+            <Chip label="Вплотную после «Длины»" value={pack} onChange={(v) => (setPack(v), storageSet("montagePack", v ? "1" : "0"))} />
+            <Chip label="Обрезать до маркера" value={trim} onChange={(v) => (setTrim(v), storageSet("montageTrim", v ? "1" : "0"))} />
+          </div>
+        </div>
+        {diag ? <div className="diag-box">Что Premiere отдаёт о тексте (пришлите скриншот, если шрифт не переносится):{"\n"}{diag}</div> : null}
       </div>
     </div>
   );
 }
 
-/** Вкладка «Звук». */
+/** Вкладка «Звук»: плитки с иконками + настройки внизу. */
 export function SoundView() {
   const [status, run] = useStatus();
   const [level, setLevel] = useState(() => Number(storageGet("soundLevel") ?? "-6") || -6);
@@ -234,82 +196,58 @@ export function SoundView() {
 
   return (
     <div className="page">
-      <div className="scroll-inner">
-        <div className="page-title">Звук</div>
-        <div className="page-sub">Громкость, фейды и приглушение музыки — через Volume → Level выделенных аудиоклипов.</div>
+      <div className="scroll-inner act-page">
         <StatusLine status={status} />
-
-        <Card title="Громкость выделенных" sub="Шаг или точный уровень. Клипы с ключами громкости не трогаются.">
-          <div className="gain-row">
-            {[-6, -3, 3, 6].map((d) => (
-              <div key={d} className="gain-btn" onClick={() => void gain(d)}>
-                {d > 0 ? `+${d}` : d} дБ
-              </div>
-            ))}
-          </div>
-          <Slider
-            label="Уровень"
-            value={level}
-            min={-30}
-            max={6}
-            step={1}
-            unit="дБ"
-            onChange={(v) => {
-              setLevel(v);
-              save("soundLevel", v);
-            }}
-          />
-          <Button
-            variant="primary"
-            className="wide"
+        <div className="act-section">Громкость выделенных</div>
+        <div className="act-grid">
+          {[-6, -3, 3, 6].map((d) => (
+            <Act key={d} icon={d > 0 ? "volup" : "voldown"} grad={d > 0 ? "green" : "orange"} label={`${d > 0 ? "+" : ""}${d} дБ`} hint="Изменить громкость выделенных аудиоклипов" onClick={() => void gain(d)} />
+          ))}
+          <Act
+            icon="level"
+            grad="blue"
+            label={`Ровно ${level} дБ`}
+            hint="Поставить точный уровень (ползунок ниже)"
             onClick={() =>
               void run("Ставлю уровень…", async () => {
                 const r = await changeLevel({ absolute: level });
                 return `Уровень ${level} дБ — клипов: ${r.clips}.${skippedNote(r.skipped)}${r.note ? ` ${r.note}` : ""}`;
               })
             }
-          >
-            Поставить {level} дБ
-          </Button>
-        </Card>
-
-        <Card title="Фейды" sub="Плавное появление и затухание выделенных аудиоклипов (ключи громкости).">
-          <Slider label="Появление" value={fi} min={0} max={3} step={0.1} unit="с" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => (setFi(v), save("soundFadeIn", v))} />
-          <Slider label="Затухание" value={fo} min={0} max={5} step={0.1} unit="с" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => (setFo(v), save("soundFadeOut", v))} />
-          <Button
-            variant="primary"
-            className="wide"
+          />
+          <Act
+            icon="fade"
+            grad="purple"
+            label="Фейды"
+            hint="Плавное появление и затухание (ползунки ниже)"
             onClick={() =>
               void run("Ставлю фейды…", async () => {
                 const r = await fades(fi, fo);
                 return `Фейды — клипов: ${r.clips}.${skippedNote(r.skipped)}`;
               })
             }
-          >
-            Сделать фейды
-          </Button>
-        </Card>
-
-        <Card title="Музыка под голосом" sub="Где говорят — музыка тише. Голос и музыку панель находит по правилам покраски (лучше всего — по названиям дорожек).">
-          <Slider label="Насколько тише" value={duck} min={-24} max={-3} step={1} unit="дБ" onChange={(v) => (setDuck(v), save("soundDuck", v))} />
-          <Slider label="Плавность" value={duckFade} min={0.1} max={1.5} step={0.1} unit="с" format={(v) => v.toFixed(1)} onChange={(v) => (setDuckFade(v), save("soundDuckFade", v))} />
-          <Button
-            variant="primary"
-            className="wide"
+          />
+          <Act
+            icon="duck"
+            grad="pink"
+            label="Музыка под голос"
+            hint="Где говорят — музыка тише (голос и музыка — по правилам покраски)"
             onClick={() =>
               void run("Приглушаю музыку…", async () => {
                 const r = await duckMusic(duck, duckFade);
                 return `Готово: фраз ${r.voiceParts}, музыкальных клипов ${r.clips}.${skippedNote(r.skipped)} Отмена — Ctrl+Z (2 раза).`;
               })
             }
-          >
-            Приглушить музыку под голосом
-          </Button>
-        </Card>
-
-        <Card title="Громкость −14 LUFS" sub="Измерение LUFS плагину недоступно (нужен ffmpeg). Пока проще так: File → Export → Effects → Loudness Normalization → ITU BS.1770-3, −14 LUFS, True Peak −1.">
-          <div className="tool-soon">Измерение прямо в панели — в следующих версиях.</div>
-        </Card>
+          />
+        </div>
+        <div className="act-settings">
+          <Slider label="Точный уровень" value={level} min={-30} max={6} step={1} unit="дБ" onChange={(v) => (setLevel(v), save("soundLevel", v))} />
+          <Slider label="Фейд: появление" value={fi} min={0} max={3} step={0.1} unit="с" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => (setFi(v), save("soundFadeIn", v))} />
+          <Slider label="Фейд: затухание" value={fo} min={0} max={5} step={0.1} unit="с" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => (setFo(v), save("soundFadeOut", v))} />
+          <Slider label="Музыка тише на" value={duck} min={-24} max={-3} step={1} unit="дБ" onChange={(v) => (setDuck(v), save("soundDuck", v))} />
+          <Slider label="Плавность приглушения" value={duckFade} min={0.1} max={1.5} step={0.1} unit="с" format={(v) => v.toFixed(1)} onChange={(v) => (setDuckFade(v), save("soundDuckFade", v))} />
+        </div>
+        <div className="act-note">−14 LUFS: File → Export → Effects → Loudness Normalization (ITU BS.1770-3, −14 LUFS, True Peak −1).</div>
       </div>
     </div>
   );

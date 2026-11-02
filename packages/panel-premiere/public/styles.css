@@ -3309,3 +3309,73 @@ body,
   word-break: break-all;
   user-select: text;
 }
+
+/* Вкладки-действия («Монтаж», «Звук»): плитки с иконками, без прокрутки */
+.act-page {
+  padding-top: 8px;
+}
+.act-section {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-2);
+  margin: 6px 2px 6px 2px;
+}
+.act-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.act-tile {
+  width: 78px;
+  margin: 0 6px 6px 0;
+  padding: 8px 4px 6px 4px;
+  border-radius: 14px;
+  background-color: var(--bg-elevated);
+  border: 1.5px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.act-tile:hover {
+  border-color: var(--separator);
+}
+.act-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+.act-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--label);
+  line-height: 12px;
+  height: 24px;
+  overflow: hidden;
+}
+.act-settings {
+  margin-top: 6px;
+  padding: 8px 10px 4px 10px;
+  border-radius: 14px;
+  background-color: var(--bg-elevated);
+}
+.act-chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin: 4px 0 4px 0;
+}
+.act-chip {
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+.act-note {
+  font-size: 10.5px;
+  color: var(--label-3);
+  margin: 8px 2px;
+}
