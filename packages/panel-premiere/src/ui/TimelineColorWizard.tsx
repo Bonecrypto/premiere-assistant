@@ -6,9 +6,20 @@ import { selectCategory } from "../automation/select.ts";
 import { Button } from "./Button.tsx";
 import { KEY_TIMELINE_FOCUS } from "@pa/core";
 import { comboTitle, labelCombo, openKeysClient } from "../automation/keysClient.ts";
-import { storageGet, storageSet } from "../env.ts";
+import { storageGet, storageSet, uxp } from "../env.ts";
+import { updateRepo } from "../update/version.ts";
 
 const KEYS_READY = "autoKeysReady";
+function openReleases(): void {
+  const repo = updateRepo() || "Bonecrypto/premiere-assistant";
+  const url = `https://github.com/${repo}/releases/latest`;
+  try {
+    (uxp as any)?.shell?.openExternal(url);
+  } catch {
+    /* нет доступа — ссылка есть в тексте */
+  }
+}
+
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -128,7 +139,7 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           <div className="wiz-explain-row">
             <span className="wiz-num">2</span>
             <span>
-              И красит каждую категорию своим цветом — <b>автоматически</b>, через помощника на компьютере.
+              И красит каждую категорию своим цветом — <b>автоматически</b>.
             </span>
           </div>
           <div className="wiz-explain-row">
@@ -141,8 +152,8 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           {state.kind === "scanning" ? "Анализирую таймлайн…" : "Покрасить таймлайн"}
         </Button>
         <div className="wiz-note">
-          Premiere не даёт плагинам менять цвет клипов на таймлайне напрямую, поэтому клавишу цвета нажимает помощник на
-          вашем компьютере. Нет помощника — есть пошаговый режим вручную.
+          Premiere не даёт плагинам менять цвет клипов на таймлайне напрямую, поэтому клавишу цвета нажимает маленький
+          «нажиматель клавиш» на вашем компьютере (ставится один раз). Без него — пошаговый режим вручную.
         </div>
       </div>
     );
@@ -227,8 +238,8 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
           </div>
         ))}
         <div className="field-hint">
-          Также нужна стандартная клавиша Shift+3 — «перейти на таймлайн» (есть в Premiere по умолчанию). И должен быть
-          запущен помощник (start-helper.cmd или автозапуск autostart-on.cmd).
+          Также нужна стандартная клавиша Shift+3 — «перейти на таймлайн» (есть в Premiere по умолчанию). И установлен
+          «нажиматель клавиш» (premiere-assistant-keys.zip из релизов — панель подскажет, если его нет).
         </div>
         <div className="confirm-actions">
           <Button variant="secondary" className="confirm-btn" onClick={() => setState({ kind: "overview", planned: state.planned })}>
@@ -252,20 +263,32 @@ export function TimelineColorWizard(props: { rules: ColorRules; onOpenRules(): v
   if (state.kind === "noHelper") {
     return (
       <div className="hero-card">
-        <div className="result result-error">Помощник не запущен — без него панель не может нажать клавиши цвета.</div>
+        <div className="result result-error">Не найден «нажиматель клавиш» — без него панель не может ставить цвет клипам.</div>
+        <div className="wiz-step-head">ОДИН РАЗ, 1 МИНУТА</div>
         <div className="wiz-setup-steps">
           <div>
-            Запустите <b>start-helper.cmd</b> в папке проекта. Чтобы он всегда стартовал сам при входе в Windows — один раз
-            запустите <b>autostart-on.cmd</b>.
+            1. Скачайте <b>premiere-assistant-keys.zip</b> со страницы релизов (кнопка ниже).
           </div>
+          <div>2. Распакуйте и дважды кликните <b>install.cmd</b>.</div>
+          <div>3. Вернитесь сюда и нажмите «Установил — покрасить».</div>
+        </div>
+        <div className="wiz-url">github.com/{updateRepo() || "Bonecrypto/premiere-assistant"}/releases/latest</div>
+        <div className="field-hint">
+          Это маленький скрипт Windows: нажимает только клавиши цветов в Premiere, работает только на вашем компьютере, сам
+          запускается при входе в Windows. Node.js и проект не нужны.
         </div>
         <div className="confirm-actions">
-          <Button variant="secondary" className="confirm-btn" onClick={() => void start(state.planned)}>
-            Пошагово вручную
+          <Button variant="secondary" className="confirm-btn" onClick={() => openReleases()}>
+            Открыть релизы
           </Button>
           <Button variant="primary" className="confirm-btn" onClick={() => void runAuto(state.planned)}>
-            Запустил — ещё раз
+            Установил — покрасить
           </Button>
+        </div>
+        <div className="wiz-links">
+          <span className="link-small" onClick={() => void start(state.planned)}>
+            Пошагово вручную
+          </span>
         </div>
       </div>
     );

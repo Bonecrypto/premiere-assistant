@@ -50,6 +50,9 @@ jobs:
           cd packages/panel-premiere/dist
           zip -r -q ../../../premiere-assistant.ccx . -x '*.map'
 
+      - name: Нажиматель клавиш (для автопокраски таймлайна)
+        run: cd tools/keys-helper && zip -q ../../premiere-assistant-keys.zip PremiereAssistantKeys.ps1 run-hidden.vbs install.cmd uninstall.cmd README.txt
+
       - name: Релиз
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,5 +62,6 @@ jobs:
           gh release create "v$VERSION" \
             premiere-assistant.ccx \
             packages/panel-premiere/dist/index.js \
+            premiere-assistant-keys.zip \
             --title "v$VERSION" \
             --notes "${NOTES:-Сборка $VERSION}"

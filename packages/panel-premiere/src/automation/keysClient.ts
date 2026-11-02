@@ -24,7 +24,50 @@ export interface KeysClient {
   close(): void;
 }
 
-export function openKeysClient(timeoutMs = 2500): Promise<KeysClient> {
+const KEYS_PORT = 8766;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+}
+
+/** «Нажиматель клавиш» (PowerShell, без Node) на localhost:8766 — основной путь. */
+async function openHttpClient(): Promise<KeysClient | null> {
+  for (const host of ["127.0.0.1", "localhost"]) {
+    const base = `http://${host}:${KEYS_PORT}`;
+    try {
+      const r: Response = await withTimeout(fetch(`${base}/ping`), 1500);
+      const j: any = await r.json();
+      if (!j?.ok) continue;
+      return {
+        send: async (keys) => {
+          const res: Response = await withTimeout(
+            fetch(`${base}/keys`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-Premiere-Assistant": "1" },
+              body: JSON.stringify({ keys }),
+            }),
+            12000,
+          );
+          const out: any = await res.json().catch(() => ({}));
+          if (!res.ok || !out?.ok) throw new Error(out?.error || `Нажиматель клавиш ответил ошибкой ${res.status}.`);
+        },
+        close: () => {},
+      };
+    } catch {
+      /* пробуем дальше */
+    }
+  }
+  return null;
+}
+
+/** Найти, кто нажмёт клавиши: сначала «нажиматель клавиш», затем помощник (Node). Ошибка "helper" — никого нет. */
+export async function openKeysClient(): Promise<KeysClient> {
+  const http = await openHttpClient();
+  if (http) return http;
+  return openWsClient();
+}
+
+function openWsClient(timeoutMs = 2500): Promise<KeysClient> {
   return new Promise((resolve, reject) => {
     let ws: WebSocket;
     try {

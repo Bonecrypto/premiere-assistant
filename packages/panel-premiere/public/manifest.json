@@ -13,7 +13,13 @@
       "domains": "all"
     },
     "allowCodeGenerationFromStrings": true,
-    "localFileSystem": "request"
+    "localFileSystem": "request",
+    "launchProcess": {
+      "schemes": [
+        "https"
+      ],
+      "extensions": []
+    }
   },
   "entrypoints": [
     {
