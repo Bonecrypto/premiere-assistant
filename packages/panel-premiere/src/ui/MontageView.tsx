@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { KEY_ADD_EDIT, KEY_ADD_EDIT_ALL, KEY_TIMELINE_FOCUS } from "@pa/core";
 import { openKeysClient, lastKeysDiag } from "../automation/keysClient.ts";
 import { nestSelected, unnestSelected } from "../automation/nest.ts";
+import { copyStyle, pasteStyle } from "../automation/textStyle.ts";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
 import { storageGet, storageSet } from "../env.ts";
@@ -83,6 +84,17 @@ export function MontageView() {
         <div className="page-title">Монтаж</div>
         <div className="page-sub">Быстрые действия с выделенными клипами. Каждое — одна отмена Ctrl+Z.</div>
         <StatusLine status={status} />
+
+        <Card title="Стиль текста" sub="Как у образца: шрифт, размер, заливка, обводка, выравнивание, позиция, масштаб. Текст каждого слоя остаётся своим.">
+          <div className="confirm-actions">
+            <Button variant="secondary" className="confirm-btn" onClick={() => void run("Копирую стиль…", () => copyStyle())}>
+              Копировать стиль
+            </Button>
+            <Button variant="primary" className="confirm-btn" onClick={() => void run("Вставляю стиль…", () => pasteStyle())}>
+              Вставить на выделенные
+            </Button>
+          </div>
+        </Card>
 
         <Card title="Nest" sub="Собрать выделенные клипы во вложенную секвенцию (эффекты сохраняются) — или разобрать выделенный Nest обратно на клипы.">
           <div className="confirm-actions">
