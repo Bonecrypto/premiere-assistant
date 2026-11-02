@@ -49,6 +49,20 @@ export const transformBlur: EffectStep = {
     P(["Shutter Angle", "Угол затвора"], 360, undefined, 10),
   ],
 };
+/**
+ * Скругление углов: Roughen Edges с «Фрактальным влиянием» = 0 — края не рвутся, углы просто скругляются.
+ * Радиус — «Граница» (Border), мягкость края — «Резкость края» (Edge Sharpness).
+ */
+const roundCorners = (border: number, sharpness: number): EffectStep => ({
+  label: "Roughen Edges",
+  match: ["AE.ADBE Roughen Edges"],
+  names: ["Roughen Edges", "Шероховатые края", "Грубые края", "Огрубление краев"],
+  params: [
+    P(["Border", "Граница", "Рамка"], border),
+    P(["Edge Sharpness", "Резкость края", "Резкость краев"], sharpness),
+    P(["Fractal Influence", "Фрактальное влияние", "Влияние фрактала"], 0),
+  ],
+});
 const invert: EffectStep = { label: "Invert", names: ["Invert", "Инвертировать", "Инверсия"], params: [] };
 
 /** Lumetri Color: только нужные параметры (нейтральные значения — для ползунка «Сила»). */
@@ -92,6 +106,9 @@ export const FX_RECIPES: FxRecipe[] = [
   R("pixel", "Пиксели", "Картинка", "Мозаика — для цензуры или стиля", [mosaic(40, 24)]),
   R("stop-motion", "Stop-motion", "Картинка", "Рывками, 12 кадров/с", [posterizeTime(12)]),
   R("invert", "Инверсия", "Картинка", "Негатив", [invert]),
+  R("round-s", "Скругление S", "Углы", "Слегка скруглить углы картинки/PNG", [roundCorners(12, 2)]),
+  R("round-m", "Скругление M", "Углы", "Заметно скруглённые углы", [roundCorners(30, 1.5)]),
+  R("round-l", "Скругление L", "Углы", "Сильное скругление, почти «таблетка»", [roundCorners(70, 1)]),
   R("transform-mb", "Transform + блюр 360", "Движение", "Transform с моушн-блюром: Shutter 360°, без «Use Composition's»", [transformBlur]),
 ];
 

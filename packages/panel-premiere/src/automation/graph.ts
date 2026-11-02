@@ -302,7 +302,7 @@ export async function bakeCurve(curve: Curve, opt: BakeOptions): Promise<BakeRes
 }
 
 /** Убрать запечённые ключи (оставить только опорные) и вернуть обычную плавность Bezier. */
-export async function unbakeCurve(): Promise<{ removed: number }> {
+export async function unbakeCurve(onlyOurs = false): Promise<{ removed: number }> {
   const { p, project, sequence, items } = await selectedClips();
   const frame = await frameSeconds(sequence);
   const removes: Array<{ param: any; t: number }> = [];
@@ -312,7 +312,11 @@ export async function unbakeCurve(): Promise<{ removed: number }> {
     const name: string = (await item.getName?.().catch(() => "")) || "клип";
     for (const { prm, id } of await animatedParams(item, "all")) {
       const rid = regId(name, id);
-      const { anchors: pts, dense } = anchors(await keyTimes(prm), frame, asSet(reg[rid]));
+      const times = await keyTimes(prm);
+      const ours = asSet(reg[rid]);
+      const { anchors: pts, dense } = onlyOurs
+        ? { anchors: times.filter((t) => !ours.has(t.toFixed(3))), dense: times.filter((t) => ours.has(t.toFixed(3))) }
+        : anchors(times, frame, ours);
       dense.forEach((t) => removes.push({ param: prm, t }));
       pts.forEach((t) => keepers.push({ param: prm, t }));
       delete reg[rid];
@@ -356,7 +360,7 @@ export { frameSeconds };
 
 // ───────── Быстрые графики: тип плавности у СУЩЕСТВУЮЩИХ ключей (новые не создаются) ─────────
 
-export type QuickEase = "linear" | "bezier" | "hold" | "ease-in" | "ease-out" | "easy-ease";
+export type QuickEase = "linear" | "bezier" | "hold" | "ease-in" | "ease-out" | "easy-ease" | "launch" | "trampoline";
 
 export interface QuickResult {
   clips: number;
@@ -384,10 +388,18 @@ export async function applyQuickEase(kind: QuickEase, scope: BakeOptions["scope"
     "ease-in": ["TIME_TRANSITION_END"],
     "ease-out": ["TIME_TRANSITION_START"],
     "easy-ease": ["TIME_TRANSITION_START", "TIME_TRANSITION_END", "BEZIER"],
+    launch: ["LINEAR", "BEZIER"],
+    trampoline: ["LINEAR", "BEZIER"],
   };
   const missing = need[kind].filter((n) => mode(n) === null);
   if (missing.length) throw new HostToolError(`Этот тип плавности недоступен в вашей версии Premiere (${missing.join(", ")}).`);
 
+  // Если раньше применяли «точный» график — сначала убрать наши доп. ключи, чтобы остались только ключи пользователя.
+  try {
+    await unbakeCurve(true);
+  } catch {
+    /* наших ключей нет */
+  }
   const frame = await frameSeconds(sequence);
   const sets: Array<{ param: any; t: number; m: number }> = [];
   const res: QuickResult = { clips: 0, params: 0, keys: 0 };
@@ -400,7 +412,13 @@ export async function applyQuickEase(kind: QuickEase, scope: BakeOptions["scope"
       const keys = pts.length ? pts : times;
       keys.forEach((t, i) => {
         let m: number;
-        if (kind === "easy-ease") {
+        if (kind === "launch") {
+          // Вылет: первый ключ — Linear (сразу на скорости), остальные — Bezier (мягкое торможение).
+          m = i === 0 ? mode("LINEAR")! : mode("BEZIER")!;
+        } else if (kind === "trampoline") {
+          // Трамплин: последний ключ — Linear (влетает на скорости), остальные — Bezier (мягкий разгон).
+          m = i === keys.length - 1 ? mode("LINEAR")! : mode("BEZIER")!;
+        } else if (kind === "easy-ease") {
           m = i === 0 ? mode("TIME_TRANSITION_START")! : i === keys.length - 1 ? mode("TIME_TRANSITION_END")! : mode("BEZIER")!;
         } else {
           m = mode(need[kind][0])!;

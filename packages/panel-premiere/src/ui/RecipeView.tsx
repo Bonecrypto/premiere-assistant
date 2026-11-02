@@ -2,7 +2,7 @@ import { useState } from "react";
 import { animateSelected } from "../automation/animate.ts";
 import { applyFxPreset, loadFxPresets } from "../automation/fxPresets.ts";
 import { applyRecipe, type FxRecipe } from "../automation/fxRecipes.ts";
-import { bakeCurve, unbakeCurve } from "../automation/graph.ts";
+import { applyQuickEase, bakeCurve, unbakeCurve } from "../automation/graph.ts";
 import { CURVE_PRESETS } from "../presets/curves.ts";
 import { storageGet, storageSet } from "../env.ts";
 import { loadAnimOptions } from "../presets/animations.ts";
@@ -35,6 +35,9 @@ const SWATCH: Record<string, [string, string]> = {
   pixel: ["#7cff9b", "#1f6b3a"],
   "stop-motion": ["#ffd166", "#ef476f"],
   "transform-mb": ["#9f18ec", "#22045e"],
+  "round-s": ["#e5e5ea", "#8e8e93"],
+  "round-m": ["#d1d1d6", "#636366"],
+  "round-l": ["#c7c7cc", "#48484a"],
   invert: ["#00e5ff", "#ff1744"],
   warm: ["#ffb26b", "#c2410c"],
   cold: ["#8ecbff", "#1e3a8a"],
@@ -64,11 +67,13 @@ function recipeTiles(list: FxRecipe[]): Tile[] {
 }
 
 /** Кривые «одним кликом» для ключей, которые пользователь поставил сам. */
-const KEY_CURVES: Array<{ id: string; name: string; desc: string; swatch: [string, string] }> = [
-  { id: "fast-launch", name: "Быстрый вылет", desc: "Максимальная скорость сразу, мягкое торможение", swatch: ["#ff5e3a", "#7a1cf0"] },
-  { id: "trampoline", name: "Трамплин", desc: "Медленный разгон — резкий вылет в конце", swatch: ["#7a1cf0", "#ff5e3a"] },
-  { id: "smooth-inout", name: "Плавно", desc: "Мягкий старт и мягкая остановка", swatch: ["#5a6fe8", "#2d9ee0"] },
-  { id: "unbake", name: "Убрать", desc: "Вернуть ваши ключи как были (Bezier)", swatch: ["#3a3a44", "#1a1a20"] },
+const KEY_CURVES: Array<{ id: string; name: string; desc: string; swatch: [string, string]; quick?: "launch" | "trampoline" | "bezier" }> = [
+  { id: "launch", name: "Быстрый вылет", desc: "Без новых ключей: старт сразу на скорости, мягкое торможение", swatch: ["#ff5e3a", "#7a1cf0"], quick: "launch" },
+  { id: "trampoline", name: "Трамплин", desc: "Без новых ключей: мягкий разгон, вылет на скорости в конце", swatch: ["#7a1cf0", "#ff5e3a"], quick: "trampoline" },
+  { id: "smooth", name: "Плавно", desc: "Без новых ключей: мягкий старт и остановка (Bezier)", swatch: ["#5a6fe8", "#2d9ee0"], quick: "bezier" },
+  { id: "fast-launch", name: "Вылет — точно", desc: "Максимальная скорость на старте: +1–3 доп. ключа по кривой", swatch: ["#ff2d55", "#4b0cb4"] },
+  { id: "trampoline-exact", name: "Трамплин — точно", desc: "Резкий вылет в самом конце: +1–3 доп. ключа", swatch: ["#4b0cb4", "#ff2d55"] },
+  { id: "unbake", name: "Убрать", desc: "Убрать доп. ключи, вернуть Bezier", swatch: ["#3a3a44", "#1a1a20"] },
 ];
 
 /** Плотность ключей — как выбрано во вкладке «Графики» (по умолчанию «мало»). */
@@ -120,7 +125,12 @@ function effectsTiles(): Tile[] {
         const r = await unbakeCurve();
         return `Убрано доп. ключей: ${r.removed}. Ваши ключи остались.`;
       }
-      const curve = CURVE_PRESETS.find((c) => c.id === k.id)!.curve;
+      if (k.quick) {
+        const r = await applyQuickEase(k.quick, "all");
+        return `«${k.name}»: ключей ${r.keys} у ${r.params} парам. — новых ключей нет. Отмена — Ctrl+Z.`;
+      }
+      const curveId = k.id === "trampoline-exact" ? "trampoline" : k.id;
+      const curve = CURVE_PRESETS.find((c) => c.id === curveId)!.curve;
       const r = await bakeCurve(curve, { step: graphStep(), scope: "all" });
       const skip = r.skipped.length ? ` Пропущено: ${r.skipped[0]}.` : "";
       return `«${k.name}»: ${r.segments} отрезк. у ${r.params} парам. Отмена — Ctrl+Z.${skip}`;
@@ -135,7 +145,7 @@ export function EffectsView() {
       title="Эффекты"
       sub="Готовые пачки из стандартных эффектов Premiere — выделите клипы и примените."
       tiles={effectsTiles()}
-      hint="«Ключи»: поставьте 2 ключа в Effect Controls (например, Position), выделите клип и нажмите плитку — применится сразу. Между вашими ключами появятся 1–3 доп. ключа (Premiere не даёт плагинам двигать ручки скорости). Повторное нажатие заменяет их, «Убрать» — возвращает как было. Свою пачку эффектов можно сохранить с клипа: «Пресеты → Эффекты → Сохранить с клипа»."
+      hint="«Ключи»: поставьте ключи в Effect Controls (например, Position), выделите клип и нажмите плитку — применится сразу. «Быстрый вылет», «Трамплин», «Плавно» меняют только тип ваших ключей (Linear/Bezier), новых не создают. Максимальная скорость, как если тянуть ручку в Speed Graph, плагину недоступна — для неё «… — точно»: +1–3 доп. ключа по кривой; «Убрать» возвращает как было. Свою пачку эффектов можно сохранить с клипа: «Пресеты → Эффекты → Сохранить с клипа»."
       storeKey="fxSelected"
     />
   );
