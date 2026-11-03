@@ -46,12 +46,28 @@ func ortLibName() string {
 	return "libonnxruntime.so"
 }
 
+// Сборка ONNX Runtime с DirectML (видеокарта) лежит отдельно: ai/dml/onnxruntime.dll + DirectML.dll.
+func dmlDir() string { return filepath.Join(aiDir(), "dml") }
+
+func usingDML() bool {
+	return runtime.GOOS == "windows" && exists(filepath.Join(dmlDir(), "onnxruntime.dll")) && exists(filepath.Join(dmlDir(), "DirectML.dll"))
+}
+
 func ortLibPath() string {
 	if p := os.Getenv("PA_ORT_LIB"); p != "" {
 		return p
 	}
+	if usingDML() {
+		return filepath.Join(dmlDir(), "onnxruntime.dll")
+	}
 	return filepath.Join(aiDir(), ortLibName())
 }
+
+const (
+	ortDMLURL = "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/" + ortVersion + "/microsoft.ml.onnxruntime.directml." + ortVersion + ".nupkg"
+	dmlURL    = "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/1.15.4/microsoft.ai.directml.1.15.4.nupkg"
+	ffmpegURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+)
 
 func modelPath() string { return filepath.Join(aiDir(), modelFile) }
 
@@ -61,6 +77,11 @@ func exists(p string) bool {
 }
 
 func aiReady() bool { return exists(ortLibPath()) && exists(modelPath()) }
+
+// На Windows — только сборка с видеокартой (старую CPU-сборку v8 заменяем при следующей настройке).
+func aiFullyReady() bool {
+	return aiReady() && (runtime.GOOS != "windows" || usingDML() || os.Getenv("PA_ORT_LIB") != "")
+}
 
 // ── Загрузка ──
 
@@ -164,17 +185,43 @@ func runtimeURL() string {
 	return fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v%s/onnxruntime-linux-x64-%s.tgz", ortVersion, ortVersion)
 }
 
-func runSetup() {
+func runSetup(video bool) {
 	fail := func(err error) {
 		setup.Lock()
 		setup.err = err.Error()
 		setup.running = false
 		setup.Unlock()
 	}
-	if !exists(ortLibPath()) {
+	stage := func(t string) {
 		setup.Lock()
-		setup.stage = "движок нейросети"
+		setup.stage = t
 		setup.Unlock()
+	}
+	if runtime.GOOS == "windows" && os.Getenv("PA_ORT_LIB") == "" {
+		// Windows: сборка с DirectML — работает и на видеокарте (любой: NVIDIA, AMD, Intel), и на процессоре.
+		if !usingDML() {
+			stage("движок нейросети (видеокарта)")
+			lib, err := fetchZipEntry(ortDMLURL, "runtimes/win-x64/native/onnxruntime.dll", 13<<20)
+			if err != nil {
+				fail(fmt.Errorf("не скачался движок: %w", err))
+				return
+			}
+			dml, err := fetchZipEntry(dmlURL, "bin/x64-win/DirectML.dll", 200<<20)
+			if err != nil {
+				fail(fmt.Errorf("не скачалась DirectML: %w", err))
+				return
+			}
+			if err := writeAtomic(filepath.Join(dmlDir(), "DirectML.dll"), dml); err != nil {
+				fail(err)
+				return
+			}
+			if err := writeAtomic(filepath.Join(dmlDir(), "onnxruntime.dll"), lib); err != nil {
+				fail(err)
+				return
+			}
+		}
+	} else if !exists(ortLibPath()) {
+		stage("движок нейросети")
 		arc, err := download(runtimeURL(), 60<<20)
 		if err != nil {
 			fail(fmt.Errorf("не скачался движок: %w", err))
@@ -186,6 +233,22 @@ func runSetup() {
 			return
 		}
 		if err := writeAtomic(ortLibPath(), lib); err != nil {
+			fail(err)
+			return
+		}
+	}
+	if video && ffmpegPath() == "" {
+		if runtime.GOOS != "windows" {
+			fail(errors.New("установите ffmpeg"))
+			return
+		}
+		stage("ffmpeg (видео)")
+		exe, err := fetchZipEntry(ffmpegURL, "/bin/ffmpeg.exe", 200<<20)
+		if err != nil {
+			fail(fmt.Errorf("не скачался ffmpeg: %w", err))
+			return
+		}
+		if err := writeAtomic(filepath.Join(aiDir(), "ffmpeg.exe"), exe); err != nil {
 			fail(err)
 			return
 		}
@@ -221,6 +284,7 @@ type job struct {
 	Progress float64 `json:"progress"`
 	Out      string  `json:"out,omitempty"`
 	Error    string  `json:"error,omitempty"`
+	GPU      bool    `json:"gpu"`
 }
 
 var jobs = struct {
@@ -252,19 +316,21 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 	switch {
 	case method == "GET" && path == "/ai/status":
 		setup.Lock()
-		st := map[string]any{"ok": true, "ready": aiReady(), "running": setup.running, "stage": setup.stage,
-			"done": setup.done, "total": setup.total, "error": setup.err, "sizeMB": 250}
+		st := map[string]any{"ok": true, "ready": aiFullyReady(), "video": aiFullyReady() && ffmpegPath() != "", "gpu": usingDML(),
+			"running": setup.running, "stage": setup.stage, "done": setup.done, "total": setup.total, "error": setup.err,
+			"sizeMB": 210, "videoMB": 90}
 		setup.Unlock()
 		reply(c, 200, st)
-	case method == "POST" && path == "/ai/setup":
+	case method == "POST" && (path == "/ai/setup" || path == "/ai/setup?video=1"):
 		if headers["x-premiere-assistant"] != "1" {
 			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
 			return true
 		}
+		video := strings.HasSuffix(path, "video=1")
 		setup.Lock()
-		if !setup.running && !aiReady() {
+		if !setup.running && (!aiFullyReady() || (video && ffmpegPath() == "")) {
 			setup.running, setup.done, setup.total, setup.err, setup.stage = true, 0, 0, "", "начинаю"
-			go runSetup()
+			go runSetup(video)
 		}
 		setup.Unlock()
 		reply(c, 200, map[string]any{"ok": true})
@@ -279,34 +345,49 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 			return true
 		}
 		var req struct {
-			In  string `json:"in"`
-			Out string `json:"out"`
+			In  string  `json:"in"`
+			Out string  `json:"out"`
+			SS  float64 `json:"ss"`
+			Dur float64 `json:"dur"`
 		}
 		if json.Unmarshal(b, &req) != nil || req.In == "" || req.Out == "" {
 			reply(c, 400, map[string]any{"ok": false, "error": "нужны in и out"})
 			return true
 		}
-		if !imageExt[strings.ToLower(filepath.Ext(req.In))] {
-			reply(c, 400, map[string]any{"ok": false, "error": "Пока поддерживаются картинки PNG и JPG."})
+		ext := strings.ToLower(filepath.Ext(req.In))
+		isVideo := videoExt[ext]
+		if !imageExt[ext] && !isVideo {
+			reply(c, 400, map[string]any{"ok": false, "error": "Этот формат пока не поддерживается: картинки PNG/JPG и видео MP4/MOV/MKV/AVI/MXF/WEBM."})
 			return true
 		}
-		if strings.ToLower(filepath.Ext(req.Out)) != ".png" || !exists(req.In) {
+		wantOut := ".png"
+		if isVideo {
+			wantOut = ".mov"
+		}
+		if strings.ToLower(filepath.Ext(req.Out)) != wantOut || !exists(req.In) {
 			reply(c, 400, map[string]any{"ok": false, "error": "файл не найден или неверный путь результата"})
 			return true
 		}
-		if !aiReady() {
-			reply(c, 409, map[string]any{"ok": false, "error": "нейросеть ещё не скачана", "needSetup": true})
+		if !aiReady() || (isVideo && ffmpegPath() == "") {
+			reply(c, 409, map[string]any{"ok": false, "error": "нейросеть ещё не скачана", "needSetup": true, "video": isVideo})
 			return true
 		}
 		id, j := newJob()
 		go func() {
-			err := removeBackground(req.In, req.Out, func(p float64) { setJob(j, func(j *job) { j.Progress = p }) })
+			report := func(p float64) { setJob(j, func(j *job) { j.Progress = p }) }
+			var err error
+			if isVideo {
+				err = removeBackgroundVideo(req.In, req.Out, req.SS, req.Dur, report)
+			} else {
+				err = removeBackground(req.In, req.Out, report)
+			}
 			setJob(j, func(j *job) {
 				if err != nil {
 					j.State, j.Error = "error", err.Error()
 				} else {
 					j.State, j.Progress, j.Out = "done", 1, req.Out
 				}
+				j.GPU = model.gpu
 			})
 		}()
 		reply(c, 200, map[string]any{"ok": true, "job": id})
@@ -322,7 +403,7 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 			reply(c, 404, map[string]any{"ok": false, "error": "нет такого задания"})
 			return true
 		}
-		reply(c, 200, map[string]any{"ok": true, "state": cp.State, "progress": cp.Progress, "out": cp.Out, "error": cp.Error})
+		reply(c, 200, map[string]any{"ok": true, "state": cp.State, "progress": cp.Progress, "out": cp.Out, "error": cp.Error, "gpu": cp.GPU})
 	default:
 		return false
 	}

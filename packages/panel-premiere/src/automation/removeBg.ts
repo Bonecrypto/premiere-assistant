@@ -4,13 +4,13 @@ import { openKeysClient } from "./keysClient.ts";
 import { ppro } from "./timeline.ts";
 
 /**
- * Удаление фона (картинки PNG/JPG): работу делает программа в трее (tools/keys-app, v8+):
+ * Удаление фона (картинки PNG/JPG и видео — кусок клипа на таймлайне → ProRes 4444 с альфой .mov): работу делает программа в трее (tools/keys-app, v8+):
  * нейросеть ISNet через ONNX Runtime, локально. Панель: выделенный клип → путь к файлу → /removebg →
  * опрос задания → импорт PNG с прозрачностью → на дорожку над исходником, то же время и Motion.
  * Вырезанный объект над исходником: между ними можно поставить текст — «текст за человеком».
  */
 
-const AI_MIN_VERSION = 8;
+const AI_MIN_VERSION = 9;
 const CONSENT_KEY = "aiSetupConsent";
 const H = { "Content-Type": "application/json", "X-Premiere-Assistant": "1" };
 
@@ -51,24 +51,36 @@ async function aiBase(): Promise<string> {
 }
 
 /** Нейросеть скачана? Если нет — с согласия пользователя скачать (~200 МБ) с прогрессом. */
-async function ensureModel(base: string, report: (t: string) => void): Promise<void> {
+async function ensureModel(base: string, report: (t: string) => void, video: boolean): Promise<{ gpu: boolean }> {
+  const ok = (st: any) => st.ready && (!video || st.video);
   const st = await getJson(`${base}/ai/status`);
-  if (st.ready) return;
+  if (ok(st)) return { gpu: !!st.gpu };
+  const key = video ? `${CONSENT_KEY}:video` : CONSENT_KEY;
   if (!st.running) {
-    if (storageGet(CONSENT_KEY) !== "1") {
-      storageSet(CONSENT_KEY, "1");
+    if (storageGet(key) !== "1") {
+      storageSet(key, "1");
+      const parts = [
+        !st.ready ? `нейросеть ~${st.sizeMB ?? 210} МБ (движок ONNX Runtime с DirectML от Microsoft — работает на видеокарте, и модель ISNet)` : "",
+        video && !st.video ? `ffmpeg ~${st.videoMB ?? 90} МБ (для видео)` : "",
+      ].filter(Boolean);
       throw new HostToolError(
-        `Для удаления фона нужно один раз скачать нейросеть (~${st.sizeMB ?? 250} МБ: движок ONNX Runtime от Microsoft и модель ISNet). Работает на компьютере, без интернета и бесплатно. Нажмите плитку ещё раз — начну загрузку.`,
+        `Нужно один раз скачать: ${parts.join(" и ")}. Всё работает на компьютере, без интернета и бесплатно. Нажмите плитку ещё раз — начну загрузку.`,
       );
     }
-    const s = await getJson(`${base}/ai/setup`, { method: "POST", headers: H, body: "{}" });
+    const s = await getJson(`${base}/ai/setup${video ? "?video=1" : ""}`, { method: "POST", headers: H, body: "{}" });
     if (!s.ok) throw new HostToolError(`Не начал загрузку: ${s.error}`);
   }
   for (;;) {
     await sleep(700);
     const p = await getJson(`${base}/ai/status`);
-    if (p.ready) return;
-    if (p.error) throw new HostToolError(`Загрузка нейросети не удалась: ${p.error}. Нажмите ещё раз.`);
+    if (ok(p)) return { gpu: !!p.gpu };
+    if (p.error) throw new HostToolError(`Загрузка не удалась: ${p.error}. Нажмите ещё раз.`);
+    if (!p.running && !ok(p)) {
+      // Загрузка закончилась, но чего-то не хватает (например, нужен ffmpeg) — докачать.
+      const s = await getJson(`${base}/ai/setup${video ? "?video=1" : ""}`, { method: "POST", headers: H, body: "{}" });
+      if (!s.ok) throw new HostToolError(`Не начал загрузку: ${s.error}`);
+      continue;
+    }
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     report(`Скачиваю ${p.stage || "нейросеть"}… ${pct}% (${Math.round((p.done || 0) / 1048576)} МБ)`);
   }
@@ -126,11 +138,17 @@ export async function removeBackgroundSelected(report: (t: string) => void = () 
   const pi = p.ClipProjectItem.cast(await item.getProjectItem());
   const src: string = String((await pi?.getMediaFilePath?.().catch(() => "")) ?? "");
   if (!src) throw new HostToolError("У клипа нет файла (это титр или графика) — фон убирается с картинок.");
-  if (!/\.(png|jpe?g)$/i.test(src)) throw new HostToolError("Пока убираю фон с картинок PNG и JPG. Видео — следующим шагом.");
+  const isVideo = /\.(mp4|mov|m4v|mkv|avi|mxf|webm|mts)$/i.test(src);
+  if (!isVideo && !/\.(png|jpe?g)$/i.test(src)) throw new HostToolError("Этот формат пока не поддерживается: картинки PNG/JPG и видео MP4/MOV/MKV/AVI/MXF/WEBM.");
+  // Для видео — только кусок, который лежит на таймлайне.
+  const ss: number = isVideo ? (await item.getInPoint()).seconds : 0;
+  const dur: number = isVideo ? (await item.getEndTime()).seconds - (await item.getStartTime()).seconds : 0;
+  const speed: number = isVideo ? Number(await item.getSpeed?.().catch(() => 1)) || 1 : 1;
+  if (isVideo && Math.abs(speed - 1) > 0.01) throw new HostToolError("У клипа изменена скорость — уберите её (Speed 100%) или сделайте Nest, потом уберите фон.");
 
   report("Запускаю программу в трее…");
   const base = await aiBase();
-  await ensureModel(base, report);
+  const { gpu } = await ensureModel(base, report, isVideo);
 
   // Куда сохранить: папка данных плагина → removebg/
   const u: any = uxp;
@@ -142,18 +160,21 @@ export async function removeBackgroundSelected(report: (t: string) => void = () 
     folder = await data.createFolder("removebg");
   }
   const name = src.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, "");
-  const outFile = await folder.createFile(`${name} — без фона ${Date.now().toString(36)}.png`, { overwrite: true });
+  const outFile = await folder.createFile(`${name} — без фона ${Date.now().toString(36)}.${isVideo ? "mov" : "png"}`, { overwrite: true });
   const out: string = outFile.nativePath;
 
-  report("Убираю фон…");
-  const start = await getJson(`${base}/removebg`, { method: "POST", headers: H, body: JSON.stringify({ in: src, out }) });
+  report(isVideo ? `Убираю фон с видео (${dur.toFixed(1)} с) на ${gpu ? "видеокарте" : "процессоре — это небыстро"}…` : "Убираю фон…");
+  const t0 = Date.now();
+  const start = await getJson(`${base}/removebg`, { method: "POST", headers: H, body: JSON.stringify({ in: src, out, ss, dur }) });
   if (!start.ok) throw new HostToolError(`Не получилось: ${start.error}`);
   for (;;) {
     await sleep(500);
     const j = await getJson(`${base}/job/${start.job}`);
     if (j.state === "error" || j.ok === false) throw new HostToolError(`Не получилось убрать фон: ${j.error}`);
     if (j.state === "done") break;
-    report(`Убираю фон… ${Math.round((j.progress || 0) * 100)}%`);
+    const pr = j.progress || 0;
+    const left = pr > 0.03 ? Math.round(((Date.now() - t0) / pr) * (1 - pr) / 1000) : 0;
+    report(`Убираю фон${isVideo ? " с видео" : ""}… ${Math.round(pr * 100)}%${isVideo && left ? ` · осталось ~${left > 90 ? `${Math.round(left / 60)} мин` : `${left} с`}` : ""}`);
   }
 
   // Импорт и на дорожку над исходником, то же время.
@@ -204,5 +225,5 @@ export async function removeBackgroundSelected(report: (t: string) => void = () 
       break;
     }
   }
-  return `Готово: вырезанный объект на V${track + 1} над исходником. Поставьте текст между ними — получится «текст за объектом». Исходник можно выключить (Shift+E). Отмена — Ctrl+Z.`;
+  return `Готово${isVideo ? ` (${Math.round((Date.now() - t0) / 1000)} с, ${gpu ? "видеокарта" : "процессор"})` : ""}: вырезанный объект на V${track + 1} над исходником. Поставьте текст между ними — получится «текст за объектом». Исходник можно выключить (Shift+E). Отмена — Ctrl+Z.`;
 }

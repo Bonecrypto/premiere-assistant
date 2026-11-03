@@ -19,7 +19,7 @@ func TestRemoveBackgroundReal(t *testing.T) {
 		t.Skip("PA_AI_TEST=1 — проверка с настоящей моделью")
 	}
 	setup.running = true
-	runSetup()
+	runSetup(false)
 	if setup.err != "" || !aiReady() {
 		t.Fatalf("загрузка: %q", setup.err)
 	}
