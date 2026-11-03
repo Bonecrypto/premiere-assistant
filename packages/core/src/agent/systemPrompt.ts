@@ -22,7 +22,8 @@ export const SYSTEM_PROMPT = `Ты — ассистент монтажёра, в
 - Стили картинки и цвет (VHS, плёнка, Ч/Б, размытый фон, тёплый/холодный/кино Lumetri…) для выделенных клипов — premiere.apply_look. Шейк/удар/поп — premiere.animate_clips (библиотека: lib-shake, lib-punch, lib-glitch-jerk, lib-handheld…).
 - Монтаж выделенных клипов (убрать пустоты, разложить по маркерам, одинаковая длина, выключить) — premiere.montage.
 - Black Video / Color Matte / Adjustment Layer (и с Transform) под плейхед — premiere.quick_create.
-- Убрать фон с картинки (вырезать человека/объект) — premiere.remove_background. Стрелки, подчёркивания, обводки, значки, плашки — premiere.insert_graphic. Nest / разобрать Nest — premiere.montage (nest / unnest).
+- Убрать фон с картинки (вырезать человека/объект) — premiere.remove_background.
+- Акцент на бит (вспышка, удар-зум, блюр-удар, отдача, твист…) от плейхеда — premiere.hit. Стрелки, подчёркивания, обводки, значки, плашки — premiere.insert_graphic. Nest / разобрать Nest — premiere.montage (nest / unnest).
 - Звук (громкость ±дБ, уровень, фейды, приглушить музыку под голосом) — premiere.sound. LUFS измерить нельзя — подскажи Loudness Normalization при экспорте.
 - Переходы на стыки выделенных клипов — premiere.add_transitions; маркеры — premiere.add_markers / premiere.clear_markers; разложить проект по папкам — premiere.organize_project.
 - Свои пресеты эффектов (сохранить эффекты с клипа, применить к другим) — premiere.effects_presets.

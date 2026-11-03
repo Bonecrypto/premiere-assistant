@@ -11,7 +11,7 @@ const W = 184;
 const H = 104;
 
 // Код ниже выполняется в браузере.
-const drawAll = (W, H) => {
+const drawAll = (W, H, PHOTO, CUTOUT) => {
   const out = {};
   const mk = () => {
     const c = document.createElement("canvas");
@@ -29,57 +29,14 @@ const drawAll = (W, H) => {
     ctx.closePath();
   };
 
-  /** Базовая сцена: закат, солнце, горы, озеро, пальма. */
+  /** Базовая сцена — настоящее фото (NASA, общественное достояние), кадр 16:9 «по лицу». */
   const scene = (ctx, w = W, h = H) => {
-    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.62);
-    sky.addColorStop(0, "#2b1b6b");
-    sky.addColorStop(0.55, "#d9487a");
-    sky.addColorStop(1, "#ffb36b");
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#ffe08a";
-    ctx.beginPath();
-    ctx.arc(w * 0.62, h * 0.5, h * 0.16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#5a2a6e";
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.62);
-    ctx.lineTo(w * 0.18, h * 0.36);
-    ctx.lineTo(w * 0.34, h * 0.52);
-    ctx.lineTo(w * 0.48, h * 0.4);
-    ctx.lineTo(w * 0.7, h * 0.62);
-    ctx.fill();
-    ctx.fillStyle = "#3a1650";
-    ctx.beginPath();
-    ctx.moveTo(w * 0.45, h * 0.62);
-    ctx.lineTo(w * 0.8, h * 0.3);
-    ctx.lineTo(w, h * 0.48);
-    ctx.lineTo(w, h * 0.62);
-    ctx.fill();
-    const sea = ctx.createLinearGradient(0, h * 0.62, 0, h);
-    sea.addColorStop(0, "#c2508a");
-    sea.addColorStop(1, "#1f1446");
-    ctx.fillStyle = sea;
-    ctx.fillRect(0, h * 0.62, w, h * 0.38);
-    ctx.fillStyle = "rgba(255,224,138,0.75)";
-    for (let i = 0; i < 6; i++) ctx.fillRect(w * 0.62 - (14 - i * 2), h * (0.66 + i * 0.05), (14 - i * 2) * 2, 1.6);
-    // пальма
-    ctx.strokeStyle = "#140a24";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(w * 0.16, h);
-    ctx.quadraticCurveTo(w * 0.2, h * 0.7, w * 0.15, h * 0.42);
-    ctx.stroke();
-    ctx.fillStyle = "#140a24";
-    for (const a of [-2.6, -2.0, -1.2, -0.5, 0.2]) {
-      ctx.save();
-      ctx.translate(w * 0.15, h * 0.42);
-      ctx.rotate(a);
-      ctx.beginPath();
-      ctx.ellipse(13, 0, 14, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
+    const iw = PHOTO.width, ih = PHOTO.height;
+    const k = Math.max(w / iw, h / ih) * 1.25;
+    const sw = w / k, sh = h / k;
+    const sx = Math.min(iw - sw, Math.max(0, iw * 0.42 - sw / 2));
+    const sy = Math.min(ih - sh, Math.max(0, ih * 0.33 - sh / 2));
+    ctx.drawImage(PHOTO, sx, sy, sw, sh, 0, 0, w, h);
   };
 
   const withFilter = (filter, extra) => {
@@ -253,7 +210,7 @@ const drawAll = (W, H) => {
     return c;
   };
   out["glow-soft"] = glowScene(4, 1);
-  out["glow-strong"] = glowScene(9, 2);
+  out["glow-strong"] = glowScene(7, 1);
   const alphaGlow = (size, color) => {
     const c = mk();
     const ctx = c.getContext("2d");
@@ -602,32 +559,63 @@ const drawAll = (W, H) => {
       ctx.fillStyle = ((x + y) / 8) % 2 ? "#d9d9e0" : "#ffffff";
       ctx.fillRect(x, y, 8, 8);
     }
-    // «человек»: голова и плечи
-    ctx.fillStyle = "#4b0cb4";
-    ctx.beginPath();
-    ctx.arc(W * 0.5, H * 0.42, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(W * 0.5, H * 0.98, 34, 30, 0, Math.PI, 0);
-    ctx.fill();
-    ctx.restore();
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, W / 2, H);
-    ctx.clip();
-    ctx.fillStyle = "#2b0e55";
-    ctx.beginPath();
-    ctx.arc(W * 0.5, H * 0.42, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(W * 0.5, H * 0.98, 34, 30, 0, Math.PI, 0);
-    ctx.fill();
+    const iw = CUTOUT.width, ih = CUTOUT.height;
+    const k = Math.max(W / iw, H / ih) * 1.25;
+    const sw = W / k, sh = H / k;
+    const sx = Math.min(iw - sw, Math.max(0, iw * 0.42 - sw / 2));
+    const sy = Math.min(ih - sh, Math.max(0, ih * 0.33 - sh / 2));
+    ctx.drawImage(CUTOUT, sx, sy, sw, sh, 0, 0, W, H);
     ctx.restore();
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(W / 2 - 1, 0, 2, H);
     label(ctx, "AI", 8, 16, "#ffffff", 12);
     return c;
   })();
+
+  // ── Удары: три кадра «до — удар — после» ──
+  const hitStrip = (filter, scale = 1, rot = 0, tag = "") => {
+    const c = mk();
+    const ctx = c.getContext("2d");
+    dark(ctx);
+    const fr = (x, f, s, r) => {
+      const t = document.createElement("canvas");
+      t.width = 54;
+      t.height = 64;
+      const tc = t.getContext("2d");
+      tc.filter = f;
+      tc.translate(27, 32);
+      tc.rotate((r * Math.PI) / 180);
+      tc.scale(s, s);
+      tc.translate(-27, -32);
+      scene(tc, 54, 64);
+      ctx.save();
+      rr(ctx, x, 20, 54, 64, 7);
+      ctx.clip();
+      ctx.drawImage(t, x, 20);
+      ctx.restore();
+    };
+    fr(6, "none", 1, 0);
+    ctx.save();
+    ctx.shadowColor = "rgba(199,125,255,0.9)";
+    ctx.shadowBlur = 10;
+    fr(65, filter, scale, rot);
+    ctx.restore();
+    fr(124, "none", 1, 0);
+    ctx.strokeStyle = "#c77dff";
+    ctx.lineWidth = 2;
+    rr(ctx, 65, 20, 54, 64, 7);
+    ctx.stroke();
+    label(ctx, tag, 66, 98, "rgba(255,255,255,0.6)", 9);
+    return c;
+  };
+  out["hit-flash"] = hitStrip("brightness(2.2) saturate(0.7)", 1.08, 0, "вспышка");
+  out["hit-punch"] = hitStrip("none", 1.25, 0, "зум");
+  out["hit-blur-punch"] = hitStrip("blur(3px)", 1.15, 0, "блюр + зум");
+  out["hit-blur-nudge"] = hitStrip("blur(2.5px)", 1, 0, "блюр");
+  out["hit-flash-slam"] = hitStrip("brightness(2.5) blur(2px)", 1, 0, "вспышка+блюр");
+  out["hit-dark"] = hitStrip("brightness(0.25)", 1, 0, "провал");
+  out["hit-recoil"] = hitStrip("none", 0.88, 0, "отдача");
+  out["hit-twist"] = hitStrip("none", 1.08, 8, "твист");
 
   // ── Цвет (Lumetri) ──
   out["warm"] = withFilter("sepia(0.3) saturate(1.25) hue-rotate(-8deg)", (ctx) => tone(ctx, "#ff9a3c", "soft-light", 0.5));
@@ -678,7 +666,11 @@ const drawAll = (W, H) => {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   await page.setContent("<html><body></body></html>");
-  const thumbs = await page.evaluate(`(${drawAll.toString()})(${W}, ${H})`);
+  const photo = "data:image/png;base64," + fs.readFileSync(path.join(__dirname, "photos", "astronaut.png")).toString("base64");
+  const cutout = "data:image/png;base64," + fs.readFileSync(path.join(__dirname, "photos", "astronaut-cutout.png")).toString("base64");
+  const thumbs = await page.evaluate(
+    `(async () => { const img = new Image(); img.src = ${JSON.stringify(photo)}; await img.decode(); const cut = new Image(); cut.src = ${JSON.stringify(cutout)}; await cut.decode(); return (${drawAll.toString()})(${W}, ${H}, img, cut); })()`,
+  );
   const dir = process.argv[2];
   if (dir) {
     fs.mkdirSync(dir, { recursive: true });

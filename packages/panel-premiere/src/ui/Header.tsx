@@ -50,6 +50,8 @@ export function TopBar<T extends string>(props: {
   });
   // Иконка ≈ 30 px; логотип, шестерёнка и действие ≈ 110 px; подпись ≈ 80 px.
   const showLabel = width >= props.tabs.length * 30 + 110 + 80;
+  // Широкая панель — подписи у всех вкладок (≈ 6.8 px на букву).
+  const allLabels = width >= props.tabs.reduce((n, t) => n + 34 + t.label.length * 6.8, 0) + 120;
   const compact = width > 0 && width < props.tabs.length * 30 + 110;
   return (
     <div className={`topbar${compact ? " is-compact" : ""}`} ref={ref}>
@@ -67,7 +69,7 @@ export function TopBar<T extends string>(props: {
               onClick={() => props.onTab(t.id)}
             >
               <Icon name={t.icon} size={15} />
-              {active && showLabel ? <span className="tabpill-label">{t.label}</span> : null}
+              {allLabels || (active && showLabel) ? <span className="tabpill-label">{t.label}</span> : null}
               {t.badge ? <span className="tabpill-badge">{t.badge}</span> : null}
             </div>
           );

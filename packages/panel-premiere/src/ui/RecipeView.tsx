@@ -14,6 +14,7 @@ import { FX_THUMBS } from "./fxThumbs.ts";
 import { useFitTiles, useSize } from "./useSize.ts";
 import { flashSelected } from "../automation/flash.ts";
 import { removeBackgroundSelected } from "../automation/removeBg.ts";
+import { applyHit, HITS } from "../automation/hits.ts";
 import { Slider } from "./Slider.tsx";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
@@ -168,6 +169,16 @@ function effectsTiles(): Tile[] {
       run: (_s, report) => removeBackgroundSelected(report),
     },
   ];
+  const hits: Tile[] = HITS.map((h) => ({
+    key: h.id,
+    name: h.name,
+    desc: `${h.desc} — от плейхеда`,
+    group: "Удары",
+    swatch: ["#ffffff", "#9f18ec"],
+    thumb: FX_THUMBS[h.id],
+    instant: true,
+    run: () => applyHit(h.id),
+  }));
   const create: Tile[] = CREATE.map((c) => ({
     key: c.id,
     name: c.name,
@@ -178,17 +189,18 @@ function effectsTiles(): Tile[] {
     instant: true,
     run: c.run,
   }));
-  return [...ai, ...create, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
+  return [...ai, ...hits, ...create, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
 }
 
 export function EffectsView() {
   return (
     <RecipeView
       title="Эффекты"
-      groupOrder={["ИИ", "Создать", "Ключи", "Стиль", "Картинка", "Свечение", "Углы", "Движение", "Мои"]}
+      groupOrder={["ИИ", "Удары", "Создать", "Ключи", "Стиль", "Картинка", "Свечение", "Углы", "Движение", "Мои"]}
       tiles={effectsTiles()}
       hints={{
         ИИ: "Выделите картинку и нажмите — первый раз панель предложит скачать нейросеть (~250 МБ).",
+        Удары: "Поставьте плейхед на бит, выделите клипы и нажмите — акцент на 3–8 кадров.",
         Создать: "Под плейхед на свободную дорожку над V1; выделены клипы — на их длину. Adjustment Layer: один раз File → New → Adjustment Layer.",
         Ключи: "Поставьте 2 ключа (Position, Scale…) в Effect Controls, выделите клип и нажмите — применится сразу.",
         Свечение: "«Контур» и «Неон» — для PNG, текста, логотипов.",
