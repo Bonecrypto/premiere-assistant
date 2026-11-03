@@ -9,6 +9,12 @@ import { useFitTiles, useSize } from "./useSize.ts";
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
 
 const GROUPS = ["Стрелки", "Линии", "Выделение", "Значки", "Плашки"] as const;
+type ElSet = "neon" | "own";
+const SETS: Array<{ id: ElSet; label: string }> = [
+  { id: "neon", label: "Неон" },
+  { id: "own", label: "Свой цвет" },
+];
+const ofSet = (set: ElSet) => GRAPHICS.filter((x) => (set === "neon") === !!x.neon);
 const DIRS: Array<{ id: Dir; label: string }> = [
   { id: "right", label: "→" },
   { id: "down", label: "↓" },
@@ -32,12 +38,12 @@ function load<T>(key: string, def: T): T {
 }
 
 /** Размер плитки, при котором все элементы помещаются без прокрутки. */
-function fit(w: number, h: number): number {
+function fit(w: number, h: number, list: typeof GRAPHICS): number {
   if (!w || !h) return 84;
   for (let s = 110; s >= 50; s -= 4) {
     const cols = Math.max(1, Math.floor((w + 6) / (s + 6)));
     const tileH = Math.round((s * 9) / 16) + (s >= 76 ? 22 : 18);
-    const total = GROUPS.reduce((n, g) => n + Math.ceil(GRAPHICS.filter((x) => x.group === g).length / cols) * tileH + 18, 0);
+    const total = GROUPS.reduce((n, g) => n + Math.ceil(list.filter((x) => x.group === g).length / cols) * tileH + 18, 0);
     if (total <= h) return s;
   }
   return 50;
@@ -50,9 +56,11 @@ export function ElementsView() {
   const [anim, setAnim] = useState<Anim>(() => load("elAnim", "draw"));
   const [secs, setSecs] = useState<number>(() => load("elSecs", 3));
   const [status, setStatus] = useState<Status>(null);
+  const [set, setSet] = useState<ElSet>(() => load("elSet", "neon"));
+  const list = ofSet(set);
   const [areaRef, area] = useSize();
   const contentRef = useRef<HTMLDivElement>(null);
-  const size = useFitTiles(area, fit(area.w, area.h), contentRef, []);
+  const size = useFitTiles(area, fit(area.w, area.h, list), contentRef, [set]);
   const save = (k: string, v: unknown) => storageSet(k, JSON.stringify(v));
 
   const insert = async (id: string, name: string) => {
@@ -67,6 +75,18 @@ export function ElementsView() {
   return (
     <div className="pv">
       <div className="recipe-head">
+        <div className="el-row">
+          <Segmented
+            className="el-anims"
+            items={SETS}
+            value={set}
+            onChange={(v) => {
+              setSet(v);
+              save("elSet", v);
+            }}
+          />
+        </div>
+        {set === "own" ? (
         <div className="el-row">
           {GRAPHIC_COLORS.map((c) => (
             <div
@@ -91,6 +111,7 @@ export function ElementsView() {
             }}
           />
         </div>
+        ) : null}
         <div className="el-row">
           <Segmented
             className="el-anims"
@@ -118,11 +139,11 @@ export function ElementsView() {
       <div className="recipe-area" ref={areaRef}>
         <div ref={contentRef}>
         <div className="recipe-grid">
-          {GROUPS.map((g) => [
+          {GROUPS.filter((g) => list.some((x) => x.group === g)).map((g) => [
             <div key={`label-${g}`} className="recipe-label-cell" style={{ width: size }}>
               {g}
             </div>,
-            ...GRAPHICS.filter((x) => x.group === g).map((x) => (
+            ...list.filter((x) => x.group === g).map((x) => (
               <div
                 key={x.id}
                 className={`recipe-tile${size < 76 ? " is-small" : ""}`}
@@ -140,7 +161,7 @@ export function ElementsView() {
       </div>
       <div className="pv-footer">
         <span className={`pv-footer-text${status ? ` status-${status.tone}` : ""}`}>
-          {status ? status.text : "Клик — элемент под плейхед на свободную дорожку. Направление — для стрелок."}
+          {status ? status.text : set === "neon" ? "Клик — элемент под плейхед на свободную дорожку. Размер — Scale в Effect Controls." : "Клик — элемент под плейхед на свободную дорожку. Направление — для стрелок."}
         </span>
       </div>
     </div>

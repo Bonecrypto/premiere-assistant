@@ -1,6 +1,7 @@
 import { inflate } from "../mogrt/zip.ts";
 import { encodePng } from "../automation/quickCreate.ts";
 import { GRAPHIC_MASKS } from "./masks.ts";
+import { NEON } from "./neon.ts";
 
 /** Как элемент появляется: прорисовка линейной шторкой, по кругу (радиальная), «поп» или плавно. */
 export type Reveal = "wipe" | "radial" | "pop";
@@ -14,6 +15,8 @@ export interface GraphicDef {
   reveal: Reveal;
   /** Можно поворачивать (стрелки). */
   rotates?: boolean;
+  /** Готовая цветная картинка из набора «Неон» (ключ в NEON) — цвет и направление не меняются. */
+  neon?: string;
 }
 
 export const GRAPHICS: GraphicDef[] = [
@@ -41,6 +44,27 @@ export const GRAPHICS: GraphicDef[] = [
   { id: "plate-pill", name: "Таблетка", group: "Плашки", reveal: "wipe" },
   { id: "plate-brush", name: "Мазок-фон", group: "Плашки", reveal: "wipe" },
   { id: "plate-line", name: "Линия", group: "Плашки", reveal: "wipe" },
+  // Набор «Неон» (Vice City-стиль, design/neon): готовые цветные PNG.
+  { id: "neon-swoosh", name: "Взмах", group: "Стрелки", reveal: "wipe", neon: "01" },
+  { id: "neon-swoosh-cyan", name: "Взмах голубой", group: "Стрелки", reveal: "wipe", neon: "02" },
+  { id: "neon-curve", name: "Дугой", group: "Стрелки", reveal: "wipe", neon: "03" },
+  { id: "neon-down", name: "Вниз", group: "Стрелки", reveal: "pop", neon: "04" },
+  { id: "neon-loop", name: "С петлёй", group: "Стрелки", reveal: "wipe", neon: "05" },
+  { id: "neon-arrow", name: "Стрелка", group: "Стрелки", reveal: "wipe", neon: "06" },
+  { id: "neon-chevrons", name: "Шевроны", group: "Стрелки", reveal: "wipe", neon: "07" },
+  { id: "neon-return", name: "Возврат", group: "Стрелки", reveal: "radial", neon: "08" },
+  { id: "neon-underline-duo", name: "Двойная", group: "Линии", reveal: "wipe", neon: "09" },
+  { id: "neon-underline", name: "Мазок", group: "Линии", reveal: "wipe", neon: "10" },
+  { id: "neon-scribble", name: "Каракули", group: "Линии", reveal: "wipe", neon: "11" },
+  { id: "neon-oval", name: "Обвести", group: "Выделение", reveal: "radial", neon: "12" },
+  { id: "neon-frame", name: "Рамка", group: "Выделение", reveal: "pop", neon: "13" },
+  { id: "neon-corners", name: "Фокус", group: "Выделение", reveal: "pop", neon: "14" },
+  { id: "neon-cross", name: "Крестик", group: "Выделение", reveal: "pop", neon: "15" },
+  { id: "neon-check", name: "Галочка", group: "Выделение", reveal: "wipe", neon: "16" },
+  { id: "neon-sparkles", name: "Искры", group: "Значки", reveal: "pop", neon: "17" },
+  { id: "neon-pointer", name: "Курсор", group: "Значки", reveal: "pop", neon: "18" },
+  { id: "neon-pin", name: "Метка", group: "Значки", reveal: "pop", neon: "19" },
+  { id: "neon-palm", name: "Закат", group: "Значки", reveal: "pop", neon: "20" },
 ];
 
 export const GRAPHIC_COLORS: Array<{ hex: string; name: string }> = [
@@ -54,6 +78,8 @@ export const GRAPHIC_COLORS: Array<{ hex: string; name: string }> = [
 ];
 
 export function thumbOf(id: string): string | undefined {
+  const n = GRAPHICS.find((g) => g.id === id)?.neon;
+  if (n) return NEON[n]?.thumb;
   return GRAPHIC_MASKS[id]?.thumb;
 }
 
@@ -80,6 +106,11 @@ function mask(id: string, dir: Dir): { w: number; h: number; a: Uint8Array } {
 
 /** PNG элемента: цвет hex, направление. */
 export function graphicPng(id: string, hex: string, dir: Dir): Uint8Array {
+  const n = GRAPHICS.find((g) => g.id === id)?.neon;
+  if (n) {
+    if (!NEON[n]) throw new Error(`Нет элемента «${id}».`);
+    return atobBytes(NEON[n].png);
+  }
   const { w, h, a } = mask(id, dir);
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex) ?? ["", "ff", "ff", "ff"];
   const r = parseInt(m[1], 16);

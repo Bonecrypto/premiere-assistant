@@ -130,7 +130,8 @@ export async function insertGraphic(id: string, opt: InsertOptions): Promise<str
   if (!def) throw new HostToolError(`Нет элемента «${id}».`);
   const dir: Dir = def.rotates ? opt.dir : "right";
   const hex = opt.color.replace("#", "").toLowerCase();
-  const item = await dataFileItem("graphics", `${id}-${dir}-${hex}.png`, () => graphicPng(id, hex, dir), false);
+  const file = def.neon ? `${id}.png` : `${id}-${dir}-${hex}.png`;
+  const item = await dataFileItem("graphics", file, () => graphicPng(id, hex, dir), false);
   const r = await place(item, `Ассистент: ${def.name}`, { useSelection: false, seconds: opt.seconds });
   const where = `V${r.track + 1}, ${r.start.toFixed(2)} с`;
   if (opt.anim === "none" || !r.item) return `«${def.name}» — на ${where}. Отмена — Ctrl+Z.`;
