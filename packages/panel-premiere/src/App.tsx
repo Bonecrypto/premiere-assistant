@@ -1,3 +1,4 @@
+import { PaletteView } from "./ui/PaletteView.tsx";
 import { ElementsView } from "./ui/ElementsView.tsx";
 import { makeId, type ToolCallMsg } from "@pa/core";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
@@ -23,14 +24,14 @@ import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
-type Tab = "chat" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "titles" | "color" | "sound" | "tasks" | "settings";
+type Tab = "palette" | "chat" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "titles" | "color" | "sound" | "tasks" | "settings";
 
 const ONBOARDING_KEY = "onboardingDone";
 const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return (["auto", "presets", "effects", "elements", "montage", "graph", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
+  return (["palette", "auto", "presets", "effects", "elements", "montage", "graph", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
 }
 
 export function App() {
@@ -77,8 +78,21 @@ export function App() {
 
   const setTab = (t: Tab) => {
     setTabState(t);
-    storageSet(TAB_KEY, t);
+    storageSet(TAB_KEY, t === "palette" ? "chat" : t);
   };
+
+  // Ctrl+K (или Ctrl+Space) — палитра команд, когда панель в фокусе.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = String(e.key || "").toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && (k === "k" || k === "л" || k === " ")) {
+        e.preventDefault?.();
+        setTabState((cur) => (cur === "palette" ? "chat" : "palette"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Выполнение host-инструмента по запросу помощника (статус в «Задачах» присылает сам помощник).
   const runHostTool = useCallback(async (msg: ToolCallMsg) => {
@@ -204,6 +218,7 @@ export function App() {
         settings={{ id: "settings", icon: "settings", label: "Настройки" }}
         tab={tab}
         onTab={setTab}
+        search={{ active: tab === "palette", onClick: () => setTab(tab === "palette" ? "chat" : "palette") }}
         action={
           tab === "chat"
             ? { icon: "compose", title: "Новый чат", onClick: newChat, disabled: state.busy || state.items.length === 0 }
@@ -240,6 +255,7 @@ export function App() {
       {tab === "titles" ? <TitlesView /> : null}
       {tab === "effects" ? <EffectsView /> : null}
       {tab === "elements" ? <ElementsView /> : null}
+      {tab === "palette" ? <PaletteView onOpenTab={(t) => setTab(t as Tab)} onClose={() => setTab("chat")} /> : null}
       {tab === "color" ? <ColorView /> : null}
       {tab === "montage" ? <MontageView /> : null}
       {tab === "sound" ? <SoundView /> : null}

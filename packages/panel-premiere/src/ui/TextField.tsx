@@ -22,12 +22,18 @@ export function TextField(props: {
   type?: "text" | "password";
   className?: string;
   onEnter?: () => void;
+  /** Другие клавиши (стрелки, Escape) — для палитры команд. */
+  onKey?: (key: string) => void;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<any>(null);
   const onChange = useRef(props.onChange);
   onChange.current = props.onChange;
   const onEnter = useRef(props.onEnter);
   onEnter.current = props.onEnter;
+  const onKey = useRef(props.onKey);
+  onKey.current = props.onKey;
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -35,6 +41,10 @@ export function TextField(props: {
     const h = (e: any) => onChange.current(String(e?.target?.value ?? el.value ?? ""));
     const k = (e: any) => {
       if (e.key === "Enter") onEnter.current?.();
+      else if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Escape") {
+        e.preventDefault?.();
+        onKey.current?.(e.key);
+      }
     };
     el.addEventListener("input", h);
     el.addEventListener("keydown", k);
@@ -43,6 +53,12 @@ export function TextField(props: {
       el.removeEventListener("keydown", k);
     };
   }, []);
+
+  useEffect(() => {
+    if (!props.autoFocus) return;
+    const t = setTimeout(() => (isUXP ? ref.current?.focus?.() : inputRef.current?.focus()), 60);
+    return () => clearTimeout(t);
+  }, [props.autoFocus]);
 
   // Значение снаружи (сброс, подстановка) — в поле.
   useEffect(() => {
@@ -56,6 +72,7 @@ export function TextField(props: {
         <sp-textfield ref={ref} quiet class="tf-sp" type={props.type ?? "text"} placeholder={props.placeholder ?? ""} />
       ) : (
         <input
+          ref={inputRef}
           className="tf-input"
           type={props.type ?? "text"}
           placeholder={props.placeholder}
@@ -63,6 +80,10 @@ export function TextField(props: {
           onChange={(e) => props.onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") props.onEnter?.();
+            else if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Escape") {
+              e.preventDefault();
+              props.onKey?.(e.key);
+            }
           }}
         />
       )}

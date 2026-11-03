@@ -32,6 +32,8 @@ export function TopBar<T extends string>(props: {
   tab: T;
   onTab(id: T): void;
   action?: { icon: IconName; title: string; onClick(): void; disabled?: boolean };
+  /** Кнопка поиска (палитра команд). */
+  search?: { onClick(): void; active?: boolean };
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -83,6 +85,11 @@ export function TopBar<T extends string>(props: {
           onClick={() => !props.action!.disabled && props.action!.onClick()}
         >
           <Icon name={props.action.icon} size={15} />
+        </div>
+      ) : null}
+      {props.search ? (
+        <div className={`icon-btn${props.search.active ? " is-active" : ""}`} title="Поиск команд (Ctrl+K)" onClick={() => props.search!.onClick()}>
+          <Icon name="search" size={15} />
         </div>
       ) : null}
       {props.settings ? (
