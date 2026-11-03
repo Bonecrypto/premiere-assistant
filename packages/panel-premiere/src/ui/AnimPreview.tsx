@@ -1,3 +1,4 @@
+import { wobbleAt } from "../presets/wobble.ts";
 import { useEffect, useRef, useState } from "react";
 import type { AnimKind } from "../presets/animations.ts";
 import { easeFn } from "../presets/curves.ts";
@@ -17,8 +18,11 @@ export interface PreviewParams {
   curve?: [number, number, number, number] | null;
   blurAmt?: number;
   shake?: number;
+  wobble?: number;
+  wobbleHz?: number;
   through?: boolean;
 }
+
 
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const SHAKE = [
@@ -98,7 +102,7 @@ export function AnimPreview(props: { params: PreviewParams; replayKey?: number; 
     const total = cycleLength(p);
     const timer = setInterval(() => setEl((Date.now() - start.current) % total), 33);
     return () => clearInterval(timer);
-  }, [props.replayKey, playing, p.kind, p.duration, p.overshoot, p.shake, p.through, (p.curve ?? []).join(",")]);
+  }, [props.replayKey, playing, p.kind, p.duration, p.overshoot, p.shake, p.wobble, p.wobbleHz, p.through, (p.curve ?? []).join(",")]);
 
   // Без проигрывания — показываем клип в обычном состоянии.
   const staticEl = p.kind === "in" ? 1e9 : p.kind === "both" ? 700 + Math.max(0.1, p.duration) * 1000 : 0;
@@ -112,8 +116,10 @@ export function AnimPreview(props: { params: PreviewParams; replayKey?: number; 
   const h = base * scale;
   const [sx, sy] = SHAKE[fr.shakeIndex % SHAKE.length];
   const amp = (p.shake ?? 0) * 2.2 * fr.shakeLife;
-  const left = 50 + p.dx * 100 * d * f * fr.sign - w / 2 + sx * amp;
-  const top = 50 + p.dy * 100 * d * f * fr.sign - h / 2 + sy * amp;
+  const wob = p.wobble && playing ? wobbleAt(el / 1000, p.wobbleHz ?? 1.2) : { x: 0, y: 0 };
+  const wa = (p.wobble ?? 0) * 2.5;
+  const left = 50 + p.dx * 100 * d * f * fr.sign - w / 2 + sx * amp + wob.x * wa;
+  const top = 50 + p.dy * 100 * d * f * fr.sign - h / 2 + sy * amp + wob.y * wa;
   const blur = (p.blurAmt ?? 0) * fa;
   const opacity = (p.fade ? 1 - fa : 1) * (blur ? 1 - Math.min(0.5, blur / 120) : 1);
 

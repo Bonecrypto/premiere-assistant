@@ -38,6 +38,10 @@ export interface AnimParams {
   shake: number;
   /** Для «вход + выход»: выход в другую сторону. */
   through: boolean;
+  /** Покачивание (camera wobble), % кадра; поворот, °; частота, Гц. */
+  wobble?: number;
+  wobbleRot?: number;
+  wobbleHz?: number;
   /** Свой график плавности (вместо «Плавно/Линейно»); null — без него. */
   curve: [number, number, number, number] | null;
 }
@@ -127,6 +131,7 @@ export const FRAME_ITEMS: FrameItem[] = [
 
 /** Глиф для пункта «Мои» по направлению. */
 export function glyphFor(p: AnimParams): string {
+  if (p.wobble) return "∿";
   if (p.shake) return "≋";
   if (p.dx || p.dy) {
     const g: Record<string, string> = { "-1,0": "←", "1,0": "→", "0,-1": "↑", "0,1": "↓", "-1,-1": "↖", "1,-1": "↗", "-1,1": "↙", "1,1": "↘" };

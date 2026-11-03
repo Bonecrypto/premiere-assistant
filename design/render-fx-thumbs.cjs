@@ -251,6 +251,27 @@ const drawAll = (W, H, PHOTO, CUTOUT) => {
     draw(ctx);
     return c;
   };
+  out["wobble"] = motion((ctx) => {
+    // плавная траектория покачивания + клип
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 80; i++) {
+      const t = i / 80;
+      const x = 92 + 26 * (0.65 * Math.sin(6.28 * 1.2 * t * 2 + 0.3) + 0.35 * Math.sin(6.28 * 2.2 * t * 2 + 1.7));
+      const y = 51 + 16 * (0.65 * Math.sin(6.28 * 1.1 * t * 2 + 2.1) + 0.35 * Math.sin(6.28 * 1.9 * t * 2 + 0.4));
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(96, 52);
+    ctx.rotate(0.04);
+    ctx.globalAlpha = 0.9;
+    card(ctx, -46, -30, 92, 60, 8);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  });
   out["shake"] = motion((ctx) => {
     for (const [dx, dy, a] of [
       [-5, 2, 0.25],

@@ -3,6 +3,7 @@ import type { AnimOptions, AnimPreset } from "../presets/animations.ts";
 import { selectedVideoItems } from "./motion.ts";
 import { ppro } from "./timeline.ts";
 import { curveKeys, frameSeconds } from "./graph.ts";
+import { wobbleAt } from "../presets/wobble.ts";
 
 /**
  * Анимация выделенных клипов эффектом Transform (Premiere UXP API 25.6+):
@@ -259,7 +260,24 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
       }
     };
 
-    if (shake > 0) {
+    if ((preset.wobble ?? 0) > 0) {
+      // Покачивание (camera wobble): плавное блуждание Position (+ поворот) на весь клип, ключи ~4 на колебание, Bezier.
+      const hz = Math.max(0.2, Math.min(6, preset.wobbleHz ?? 1.2));
+      const amp = (preset.wobble ?? 0) / 100;
+      const rotAmp = preset.wobbleRot ?? 0;
+      const r0 = prm.rotation ? numberOf(await valueAt(prm.rotation, tNormal)) ?? 0 : 0;
+      const n = Math.max(4, Math.min(400, Math.ceil(((endS - inS) * hz * 4))));
+      timeVarying.add(prm.position);
+      if (prm.rotation && rotAmp) timeVarying.add(prm.rotation);
+      for (let i = 0; i <= n; i++) {
+        const t = inS + ((endS - inS) * i) / n;
+        const ramp = Math.min(1, (t - inS) / 0.3); // без рывка в начале клипа
+        const w = wobbleAt(t - inS, hz);
+        const off = toUnits(w.x * amp * W * ramp, w.y * amp * H * ramp);
+        keys.push({ param: prm.position, seconds: t, value: { x: pos.x + off.x, y: pos.y + off.y } });
+        if (prm.rotation && rotAmp) keys.push({ param: prm.rotation, seconds: t, value: r0 + w.r * rotAmp * ramp });
+      }
+    } else if (shake > 0) {
       // Тряска: частые ключи Position с затуханием (на входе) или нарастанием (на выходе).
       timeVarying.add(prm.position);
       const step = 1 / 24;

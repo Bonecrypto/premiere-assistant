@@ -67,6 +67,9 @@ function toPreset(name: string, p: AnimParams, id = "custom"): AnimPreset {
     overshoot: p.overshoot,
     blurAmt: p.blurAmt,
     shake: p.shake,
+    wobble: p.wobble,
+    wobbleRot: p.wobbleRot,
+    wobbleHz: p.wobbleHz,
     through: p.through,
     curve: p.curve ?? undefined,
     glyph: glyphFor(p),
@@ -89,6 +92,9 @@ function fromPreset(a: AnimPreset): AnimParams {
     overshoot: a.overshoot ?? 0,
     blurAmt: a.blurAmt ?? 0,
     shake: a.shake ?? 0,
+    wobble: a.wobble ?? 0,
+    wobbleRot: a.wobbleRot ?? 0,
+    wobbleHz: a.wobbleHz ?? 1.2,
     through: Boolean(a.through),
     curve: a.curve ?? null,
   };
@@ -466,6 +472,13 @@ function AnimDetail(props: {
         {has("shake") ? (
           <Slider label="Тряска" value={p.shake} min={0} max={10} step={0.5} unit="% кадра" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => update({ shake: v })} />
         ) : null}
+        {p.wobble ? (
+          <>
+            <Slider label="Покачивание" value={p.wobble} min={0.1} max={3} step={0.1} unit="% кадра" format={(v) => v.toFixed(1)} onChange={(v) => update({ wobble: v })} />
+            <Slider label="Наклон" value={p.wobbleRot ?? 0} min={0} max={4} step={0.1} unit="°" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => update({ wobbleRot: v })} />
+            <Slider label="Скорость" value={p.wobbleHz ?? 1.2} min={0.3} max={4} step={0.1} unit=" Гц" format={(v) => v.toFixed(1)} onChange={(v) => update({ wobbleHz: v })} />
+          </>
+        ) : null}
         {p.kind === "both" && (p.dx || p.dy) && has("side") ? (
           <div className="pv-row">
             <span className="pv-label">Выход в другую сторону</span>
@@ -830,6 +843,7 @@ function libTags(a: AnimPreset): string {
   if (a.overshoot) t.push("пружина");
   if (a.blurAmt) t.push("размытие");
   if (a.shake) t.push("тряска");
+  if (a.wobble) t.push("покачивание");
   if (a.blur && (a.dx || a.dy || a.rotation || a.scale !== 100)) t.push("блюр");
   return t.join(" · ");
 }

@@ -148,6 +148,7 @@ export const FX_RECIPES: FxRecipe[] = [
 
 /** Вкладка «Эффекты» — движение (готовые анимации из библиотеки «Пресетов»). */
 export const FX_MOTION: Array<{ id: string; name: string; desc: string; anim: string }> = [
+  { id: "wobble", name: "Camera wobble", desc: "Лёгкое плавное покачивание на весь клип", anim: "lib-wobble" },
   { id: "shake", name: "Шейк", desc: "Тряска камеры на старте клипа", anim: "lib-shake" },
   { id: "shake-hard", name: "Сильный шейк", desc: "Удар, взрыв, бас", anim: "lib-shake-hard" },
   { id: "punch", name: "Удар (punch-in)", desc: "Резкий наезд и возврат", anim: "lib-punch" },
