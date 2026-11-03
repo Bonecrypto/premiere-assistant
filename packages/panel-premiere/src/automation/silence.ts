@@ -31,7 +31,7 @@ export interface PausePlan {
   removed: number;
 }
 
-const AI_MIN_VERSION = 10;
+const AI_MIN_VERSION = 12;
 const H = { "Content-Type": "application/json", "X-Premiere-Assistant": "1" };
 const EPS = 0.02;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -109,15 +109,14 @@ export async function findPauses(opt: PauseOptions, report: (t: string) => void 
   const base = client.base!;
   // ffmpeg: скачать, если нет (с тем же согласием, что и для видео в «Убрать фон»).
   const st = await getJson(`${base}/ai/status`);
-  if (!st.ffmpeg && !st.video) {
-    const has = await getJson(`${base}/silence`, { method: "POST", headers: H, body: JSON.stringify({ in: src, ss: 0, dur: 0.1 }) });
-    if (has.needSetup) {
-      const s = await getJson(`${base}/ai/setup?video=1`, { method: "POST", headers: H, body: "{}" });
+  if (!st.ffmpeg) {
+    {
+      const s = await getJson(`${base}/ai/setup?ffmpeg=1`, { method: "POST", headers: H, body: "{}" });
       if (!s.ok) throw new HostToolError(`Не начал загрузку ffmpeg: ${s.error}`);
       for (;;) {
         await sleep(700);
         const q = await getJson(`${base}/ai/status`);
-        if (q.ffmpeg || q.video) break;
+        if (q.ffmpeg) break;
         if (q.error) throw new HostToolError(`Не скачался ffmpeg: ${q.error}`);
         report(`Скачиваю ffmpeg (~90 МБ, один раз)… ${q.total ? Math.round((q.done / q.total) * 100) : 0}%`);
       }

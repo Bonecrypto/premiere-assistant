@@ -277,6 +277,31 @@ func runSetup(video bool) {
 	setup.Unlock()
 }
 
+// runFFmpegSetup — только ffmpeg (паузы, биты).
+func runFFmpegSetup() {
+	err := func() error {
+		if runtime.GOOS != "windows" {
+			return errors.New("установите ffmpeg")
+		}
+		setup.Lock()
+		setup.stage = "ffmpeg"
+		setup.Unlock()
+		exe, err := fetchZipEntry(ffmpegURL, "/bin/ffmpeg.exe", 200<<20)
+		if err != nil {
+			return fmt.Errorf("не скачался ffmpeg: %w", err)
+		}
+		return writeAtomic(filepath.Join(aiDir(), "ffmpeg.exe"), exe)
+	}()
+	setup.Lock()
+	if err != nil {
+		setup.err = err.Error()
+	} else {
+		setup.stage = "готово"
+	}
+	setup.running = false
+	setup.Unlock()
+}
+
 // runSubsSetup — только то, что нужно субтитрам: ffmpeg и whisper.cpp с моделью речи (без нейросети для фона).
 func runSubsSetup() {
 	stage := func(t string) {
@@ -355,6 +380,45 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 			"sizeMB": 210, "videoMB": 90, "subs": whisperReady() && ffmpegPath() != "", "subsMB": 580}
 		setup.Unlock()
 		reply(c, 200, st)
+	case method == "POST" && path == "/ai/setup?ffmpeg=1":
+		if headers["x-premiere-assistant"] != "1" {
+			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
+			return true
+		}
+		setup.Lock()
+		if !setup.running && ffmpegPath() == "" {
+			setup.running, setup.done, setup.total, setup.err, setup.stage = true, 0, 0, "", "начинаю"
+			go runFFmpegSetup()
+		}
+		setup.Unlock()
+		reply(c, 200, map[string]any{"ok": true})
+	case method == "POST" && path == "/beats":
+		if headers["x-premiere-assistant"] != "1" {
+			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
+			return true
+		}
+		b, ok := body(8192)
+		var req beatsReq
+		if !ok || json.Unmarshal(b, &req) != nil || req.In == "" || !exists(req.In) {
+			reply(c, 400, map[string]any{"ok": false, "error": "файл не найден"})
+			return true
+		}
+		if ffmpegPath() == "" {
+			reply(c, 409, map[string]any{"ok": false, "error": "нужен ffmpeg", "needSetup": true})
+			return true
+		}
+		id, j := newJob()
+		go func() {
+			res, err := detectBeats(req, func(p float64) { setJob(j, func(j *job) { j.Progress = p }) })
+			setJob(j, func(j *job) {
+				if err != nil {
+					j.State, j.Error = "error", err.Error()
+				} else {
+					j.State, j.Progress, j.Result = "done", 1, res
+				}
+			})
+		}()
+		reply(c, 200, map[string]any{"ok": true, "job": id})
 	case method == "POST" && path == "/ai/setup?subs=1":
 		if headers["x-premiere-assistant"] != "1" {
 			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})

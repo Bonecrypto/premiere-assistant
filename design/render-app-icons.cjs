@@ -18,7 +18,7 @@ const GRADS = {
 const PAIRS = [
   ["copystyle", "purple"], ["pastestyle", "indigo"], ["nest", "purple"], ["unnest", "indigo"],
   ["scissors", "pink"], ["cutall", "pink"], ["gaps", "blue"], ["marker", "orange"], ["clock", "green"], ["eye", "indigo"],
-  ["volup", "green"], ["voldown", "orange"], ["level", "blue"], ["fade", "purple"], ["duck", "pink"], ["title", "blue"],
+  ["volup", "green"], ["voldown", "orange"], ["level", "blue"], ["fade", "purple"], ["duck", "pink"], ["title", "blue"], ["level", "orange"],
 ];
 
 (async () => {

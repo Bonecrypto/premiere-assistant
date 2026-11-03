@@ -14,7 +14,7 @@ import (
 
 const (
 	port    = 8766
-	version = 11
+	version = 12
 )
 
 // sendKeys нажимает клавиши (на Windows — winSendKeys).

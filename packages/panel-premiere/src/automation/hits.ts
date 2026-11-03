@@ -72,7 +72,8 @@ async function lastComp(item: any, match: string): Promise<any | null> {
 }
 
 /** Применить удар к выделенным видеоклипам. */
-export async function applyHit(hitId: string): Promise<string> {
+/** times — моменты на таймлайне (например, биты); без них — от плейхеда. */
+export async function applyHit(hitId: string, times?: number[]): Promise<string> {
   const hit = HITS.find((h) => h.id === hitId);
   if (!hit) throw new HostToolError(`Нет удара «${hitId}».`);
   const p = ppro() as any;
@@ -109,8 +110,12 @@ export async function applyHit(hitId: string): Promise<string> {
     const start = (await item.getStartTime()).seconds;
     const end = (await item.getEndTime()).seconds;
     const inS = (await item.getInPoint()).seconds;
-    const at = play >= start && play < end - frame ? play : start;
-    const t0 = inS + (at - start);
+    // Моменты удара в этом клипе → медиа-время клипа.
+    const ats = times
+      ? times.filter((t) => t >= start - 0.001 && t < end - frame)
+      : [play >= start && play < end - frame ? play : start];
+    if (!ats.length) continue;
+    const t0s = ats.map((at) => inS + (at - start));
 
     const keys: Array<{ prm: any; t: number; v: number }> = [];
     const statics: Array<{ prm: any; v: number | boolean }> = [];
@@ -121,7 +126,7 @@ export async function applyHit(hitId: string): Promise<string> {
         missing.add(`${FX[ch.fx].label} → ${PARAM[ch.param].names[0]}`);
         continue;
       }
-      for (const [f, v] of ch.keys) keys.push({ prm, t: t0 + f * frame, v });
+      for (const t0 of t0s) for (const [f, v] of ch.keys) keys.push({ prm, t: t0 + f * frame, v });
       if (ch.fx === "tf" && comp) {
         // Моушн-блюр для Transform: «Use Composition's Shutter Angle» выкл., угол 180.
         const useComp = paramBy(comp, ["Use Composition's Shutter Angle", "Use Composition’s Shutter Angle", "Использовать угол затвора композиции"], 9);
@@ -165,5 +170,6 @@ export async function applyHit(hitId: string): Promise<string> {
   }
   if (!done) throw new HostToolError(`Не получилось: не нашёл параметры (${[...missing].join(", ")}).`);
   const miss = missing.size ? ` Не нашёл: ${[...missing].join(", ")}.` : "";
+  if (times) return `«${hit.name}» на битах — ${done} клип. (биты вне клипов пропущены). Отмена — Ctrl+Z.${miss}`;
   return `«${hit.name}» — ${done} клип. от плейхеда. Повторите на следующем бите. Отмена — Ctrl+Z.${miss}`;
 }

@@ -5,6 +5,8 @@ import { nestSelected, unnestSelected } from "../automation/nest.ts";
 import { copyStyle, lastDiag, pasteStyle } from "../automation/textStyle.ts";
 import { cutPauses, findPauses, type PausePlan } from "../automation/silence.ts";
 import { makeSubtitles } from "../automation/subtitles.ts";
+import { beatHits, beatMarkers, findBeats, pickBeats, type BeatGrid } from "../automation/beats.ts";
+import { HITS } from "../automation/hits.ts";
 import { Button } from "./Button.tsx";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
@@ -75,6 +77,10 @@ export function MontageView() {
   const [minPause, setMinPause] = useState(() => Number(storageGet("pauseMin")) || 0.5);
   const [pad, setPad] = useState(() => Number(storageGet("pausePad") ?? "0.1") || 0.1);
   const [subsOpen, setSubsOpen] = useState(false);
+  const [beatOpen, setBeatOpen] = useState(false);
+  const [grid, setGrid] = useState<BeatGrid | null>(null);
+  const [every, setEvery] = useState(() => Number(storageGet("beatEvery")) || 1);
+  const [beatHit, setBeatHit] = useState(() => storageGet("beatHit") || "hit-punch");
   const [subsLang, setSubsLang] = useState(() => storageGet("subsLang") || "auto");
   const [subsChars, setSubsChars] = useState(() => Number(storageGet("subsChars")) || 32);
   const [subsCaps, setSubsCaps] = useState(() => storageGet("subsCaps") === "1");
@@ -101,9 +107,46 @@ export function MontageView() {
         <StatusLine status={status} />
         <div className="act-section">Авто</div>
         <div className="act-grid">
-          <Act icon="cutall" grad="pink" label="Вырезать паузы" hint="Найти тишину в выделенном клипе с речью и вырезать — эффекты клипа сохраняются" onClick={() => (setPauseOpen(!pauseOpen), setSubsOpen(false))} />
-          <Act icon="title" grad="blue" label="Субтитры" hint="Распознать речь выделенного клипа (на компьютере) и сделать субтитры" onClick={() => (setSubsOpen(!subsOpen), setPauseOpen(false))} />
+          <Act icon="cutall" grad="pink" label="Вырезать паузы" hint="Найти тишину в выделенном клипе с речью и вырезать — эффекты клипа сохраняются" onClick={() => (setPauseOpen(!pauseOpen), setSubsOpen(false), setBeatOpen(false))} />
+          <Act icon="title" grad="blue" label="Субтитры" hint="Распознать речь выделенного клипа (на компьютере) и сделать субтитры" onClick={() => (setSubsOpen(!subsOpen), setPauseOpen(false), setBeatOpen(false))} />
+          <Act icon="level" grad="orange" label="Под бит" hint="Найти биты в музыке: маркеры на биты или «удары» на каждом бите" onClick={() => (setBeatOpen(!beatOpen), setPauseOpen(false), setSubsOpen(false))} />
         </div>
+        {beatOpen ? (
+          <div className="act-settings">
+            <div className="pause-plan">
+              {grid
+                ? `«${grid.clip}»: ${grid.bpm} BPM, битов ${grid.times.length}. Выбрано: ${pickBeats(grid, every).length}.`
+                : "1. Выделите клип с музыкой и нажмите «Найти биты»."}
+            </div>
+            <Button variant="secondary" className="wide" onClick={() => void run("Ищу биты…", async () => {
+              const g = await findBeats((t) => report(t));
+              setGrid(g);
+              return `Темп ${g.bpm} BPM, битов: ${g.times.length}. Теперь — маркеры или удары.`;
+            })}>
+              Найти биты
+            </Button>
+            {grid ? (
+              <>
+                <div className="act-chips">
+                  {[1, 2, 4].map((n) => (
+                    <Chip key={n} label={n === 1 ? "Каждый бит" : n === 2 ? "Каждый 2-й" : "Каждый такт (4)"} value={every === n} onChange={() => (setEvery(n), storageSet("beatEvery", String(n)))} />
+                  ))}
+                </div>
+                <Button variant="primary" className="wide" onClick={() => void run("Ставлю маркеры…", () => beatMarkers(pickBeats(grid, every)))}>
+                  Маркеры на биты
+                </Button>
+                <div className="act-chips" style={{ marginTop: 8 }}>
+                  {HITS.slice(0, 6).map((h) => (
+                    <Chip key={h.id} label={h.name} value={beatHit === h.id} onChange={() => (setBeatHit(h.id), storageSet("beatHit", h.id))} />
+                  ))}
+                </div>
+                <Button variant="primary" className="wide" onClick={() => void run("Ставлю удары на биты…", () => beatHits(beatHit, pickBeats(grid, every)))}>
+                  Удар на каждом бите (выделите видео)
+                </Button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         {subsOpen ? (
           <div className="act-settings">
             <div className="act-chips">
