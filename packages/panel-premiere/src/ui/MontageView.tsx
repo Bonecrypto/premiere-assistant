@@ -4,6 +4,7 @@ import { openKeysClient, lastKeysDiag } from "../automation/keysClient.ts";
 import { nestSelected, unnestSelected } from "../automation/nest.ts";
 import { copyStyle, lastDiag, pasteStyle } from "../automation/textStyle.ts";
 import { cutPauses, findPauses, type PausePlan } from "../automation/silence.ts";
+import { makeSubtitles } from "../automation/subtitles.ts";
 import { Button } from "./Button.tsx";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
@@ -73,6 +74,10 @@ export function MontageView() {
   const [noise, setNoise] = useState(() => Number(storageGet("pauseNoise")) || -38);
   const [minPause, setMinPause] = useState(() => Number(storageGet("pauseMin")) || 0.5);
   const [pad, setPad] = useState(() => Number(storageGet("pausePad") ?? "0.1") || 0.1);
+  const [subsOpen, setSubsOpen] = useState(false);
+  const [subsLang, setSubsLang] = useState(() => storageGet("subsLang") || "auto");
+  const [subsChars, setSubsChars] = useState(() => Number(storageGet("subsChars")) || 32);
+  const [subsCaps, setSubsCaps] = useState(() => storageGet("subsCaps") === "1");
 
   const cut = (all: boolean) =>
     run("Режу…", async () => {
@@ -96,8 +101,32 @@ export function MontageView() {
         <StatusLine status={status} />
         <div className="act-section">Авто</div>
         <div className="act-grid">
-          <Act icon="cutall" grad="pink" label="Вырезать паузы" hint="Найти тишину в выделенном клипе с речью и вырезать — эффекты клипа сохраняются" onClick={() => setPauseOpen(!pauseOpen)} />
+          <Act icon="cutall" grad="pink" label="Вырезать паузы" hint="Найти тишину в выделенном клипе с речью и вырезать — эффекты клипа сохраняются" onClick={() => (setPauseOpen(!pauseOpen), setSubsOpen(false))} />
+          <Act icon="title" grad="blue" label="Субтитры" hint="Распознать речь выделенного клипа (на компьютере) и сделать субтитры" onClick={() => (setSubsOpen(!subsOpen), setPauseOpen(false))} />
         </div>
+        {subsOpen ? (
+          <div className="act-settings">
+            <div className="act-chips">
+              {[
+                ["auto", "Язык: авто"],
+                ["ru", "Русский"],
+                ["uk", "Українська"],
+                ["en", "English"],
+              ].map(([id, label]) => (
+                <Chip key={id} label={label} value={subsLang === id} onChange={() => (setSubsLang(id), storageSet("subsLang", id))} />
+              ))}
+              <Chip label="ЗАГЛАВНЫМИ" value={subsCaps} onChange={(v) => (setSubsCaps(v), storageSet("subsCaps", v ? "1" : "0"))} />
+            </div>
+            <Slider label="Длина строки" value={subsChars} min={14} max={50} step={1} unit=" симв." onChange={(v) => (setSubsChars(v), storageSet("subsChars", String(v)))} />
+            <Button
+              variant="primary"
+              className="wide"
+              onClick={() => void run("Делаю субтитры…", () => makeSubtitles({ lang: subsLang, maxChars: subsChars, caps: subsCaps }, (t) => report(t)))}
+            >
+              Сделать субтитры
+            </Button>
+          </div>
+        ) : null}
         {pauseOpen ? (
           <div className="act-settings">
             <Slider label="Тишина — тише чем" value={noise} min={-60} max={-20} step={1} unit="дБ" onChange={(v) => (setNoise(v), storageSet("pauseNoise", String(v)), setPlan(null))} />

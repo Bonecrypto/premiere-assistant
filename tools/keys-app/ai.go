@@ -277,6 +277,39 @@ func runSetup(video bool) {
 	setup.Unlock()
 }
 
+// runSubsSetup — только то, что нужно субтитрам: ffmpeg и whisper.cpp с моделью речи (без нейросети для фона).
+func runSubsSetup() {
+	stage := func(t string) {
+		setup.Lock()
+		setup.stage = t
+		setup.Unlock()
+	}
+	err := func() error {
+		if ffmpegPath() == "" {
+			if runtime.GOOS != "windows" {
+				return errors.New("установите ffmpeg")
+			}
+			stage("ffmpeg")
+			exe, err := fetchZipEntry(ffmpegURL, "/bin/ffmpeg.exe", 200<<20)
+			if err != nil {
+				return fmt.Errorf("не скачался ffmpeg: %w", err)
+			}
+			if err := writeAtomic(filepath.Join(aiDir(), "ffmpeg.exe"), exe); err != nil {
+				return err
+			}
+		}
+		return setupWhisper(stage)
+	}()
+	setup.Lock()
+	if err != nil {
+		setup.err = err.Error()
+	} else {
+		setup.stage = "готово"
+	}
+	setup.running = false
+	setup.Unlock()
+}
+
 // ── Задания ──
 
 type job struct {
@@ -319,9 +352,48 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 		setup.Lock()
 		st := map[string]any{"ok": true, "ready": aiFullyReady(), "video": aiFullyReady() && ffmpegPath() != "", "ffmpeg": ffmpegPath() != "", "gpu": usingDML(),
 			"running": setup.running, "stage": setup.stage, "done": setup.done, "total": setup.total, "error": setup.err,
-			"sizeMB": 210, "videoMB": 90}
+			"sizeMB": 210, "videoMB": 90, "subs": whisperReady() && ffmpegPath() != "", "subsMB": 580}
 		setup.Unlock()
 		reply(c, 200, st)
+	case method == "POST" && path == "/ai/setup?subs=1":
+		if headers["x-premiere-assistant"] != "1" {
+			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
+			return true
+		}
+		setup.Lock()
+		if !setup.running && !(whisperReady() && ffmpegPath() != "") {
+			setup.running, setup.done, setup.total, setup.err, setup.stage = true, 0, 0, "", "начинаю"
+			go runSubsSetup()
+		}
+		setup.Unlock()
+		reply(c, 200, map[string]any{"ok": true})
+	case method == "POST" && path == "/transcribe":
+		if headers["x-premiere-assistant"] != "1" {
+			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
+			return true
+		}
+		b, ok := body(8192)
+		var req transcribeReq
+		if !ok || json.Unmarshal(b, &req) != nil || req.In == "" || !exists(req.In) {
+			reply(c, 400, map[string]any{"ok": false, "error": "файл не найден"})
+			return true
+		}
+		if !(whisperReady() && ffmpegPath() != "") {
+			reply(c, 409, map[string]any{"ok": false, "error": "распознавание речи ещё не скачано", "needSetup": true})
+			return true
+		}
+		id, j := newJob()
+		go func() {
+			res, err := transcribe(req, func(p float64) { setJob(j, func(j *job) { j.Progress = p }) })
+			setJob(j, func(j *job) {
+				if err != nil {
+					j.State, j.Error = "error", err.Error()
+				} else {
+					j.State, j.Progress, j.Result = "done", 1, res
+				}
+			})
+		}()
+		reply(c, 200, map[string]any{"ok": true, "job": id})
 	case method == "POST" && (path == "/ai/setup" || path == "/ai/setup?video=1"):
 		if headers["x-premiere-assistant"] != "1" {
 			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
