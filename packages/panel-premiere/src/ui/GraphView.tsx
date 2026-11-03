@@ -13,6 +13,7 @@ import {
   saveUserCurves,
   type Curve,
   type CurvePreset,
+  parseCurve,
 } from "../presets/curves.ts";
 import { Button } from "./Button.tsx";
 import { CurveEditor, CurveThumb } from "./CurveEditor.tsx";
@@ -59,6 +60,7 @@ export function GraphView() {
   const [opts, setOptsState] = useState<BakeOptions>(loadOpts);
   const [status, setStatus] = useState<Status>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [typed, setTyped] = useState("");
 
   const setCurve = (c: Curve) => {
     setCurveState(c);
@@ -103,7 +105,7 @@ export function GraphView() {
     }
   };
 
-  const groups = ["Базовые", "Мягкие", "Резкие", "С перелётом"] as const;
+  const groups = ["Базовые", "Мягкие", "Резкие", "С перелётом", "Классика"] as const;
   const all: Array<{ title: string; items: CurvePreset[] }> = [
     ...groups.map((g) => ({ title: g, items: CURVE_PRESETS.filter((p) => p.group === g) })),
     ...(user.length ? [{ title: "Мои", items: user }] : []),
@@ -151,6 +153,19 @@ export function GraphView() {
             <div className="spacer" />
             <span>↑ путь</span>
           </div>
+          <div className="pv-save">
+            <TextField
+              className="pv-save-input"
+              placeholder="Вписать значения: 0.33, 1, 0.68, 1"
+              value={typed}
+              onChange={(v: string) => {
+                setTyped(v);
+                const c = parseCurve(v);
+                if (c) setCurve(c);
+              }}
+            />
+          </div>
+          {typed && !parseCurve(typed) ? <div className="result">Нужно 4 числа: x1, y1, x2, y2 (x — от 0 до 1). Можно из cubic-bezier(…).</div> : null}
           <div className="pv-links">
             {saving === null ? (
               <span className="link-small" onClick={() => setSaving("")}>
