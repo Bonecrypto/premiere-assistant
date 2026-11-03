@@ -39,6 +39,17 @@ interface Found {
 }
 
 /** Все файлы проекта (рекурсивно по папкам). */
+/** Сколько всего элементов в проекте — дёшево (только getItems по папкам), без запросов к каждому файлу. */
+async function countItems(p: any, folder: any): Promise<number> {
+  const items: any[] = (await folder.getItems()) ?? [];
+  let n = items.length;
+  for (const it of items) {
+    const sub = p.FolderItem.cast(it);
+    if (sub) n += await countItems(p, sub);
+  }
+  return n;
+}
+
 async function walk(p: any, folder: any, bins: string, out: Found[]): Promise<void> {
   const items: any[] = (await folder.getItems()) ?? [];
   for (const it of items) {
@@ -120,6 +131,7 @@ export async function startAutoLabel(): Promise<void> {
     for (const f of all) seen.add(f.id);
   };
 
+  let lastCount = -1;
   const check = async () => {
     if (busy || stopped) return;
     busy = true;
@@ -129,11 +141,17 @@ export async function startAutoLabel(): Promise<void> {
       if (keyOf(project) !== projectKey) {
         // Открыли другой проект — запоминаем его файлы как «старые».
         seen.clear();
+        lastCount = -1;
         await snapshot();
         return;
       }
+      // Полный перебор (по 4 запроса на файл) — только если число элементов изменилось: так панель не тормозит Premiere.
+      const root = await project.getRootItem();
+      const count = await countItems(p, root);
+      if (count === lastCount) return;
+      lastCount = count;
       const all: Found[] = [];
-      await walk(p, await project.getRootItem(), "", all);
+      await walk(p, root, "", all);
       const fresh = all.filter((f) => !seen.has(f.id));
       fresh.forEach((f) => seen.add(f.id));
       if (fresh.length === 0) return;
@@ -176,23 +194,18 @@ export async function startAutoLabel(): Promise<void> {
 
   const EM = p.EventManager;
   const importEvt = p.OperationCompleteEvent?.EVENT_IMPORT_MEDIA_COMPLETE;
-  const dirtyEvt = p.ProjectEvent?.EVENT_DIRTY;
   const subs: Array<() => void> = [];
   try {
     if (EM && importEvt) {
       EM.addGlobalEventListener(importEvt, schedule);
       subs.push(() => EM.removeGlobalEventListener(importEvt, schedule));
     }
-    if (EM && dirtyEvt && projectRef) {
-      const target = projectRef;
-      EM.addEventListener(target, dirtyEvt, schedule);
-      subs.push(() => EM.removeEventListener(target, dirtyEvt, schedule));
-    }
+    // EVENT_DIRTY не слушаем: он приходит на каждую правку и заставлял перебирать проект во время монтажа.
   } catch {
     /* события недоступны — останется опрос */
   }
-  // Запасной опрос раз в 6 с (дёшево: только список файлов) — на случай, если событие не пришло.
-  const poll = setInterval(() => void check(), 6000);
+  // Запасной опрос: редко (20 с) и дёшево — сначала только счёт элементов; полный перебор лишь при изменениях.
+  const poll = setInterval(() => void check(), subs.length ? 20000 : 8000);
 
   running = {
     stop: () => {
