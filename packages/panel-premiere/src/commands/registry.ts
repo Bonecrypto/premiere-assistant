@@ -112,6 +112,7 @@ export function buildCommands(): Command[] {
   add({ id: "m-pauses", title: "Вырезать паузы…", group: "Монтаж", keywords: "тишина silence jump cut", tab: "montage" });
   add({ id: "m-subs", title: "Субтитры…", group: "Монтаж", keywords: "subtitles captions речь", tab: "montage" });
   add({ id: "m-beats", title: "Монтаж под бит…", group: "Монтаж", keywords: "beat bpm ритм", tab: "montage" });
+  add({ id: "m-cams", title: "Переключение камер (подкаст)…", group: "Монтаж", keywords: "multicam мультикамера интервью", tab: "montage" });
   for (const [k, name] of [
     ["dissolve", "Cross Dissolve"],
     ["black", "Dip to Black"],

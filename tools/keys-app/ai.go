@@ -392,6 +392,33 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 		}
 		setup.Unlock()
 		reply(c, 200, map[string]any{"ok": true})
+	case method == "POST" && path == "/levels":
+		if headers["x-premiere-assistant"] != "1" {
+			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
+			return true
+		}
+		b, ok := body(64 << 10)
+		var req levelsReq
+		if !ok || json.Unmarshal(b, &req) != nil || len(req.Inputs) == 0 {
+			reply(c, 400, map[string]any{"ok": false, "error": "нужны записи"})
+			return true
+		}
+		if ffmpegPath() == "" {
+			reply(c, 409, map[string]any{"ok": false, "error": "нужен ffmpeg", "needSetup": true})
+			return true
+		}
+		id, j := newJob()
+		go func() {
+			res, err := measureLevels(req, func(p float64) { setJob(j, func(j *job) { j.Progress = p }) })
+			setJob(j, func(j *job) {
+				if err != nil {
+					j.State, j.Error = "error", err.Error()
+				} else {
+					j.State, j.Progress, j.Result = "done", 1, res
+				}
+			})
+		}()
+		reply(c, 200, map[string]any{"ok": true, "job": id})
 	case method == "POST" && path == "/beats":
 		if headers["x-premiere-assistant"] != "1" {
 			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})

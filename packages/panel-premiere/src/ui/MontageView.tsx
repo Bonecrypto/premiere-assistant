@@ -7,6 +7,7 @@ import { cutPauses, findPauses, type PausePlan } from "../automation/silence.ts"
 import { makeSubtitles } from "../automation/subtitles.ts";
 import { beatHits, beatMarkers, findBeats, pickBeats, type BeatGrid } from "../automation/beats.ts";
 import { HITS } from "../automation/hits.ts";
+import { analyzeCameras, applyCameras, type CamPlan } from "../automation/cameras.ts";
 import { Button } from "./Button.tsx";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
@@ -78,6 +79,9 @@ export function MontageView() {
   const [pad, setPad] = useState(() => Number(storageGet("pausePad") ?? "0.1") || 0.1);
   const [subsOpen, setSubsOpen] = useState(false);
   const [beatOpen, setBeatOpen] = useState(false);
+  const [camOpen, setCamOpen] = useState(false);
+  const [camPlan, setCamPlan] = useState<CamPlan | null>(null);
+  const [minShot, setMinShot] = useState(() => Number(storageGet("camMinShot")) || 2);
   const [grid, setGrid] = useState<BeatGrid | null>(null);
   const [every, setEvery] = useState(() => Number(storageGet("beatEvery")) || 1);
   const [beatHit, setBeatHit] = useState(() => storageGet("beatHit") || "hit-punch");
@@ -107,10 +111,37 @@ export function MontageView() {
         <StatusLine status={status} />
         <div className="act-section">Авто</div>
         <div className="act-grid">
-          <Act icon="cutall" grad="pink" label="Вырезать паузы" hint="Найти тишину в выделенном клипе с речью и вырезать — эффекты клипа сохраняются" onClick={() => (setPauseOpen(!pauseOpen), setSubsOpen(false), setBeatOpen(false))} />
-          <Act icon="title" grad="blue" label="Субтитры" hint="Распознать речь выделенного клипа (на компьютере) и сделать субтитры" onClick={() => (setSubsOpen(!subsOpen), setPauseOpen(false), setBeatOpen(false))} />
-          <Act icon="level" grad="orange" label="Под бит" hint="Найти биты в музыке: маркеры на биты или «удары» на каждом бите" onClick={() => (setBeatOpen(!beatOpen), setPauseOpen(false), setSubsOpen(false))} />
+          <Act icon="cutall" grad="pink" label="Вырезать паузы" hint="Найти тишину в выделенном клипе с речью и вырезать — эффекты клипа сохраняются" onClick={() => (setPauseOpen(!pauseOpen), setSubsOpen(false), setBeatOpen(false), setCamOpen(false))} />
+          <Act icon="title" grad="blue" label="Субтитры" hint="Распознать речь выделенного клипа (на компьютере) и сделать субтитры" onClick={() => (setSubsOpen(!subsOpen), setPauseOpen(false), setBeatOpen(false), setCamOpen(false))} />
+          <Act icon="level" grad="orange" label="Под бит" hint="Найти биты в музыке: маркеры на биты или «удары» на каждом бите" onClick={() => (setBeatOpen(!beatOpen), setPauseOpen(false), setSubsOpen(false), setCamOpen(false))} />
+          <Act icon="camera" grad="green" label="Камеры" hint="Подкаст: кто говорит — та камера в кадре (по микрофонам)" onClick={() => (setCamOpen(!camOpen), setPauseOpen(false), setSubsOpen(false), setBeatOpen(false))} />
         </div>
+        {camOpen ? (
+          <div className="act-settings">
+            <div className="pause-plan">
+              {camPlan
+                ? `${camPlan.mapping}. Планов: ${camPlan.shots.length} за ${(camPlan.end - camPlan.start).toFixed(0)} с.`
+                : "Выделите синхронные клипы камер (V1, V2…) и их микрофоны (A1, A2…). Камер может быть на одну больше — самая нижняя станет общим планом (при перебивании)."}
+            </div>
+            <Slider label="План не короче" value={minShot} min={0.5} max={6} step={0.5} unit="с" format={(v) => v.toFixed(1)} onChange={(v) => (setMinShot(v), storageSet("camMinShot", String(v)), setCamPlan(null))} />
+            <div className="confirm-actions">
+              <Button variant="secondary" className="confirm-btn" onClick={() => void run("Слушаю микрофоны…", async () => {
+                const pl = await analyzeCameras(minShot, (t) => report(t));
+                setCamPlan(pl);
+                return `Планов: ${pl.shots.length}. ${pl.mapping}. Нажмите «Применить».`;
+              })}>
+                Найти
+              </Button>
+              <Button variant="primary" className="confirm-btn" disabled={!camPlan} onClick={() => camPlan && void run("Переключаю камеры…", async () => {
+                const r = await applyCameras(camPlan, (t) => report(t));
+                setCamPlan(null);
+                return r;
+              })}>
+                Применить
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {beatOpen ? (
           <div className="act-settings">
             <div className="pause-plan">
