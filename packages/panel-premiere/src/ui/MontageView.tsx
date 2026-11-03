@@ -3,6 +3,8 @@ import { KEY_ADD_EDIT, KEY_ADD_EDIT_ALL, KEY_TIMELINE_FOCUS } from "@pa/core";
 import { openKeysClient, lastKeysDiag } from "../automation/keysClient.ts";
 import { nestSelected, unnestSelected } from "../automation/nest.ts";
 import { copyStyle, lastDiag, pasteStyle } from "../automation/textStyle.ts";
+import { cutPauses, findPauses, type PausePlan } from "../automation/silence.ts";
+import { Button } from "./Button.tsx";
 import { closeGaps, placeOnMarkers, setDuration, toggleEnabled } from "../automation/montage.ts";
 import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
 import { storageGet, storageSet } from "../env.ts";
@@ -12,7 +14,7 @@ import { Slider } from "./Slider.tsx";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
 
-function useStatus(): [Status, (busy: string, fn: () => Promise<string>) => Promise<void>] {
+function useStatus(): [Status, (busy: string, fn: () => Promise<string>) => Promise<void>, (text: string) => void] {
   const [status, setStatus] = useState<Status>(null);
   const run = async (busy: string, fn: () => Promise<string>) => {
     setStatus({ tone: "busy", text: busy });
@@ -22,7 +24,8 @@ function useStatus(): [Status, (busy: string, fn: () => Promise<string>) => Prom
       setStatus({ tone: "error", text: (err as Error)?.message || String(err) });
     }
   };
-  return [status, run];
+  const report = (text: string) => setStatus({ tone: "busy", text });
+  return [status, run, report];
 }
 
 /** Плитка-действие: иконка в цветном квадрате + подпись. */
@@ -60,11 +63,16 @@ const skippedNote = (s: string[]) => (s.length ? ` Пропущено: ${s.slice
 
 /** Вкладка «Монтаж»: всё на одном экране — плитки с иконками, настройки внизу. */
 export function MontageView() {
-  const [status, run] = useStatus();
+  const [status, run, report] = useStatus();
   const [trim, setTrim] = useState(() => storageGet("montageTrim") !== "0");
   const [dur, setDur] = useState(() => Number(storageGet("montageDur")) || 2);
   const [pack, setPack] = useState(() => storageGet("montagePack") !== "0");
   const [diag, setDiag] = useState("");
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [plan, setPlan] = useState<PausePlan | null>(null);
+  const [noise, setNoise] = useState(() => Number(storageGet("pauseNoise")) || -38);
+  const [minPause, setMinPause] = useState(() => Number(storageGet("pauseMin")) || 0.5);
+  const [pad, setPad] = useState(() => Number(storageGet("pausePad") ?? "0.1") || 0.1);
 
   const cut = (all: boolean) =>
     run("Режу…", async () => {
@@ -86,6 +94,52 @@ export function MontageView() {
     <div className="page">
       <div className="scroll-inner act-page">
         <StatusLine status={status} />
+        <div className="act-section">Авто</div>
+        <div className="act-grid">
+          <Act icon="cutall" grad="pink" label="Вырезать паузы" hint="Найти тишину в выделенном клипе с речью и вырезать — эффекты клипа сохраняются" onClick={() => setPauseOpen(!pauseOpen)} />
+        </div>
+        {pauseOpen ? (
+          <div className="act-settings">
+            <Slider label="Тишина — тише чем" value={noise} min={-60} max={-20} step={1} unit="дБ" onChange={(v) => (setNoise(v), storageSet("pauseNoise", String(v)), setPlan(null))} />
+            <Slider label="Пауза от" value={minPause} min={0.2} max={2} step={0.1} unit="с" format={(v) => v.toFixed(1)} onChange={(v) => (setMinPause(v), storageSet("pauseMin", String(v)), setPlan(null))} />
+            <Slider label="Запас вокруг речи" value={pad} min={0} max={0.4} step={0.02} unit="с" format={(v) => v.toFixed(2)} onChange={(v) => (setPad(v), storageSet("pausePad", String(v)), setPlan(null))} />
+            {plan ? (
+              <div className="pause-plan">
+                Найдено пауз: <b>{plan.pauses}</b> — вырежется {plan.removed.toFixed(1)} с из {(plan.end - plan.start).toFixed(1)} с.
+              </div>
+            ) : null}
+            <div className="confirm-actions">
+              <Button
+                variant="secondary"
+                className="confirm-btn"
+                onClick={() =>
+                  void run("Ищу паузы…", async () => {
+                    const r = await findPauses({ noise, min: minPause, pad }, (t) => report(t));
+                    setPlan(r);
+                    return r.pauses ? `Найдено пауз: ${r.pauses} (${r.removed.toFixed(1)} с). Проверьте настройки и нажмите «Вырезать».` : "Пауз не найдено — попробуйте порог тише (например −45 дБ).";
+                  })
+                }
+              >
+                Найти
+              </Button>
+              <Button
+                variant="primary"
+                className="confirm-btn"
+                disabled={!plan || !plan.pauses}
+                onClick={() =>
+                  plan &&
+                  void run("Вырезаю паузы…", async () => {
+                    const r = await cutPauses(plan, (t) => report(t));
+                    setPlan(null);
+                    return r;
+                  })
+                }
+              >
+                Вырезать
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <div className="act-section">Текст</div>
         <div className="act-grid">
           <Act

@@ -285,6 +285,7 @@ type job struct {
 	Out      string  `json:"out,omitempty"`
 	Error    string  `json:"error,omitempty"`
 	GPU      bool    `json:"gpu"`
+	Result   any     `json:"result,omitempty"`
 }
 
 var jobs = struct {
@@ -316,7 +317,7 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 	switch {
 	case method == "GET" && path == "/ai/status":
 		setup.Lock()
-		st := map[string]any{"ok": true, "ready": aiFullyReady(), "video": aiFullyReady() && ffmpegPath() != "", "gpu": usingDML(),
+		st := map[string]any{"ok": true, "ready": aiFullyReady(), "video": aiFullyReady() && ffmpegPath() != "", "ffmpeg": ffmpegPath() != "", "gpu": usingDML(),
 			"running": setup.running, "stage": setup.stage, "done": setup.done, "total": setup.total, "error": setup.err,
 			"sizeMB": 210, "videoMB": 90}
 		setup.Unlock()
@@ -391,6 +392,33 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 			})
 		}()
 		reply(c, 200, map[string]any{"ok": true, "job": id})
+	case method == "POST" && path == "/silence":
+		if headers["x-premiere-assistant"] != "1" {
+			reply(c, 403, map[string]any{"ok": false, "error": "forbidden"})
+			return true
+		}
+		b, ok := body(8192)
+		var req silenceReq
+		if !ok || json.Unmarshal(b, &req) != nil || req.In == "" || !exists(req.In) {
+			reply(c, 400, map[string]any{"ok": false, "error": "файл не найден"})
+			return true
+		}
+		if ffmpegPath() == "" {
+			reply(c, 409, map[string]any{"ok": false, "error": "нужен ffmpeg", "needSetup": true, "video": true})
+			return true
+		}
+		id, j := newJob()
+		go func() {
+			res, err := detectSilence(req, func(p float64) { setJob(j, func(j *job) { j.Progress = p }) })
+			setJob(j, func(j *job) {
+				if err != nil {
+					j.State, j.Error = "error", err.Error()
+				} else {
+					j.State, j.Progress, j.Result = "done", 1, res
+				}
+			})
+		}()
+		reply(c, 200, map[string]any{"ok": true, "job": id})
 	case method == "GET" && strings.HasPrefix(path, "/job/"):
 		jobs.Lock()
 		j, ok := jobs.m[strings.TrimPrefix(path, "/job/")]
@@ -403,7 +431,7 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 			reply(c, 404, map[string]any{"ok": false, "error": "нет такого задания"})
 			return true
 		}
-		reply(c, 200, map[string]any{"ok": true, "state": cp.State, "progress": cp.Progress, "out": cp.Out, "error": cp.Error, "gpu": cp.GPU})
+		reply(c, 200, map[string]any{"ok": true, "state": cp.State, "progress": cp.Progress, "out": cp.Out, "error": cp.Error, "gpu": cp.GPU, "result": cp.Result})
 	default:
 		return false
 	}

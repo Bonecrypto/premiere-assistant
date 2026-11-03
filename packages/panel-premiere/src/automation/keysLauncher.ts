@@ -8,7 +8,7 @@ import { updateRepo } from "../update/version.ts";
  */
 
 /** Версия программы — менять вместе с `version` в tools/keys-app/server.go, чтобы панель скачала новую. */
-const EXE_VERSION = "9";
+const EXE_VERSION = "10";
 /** Имя с версией: старая копия может быть запущена, а занятый .exe Windows перезаписать не даст. */
 const EXE_NAME = `PremiereAssistantKeys-v${EXE_VERSION}.exe`;
 const VER_KEY = "keysExeVersion";
