@@ -105,6 +105,19 @@ export const lumetri = (l: Lum): EffectStep => {
   return { label: "Lumetri Color", match: ["AE.ADBE Lumetri"], names: ["Lumetri Color", "Цвет Lumetri", "Lumetri"], params };
 };
 
+/** Виньетка Lumetri: сила (минус — темнее, плюс — светлее), средняя точка (меньше — шире), растушёвка. */
+const vignetteFx = (amount: number, midpoint = 50, feather = 50, roundness = 0): EffectStep => ({
+  label: "Lumetri Color",
+  match: ["AE.ADBE Lumetri"],
+  names: ["Lumetri Color", "Цвет Lumetri", "Lumetri"],
+  params: [
+    P(["Amount", "Величина", "Количество"], amount, 0),
+    P(["Midpoint", "Средняя точка", "Середина"], midpoint, 50),
+    P(["Roundness", "Округлость", "Скругление"], roundness, 0),
+    P(["Feather", "Растушевка", "Растушёвка"], feather, 50),
+  ],
+});
+
 const R = (id: string, name: string, group: string, desc: string, steps: EffectStep[]): FxRecipe => ({ id, name, group, desc, steps });
 
 /** Вкладка «Эффекты». */
@@ -121,6 +134,11 @@ export const FX_RECIPES: FxRecipe[] = [
   R("round-s", "Скругление S", "Углы", "Слегка скруглить углы картинки/PNG", [roundCorners(12, 2)]),
   R("round-m", "Скругление M", "Углы", "Заметно скруглённые углы", [roundCorners(30, 1.5)]),
   R("round-l", "Скругление L", "Углы", "Сильное скругление, почти «таблетка»", [roundCorners(70, 1)]),
+  R("vig-soft", "Мягкая", "Виньетка", "Слегка затемнить края, широкая мягкая", [vignetteFx(-1, 55, 75)]),
+  R("vig-strong", "Сильная", "Виньетка", "Тёмные края, фокус на центре", [vignetteFx(-2.5, 35, 60)]),
+  R("vig-tight", "Туннель", "Виньетка", "Узкое светлое пятно в центре — драма, флешбэк", [vignetteFx(-3, 15, 80, 20)]),
+  R("vig-white", "Белая", "Виньетка", "Светлые края — мечта, воспоминание", [vignetteFx(2, 45, 75)]),
+  R("vig-off", "Убрать", "Виньетка", "Убрать виньетку Lumetri", [vignetteFx(0)]),
   R("glow-soft", "Свечение", "Свечение", "Мягкий ореол вокруг светлых мест (VR Glow)", [vrGlow(25)]),
   R("glow-strong", "Сильное свечение", "Свечение", "Яркий ореол — огни, неон, блики", [vrGlow(60)]),
   R("glow-alpha", "Свечение контура", "Свечение", "Свет по краю PNG, текста, логотипа (Alpha Glow)", [alphaGlow(15, 200)]),

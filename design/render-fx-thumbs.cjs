@@ -633,6 +633,28 @@ const drawAll = (W, H, PHOTO, CUTOUT) => {
   out["faded"] = withFilter("contrast(0.75) saturate(0.7) brightness(1.1)", (ctx) => tone(ctx, "#cbbfae", "lighten", 0.25));
   out["bw"] = withFilter("grayscale(1) contrast(1.15)");
   out["vignette"] = withFilter("none", (ctx) => vignette(ctx, 0.95));
+  const vig = (ctx, k, inner, outer, rgb = "0,0,0") => {
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * inner, W / 2, H / 2, W * outer);
+    g.addColorStop(0, `rgba(${rgb},0)`);
+    g.addColorStop(1, `rgba(${rgb},${k})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  };
+  out["vig-soft"] = withFilter("none", (ctx) => vig(ctx, 0.6, 0.35, 0.7));
+  out["vig-strong"] = withFilter("none", (ctx) => vig(ctx, 0.97, 0.22, 0.55));
+  out["vig-tight"] = withFilter("none", (ctx) => vig(ctx, 1, 0.08, 0.38));
+  out["vig-white"] = withFilter("brightness(1.05)", (ctx) => vig(ctx, 0.9, 0.25, 0.6, "255,255,255"));
+  out["vig-off"] = withFilter("none", (ctx) => {
+    vig(ctx, 0.5, 0.3, 0.6);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 16, H / 2 - 16);
+    ctx.lineTo(W / 2 + 16, H / 2 + 16);
+    ctx.moveTo(W / 2 + 16, H / 2 - 16);
+    ctx.lineTo(W / 2 - 16, H / 2 + 16);
+    ctx.stroke();
+  });
   out["reset"] = withFilter("none", (ctx) => {
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.fillRect(0, 0, W, H);
