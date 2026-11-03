@@ -11,7 +11,7 @@ type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
 const GROUPS = ["Стрелки", "Линии", "Выделение", "Значки", "Плашки"] as const;
 type ElSet = "neon" | "own";
 const SETS: Array<{ id: ElSet; label: string }> = [
-  { id: "neon", label: "Неон" },
+  { id: "neon", label: "GTA растер" },
   { id: "own", label: "Свой цвет" },
 ];
 const ofSet = (set: ElSet) => GRAPHICS.filter((x) => (set === "neon") === !!x.neon);

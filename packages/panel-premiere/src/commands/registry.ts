@@ -90,7 +90,7 @@ export function buildCommands(): Command[] {
     anim: JSON.parse(storageGet("elAnim") || '"draw"'),
     seconds: JSON.parse(storageGet("elSecs") || "3"),
   });
-  for (const g of GRAPHICS) add({ id: `el-${g.id}`, title: `Элемент: ${g.name}`, group: `Элементы · ${g.group}`, keywords: "графика вставить", run: () => insertGraphic(g.id, el()) });
+  for (const g of GRAPHICS) add({ id: `el-${g.id}`, title: `Элемент: ${g.name}`, group: `Элементы · ${g.neon ? "GTA растер · " : ""}${g.group}`, keywords: `графика вставить${g.neon ? " gta гта растер неон vice city" : ""}`, run: () => insertGraphic(g.id, el()) });
 
   // Ключи
   const curve = (id: string) => CURVE_PRESETS.find((c) => c.id === id)!.curve;
