@@ -71,8 +71,10 @@ export function buildCommands(): Command[] {
 
   // Создать
   add({ id: "create-black", title: "Создать Black Video", group: "Создать", keywords: "чёрный фон", run: blackVideo });
-  add({ id: "create-white", title: "Создать белый фон (Color Matte)", group: "Создать", keywords: "color matte", run: () => colorMatte("#ffffff") });
+  add({ id: "create-white", title: "Создать белый фон (Color Matte)", group: "Создать", keywords: "color matte колор мейт", run: () => colorMatte("#ffffff") });
   add({ id: "create-green", title: "Создать хромакей (Color Matte)", group: "Создать", keywords: "green зелёный", run: () => colorMatte("#00b140") });
+  for (const [id, name, hex] of [["red", "красный", "#ff3b30"], ["yellow", "жёлтый", "#ffd60a"], ["blue", "синий", "#0a84ff"], ["pink", "розовый", "#ff4fa3"], ["gray", "серый", "#808080"], ["purple", "фиолетовый", "#9f18ec"]])
+    add({ id: `create-${id}`, title: `Создать ${name} фон (Color Matte)`, group: "Создать", keywords: "color matte колор мейт плашка", run: () => colorMatte(hex) });
   add({ id: "create-adjust", title: "Положить Adjustment Layer", group: "Создать", keywords: "корректирующий слой", run: adjustmentLayer });
   add({ id: "create-adjust-tf", title: "Adjustment Layer + Transform (блюр 360)", group: "Создать", keywords: "корректирующий motion blur", run: adjustmentWithTransform });
 

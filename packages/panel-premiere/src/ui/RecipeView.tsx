@@ -91,6 +91,11 @@ const CREATE: Array<{ id: string; name: string; desc: string; run: () => Promise
   { id: "create-white", name: "Белый фон", desc: "Color Matte белого цвета", run: () => colorMatte("#ffffff") },
   { id: "create-green", name: "Хромакей", desc: "Зелёная плашка (Color Matte)", run: () => colorMatte("#00b140") },
   { id: "create-purple", name: "Фиолетовая", desc: "Color Matte фирменного цвета", run: () => colorMatte("#9f18ec") },
+  { id: "create-red", name: "Красная", desc: "Color Matte красного цвета", run: () => colorMatte("#ff3b30") },
+  { id: "create-yellow", name: "Жёлтая", desc: "Color Matte жёлтого цвета", run: () => colorMatte("#ffd60a") },
+  { id: "create-blue", name: "Синяя", desc: "Color Matte синего цвета", run: () => colorMatte("#0a84ff") },
+  { id: "create-pink", name: "Розовая", desc: "Color Matte розового цвета (Vice)", run: () => colorMatte("#ff4fa3") },
+  { id: "create-gray", name: "Серая", desc: "Color Matte серого цвета — подложка, плашка", run: () => colorMatte("#808080") },
 ];
 
 /** Плитки вкладки «Эффекты»: пачки + движение + свои пачки из «Пресеты → Эффекты». */

@@ -5,7 +5,7 @@ import type { EffectStep, FxRecipe, ParamSet } from "../automation/fxRecipes.ts"
  * (как в интерфейсе Premiere); чего нет в версии пользователя — пропускается с пояснением.
  */
 
-const P = (names: string[], value: number | boolean, neutral?: number, index?: number): ParamSet => ({ names, value, neutral, index });
+const P = (names: string[], value: number | boolean | string, neutral?: number, index?: number): ParamSet => ({ names, value, neutral, index });
 
 const blur = (amount: number): EffectStep => ({
   label: "Gaussian Blur",
@@ -156,6 +156,18 @@ export const FX_MOTION: Array<{ id: string; name: string; desc: string; anim: st
   { id: "push", name: "Медленный наезд", desc: "Плавно на весь клип", anim: "lib-slow-push" },
 ];
 
+/** Tint (Окраска): тёмное → цвет black, светлое → цвет white; сила — Amount to Tint (0…100). */
+const tint = (black: string, white: string, amount = 100): EffectStep => ({
+  label: "Tint",
+  match: ["AE.ADBE Tint"],
+  names: ["Tint", "Окраска", "Тонирование", "Оттенок"],
+  params: [
+    P(["Map Black To", "Преобразовать черный в", "Сопоставить черный с", "Черный в"], black, undefined, 0),
+    P(["Map White To", "Преобразовать белый в", "Сопоставить белый с", "Белый в"], white, undefined, 1),
+    P(["Amount to Tint", "Степень окраски", "Величина окраски", "Степень тонирования"], amount, 0, 2),
+  ],
+});
+
 /** Вкладка «Цвет» — Lumetri. */
 export const COLOR_RECIPES: FxRecipe[] = [
   R("warm", "Тёплый", "Тон", "Теплее и чуть сочнее", [lumetri({ temperature: 25, tint: 5, vibrance: 10 })]),
@@ -167,6 +179,15 @@ export const COLOR_RECIPES: FxRecipe[] = [
   R("faded", "Выцветший", "Стиль", "Мягкий матовый вид", [lumetri({ faded: 45, contrast: -15, saturation: 85 })]),
   R("bw", "Ч/Б", "Стиль", "Чёрно-белое через Lumetri", [lumetri({ saturation: 0, contrast: 25 })]),
   R("vignette", "Виньетка", "Детали", "Затемнить края", [lumetri({ vignette: -2 })]),
+  R("tint-mono", "Монохром", "Тинт", "Ч/Б через Tint — тёмное в чёрный, светлое в белый", [tint("#000000", "#ffffff")]),
+  R("tint-sepia", "Сепия", "Тинт", "Старое фото: коричневые тени, кремовые света", [tint("#2b1a0a", "#f3dfb0")]),
+  R("tint-blue", "Синий", "Тинт", "Холодный дуотон: тёмно-синие тени, голубые света", [tint("#0b1a4a", "#9fdcff")]),
+  R("tint-vice", "Vice", "Тинт", "Фиолетовые тени, розовые света — в стиле GTA Vice City", [tint("#2b0a4a", "#ff6fb5")]),
+  R("tint-sunset", "Закат", "Тинт", "Фиолетовые тени, оранжевые света", [tint("#3a0a3a", "#ffb35c")]),
+  R("tint-green", "Матрица", "Тинт", "Тёмно-зелёные тени, салатовые света", [tint("#001a0a", "#7dff9a")]),
+  R("tint-red", "Красный", "Тинт", "Тревога, флешбэк: красный дуотон", [tint("#1a0000", "#ff5a4a")]),
+  R("tint-half", "Лёгкий тинт", "Тинт", "Тёплый дуотон на 40% — цвет остаётся", [tint("#2a1030", "#ffd8a0", 40)]),
+  R("tint-off", "Убрать тинт", "Тинт", "Amount to Tint = 0", [tint("#000000", "#ffffff", 0)]),
   R("reset", "Сбросить", "Детали", "Вернуть Lumetri к нейтральным значениям", [
     lumetri({ temperature: 0, tint: 0, exposure: 0, contrast: 0, highlights: 0, shadows: 0, saturation: 100, vibrance: 0, faded: 0, vignette: 0 }),
   ]),

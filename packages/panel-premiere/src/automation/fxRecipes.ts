@@ -14,7 +14,8 @@ export interface ParamSet {
   /** Названия параметра (en/ru), без учёта регистра. */
   names: string[];
   index?: number;
-  value: number | boolean;
+  /** Число, флаг или цвет "#rrggbb". */
+  value: number | boolean | string;
   /** Нейтральное значение — для ползунка «Сила». */
   neutral?: number;
 }
@@ -135,7 +136,7 @@ export async function applyRecipe(recipe: FxRecipe, strength = 1, reuse = true):
   }
 
   // 2. Настроить параметры.
-  const sets: Array<{ param: any; value: number | boolean }> = [];
+  const sets: Array<{ param: any; value: unknown }> = [];
   const missingParams = new Set<string>();
   for (const item of items) {
     for (const r of resolved) {
@@ -147,8 +148,14 @@ export async function applyRecipe(recipe: FxRecipe, strength = 1, reuse = true):
           missingParams.add(`${r.step.label}: ${ps.names[0]}`);
           continue;
         }
-        let v = ps.value;
+        let v: unknown = ps.value;
         if (typeof v === "number" && typeof ps.neutral === "number") v = ps.neutral + (v - ps.neutral) * strength;
+        if (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) {
+          // Цвет: Premiere ждёт Color с каналами 0…1.
+          const n = parseInt(v.slice(1), 16);
+          if (typeof p.Color !== "function") continue;
+          v = new p.Color(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, 1);
+        }
         sets.push({ param: prm, value: v });
       }
     }

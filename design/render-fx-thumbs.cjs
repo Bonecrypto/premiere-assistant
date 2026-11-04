@@ -496,6 +496,11 @@ const drawAll = (W, H, PHOTO, CUTOUT) => {
   out["create-white"] = timeline("#ffffff", "White Matte", "#222222");
   out["create-green"] = timeline("#00b140", "Green Matte", "#ffffff");
   out["create-purple"] = timeline("#9f18ec", "Color Matte", "#ffffff");
+  out["create-red"] = timeline("#ff3b30", "Red Matte", "#ffffff");
+  out["create-yellow"] = timeline("#ffd60a", "Yellow Matte", "#222222");
+  out["create-blue"] = timeline("#0a84ff", "Blue Matte", "#ffffff");
+  out["create-pink"] = timeline("#ff4fa3", "Pink Matte", "#ffffff");
+  out["create-gray"] = timeline("#808080", "Gray Matte", "#ffffff");
   out["create-adjust"] = timeline(
     (ctx, x, y, w, h) => {
       const g = ctx.createLinearGradient(x, 0, x + w, 0);
@@ -654,6 +659,27 @@ const drawAll = (W, H, PHOTO, CUTOUT) => {
   out["faded"] = withFilter("contrast(0.75) saturate(0.7) brightness(1.1)", (ctx) => tone(ctx, "#cbbfae", "lighten", 0.25));
   out["bw"] = withFilter("grayscale(1) contrast(1.15)");
   out["vignette"] = withFilter("none", (ctx) => vignette(ctx, 0.95));
+  // Tint: яркость пикселя → смесь двух цветов (как эффект Tint), amount — доля.
+  const duo = (black, white, amount = 1) =>
+    withFilter("none", (ctx) => {
+      const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+      const [b, w] = [hex(black), hex(white)];
+      const d = ctx.getImageData(0, 0, W, H);
+      for (let i = 0; i < d.data.length; i += 4) {
+        const l = (0.299 * d.data[i] + 0.587 * d.data[i + 1] + 0.114 * d.data[i + 2]) / 255;
+        for (let k = 0; k < 3; k++) d.data[i + k] = d.data[i + k] * (1 - amount) + (b[k] + (w[k] - b[k]) * l) * amount;
+      }
+      ctx.putImageData(d, 0, 0);
+    });
+  out["tint-mono"] = duo("#000000", "#ffffff");
+  out["tint-sepia"] = duo("#2b1a0a", "#f3dfb0");
+  out["tint-blue"] = duo("#0b1a4a", "#9fdcff");
+  out["tint-vice"] = duo("#2b0a4a", "#ff6fb5");
+  out["tint-sunset"] = duo("#3a0a3a", "#ffb35c");
+  out["tint-green"] = duo("#001a0a", "#7dff9a");
+  out["tint-red"] = duo("#1a0000", "#ff5a4a");
+  out["tint-half"] = duo("#2a1030", "#ffd8a0", 0.4);
+  out["tint-off"] = withFilter("none");
   const vig = (ctx, k, inner, outer, rgb = "0,0,0") => {
     const g = ctx.createRadialGradient(W / 2, H / 2, H * inner, W / 2, H / 2, W * outer);
     g.addColorStop(0, `rgba(${rgb},0)`);
