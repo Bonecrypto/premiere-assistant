@@ -65,6 +65,16 @@ export function paramBy(comp: any, names: string[], index: number): any | null {
 
 /** Прорисовка шторкой: эффект + ключи Transition Completion 100 → 0. */
 async function drawOn(item: any, radial: boolean, dir: Dir, dur: number): Promise<void> {
+  await wipeOn(item, { radial, dir, dur });
+}
+
+/**
+ * Проявление шторкой (Linear/Radial Wipe): Transition Completion 100 → 0 за dur от начала клипа.
+ * steps > 0 — «печатная машинка»: столько ступенек с Hold-ключами; feather — мягкость края.
+ */
+export async function wipeOn(item: any, o: { radial?: boolean; dir: Dir; dur: number; feather?: number; steps?: number }): Promise<void> {
+  const { dir, dur } = o;
+  const radial = !!o.radial;
   const p = ppro() as any;
   const project = await p.Project.getActiveProject();
   const match = radial
@@ -93,9 +103,32 @@ async function drawOn(item: any, radial: boolean, dir: Dir, dur: number): Promis
   const T = (s: number) => p.TickTime.createWithSeconds(s);
   run(project, "Ассистент: прорисовка — настройки", (c) => {
     if (angle) c.addAction(angle.createSetValueAction(angle.createKeyframe(WIPE_ANGLE[dir]), true));
-    if (feather) c.addAction(feather.createSetValueAction(feather.createKeyframe(radial ? 0 : 12), true));
+    if (feather) c.addAction(feather.createSetValueAction(feather.createKeyframe(o.feather ?? (radial ? 0 : 12)), true));
     c.addAction(completion.createSetTimeVaryingAction(true));
   });
+  const steps = Math.max(0, Math.round(o.steps ?? 0));
+  if (steps > 0) {
+    // Ступеньки: каждая держится до следующей (Hold) — как набор текста.
+    const times = Array.from({ length: steps + 1 }, (_, i) => inS + (dur * i) / steps);
+    run(project, "Ассистент: печатная машинка", (c) => {
+      times.forEach((t, i) => {
+        const k = completion.createKeyframe(100 - (100 * i) / steps);
+        k.position = T(t);
+        c.addAction(completion.createAddKeyframeAction(k));
+      });
+    });
+    const HOLD = p.Constants?.InterpolationMode?.HOLD;
+    if (typeof HOLD === "number") {
+      try {
+        run(project, "Ассистент: печатная машинка — ступеньки", (c) => {
+          for (const t of times) c.addAction(completion.createSetInterpolationAtKeyframeAction(T(t), HOLD, true));
+        });
+      } catch {
+        /* без Hold будет плавно — тоже читается */
+      }
+    }
+    return;
+  }
   run(project, "Ассистент: прорисовка", (c) => {
     const k0 = completion.createKeyframe(100);
     k0.position = T(inS);

@@ -5,7 +5,7 @@ import type { AnimPreset } from "./animations.ts";
  * Всё делается эффектом Transform (+ Gaussian Blur для размытия) — без сторонних плагинов.
  */
 
-export const LIB_CATEGORIES = ["Вход", "Выход", "Акцент", "Вход + выход"] as const;
+export const LIB_CATEGORIES = ["Вход", "Выход", "Акцент", "Вход + выход", "Текст"] as const;
 export type LibCategory = (typeof LIB_CATEGORIES)[number];
 
 type Def = Partial<AnimPreset> & Pick<AnimPreset, "id" | "name" | "kind"> & { category: LibCategory };
@@ -58,6 +58,16 @@ export const LIBRARY: AnimPreset[] = [
   L({ id: "pulse", name: "Пульс", category: "Акцент", kind: "in", scale: 106, blur: false, glyph: "◉", duration: 0.2 }),
   L({ id: "glitch-jerk", name: "Глитч-рывок", category: "Акцент", kind: "in", shake: 8, blur: true, glyph: "⚡", duration: 0.15, easing: "linear" }),
   L({ id: "handheld", name: "Ручная камера", category: "Акцент", kind: "whole", shake: 0.8, blur: false, glyph: "≈", easing: "linear" }),
+  // Текст: короткие мягкие движения для надписей и титров (весь слой — по буквам API не умеет).
+  L({ id: "text-rise", name: "Подъём", category: "Текст", kind: "in", dy: 0.06, fade: true, duration: 0.5, glyph: "↑" }),
+  L({ id: "text-drop", name: "Спуск", category: "Текст", kind: "in", dy: -0.06, fade: true, duration: 0.5, glyph: "↓" }),
+  L({ id: "text-slide", name: "Сдвиг слева", category: "Текст", kind: "in", dx: -0.08, fade: true, duration: 0.5, glyph: "→" }),
+  L({ id: "text-blur-in", name: "Блюр-появление", category: "Текст", kind: "in", scale: 108, fade: true, blurAmt: 40, duration: 0.6, glyph: "◌" }),
+  L({ id: "text-pop", name: "Поп", category: "Текст", kind: "in", scale: 40, overshoot: 15, fade: true, duration: 0.4, glyph: "✦" }),
+  L({ id: "text-zoom", name: "Отдаление", category: "Текст", kind: "in", scale: 140, fade: true, blurAmt: 20, duration: 0.5, glyph: "⤡" }),
+  L({ id: "text-rise-out", name: "Уход вверх", category: "Текст", kind: "out", dy: -0.06, fade: true, duration: 0.4, glyph: "↑" }),
+  L({ id: "text-blur-out", name: "Блюр-исчезновение", category: "Текст", kind: "out", scale: 95, fade: true, blurAmt: 40, duration: 0.5, glyph: "◌" }),
+  L({ id: "text-rise-both", name: "Подъём + уход", category: "Текст", kind: "both", dy: 0.06, through: true, fade: true, duration: 0.45, glyph: "⇅" }),
   L({ id: "wobble", name: "Camera wobble", category: "Акцент", kind: "whole", wobble: 0.6, wobbleRot: 0.6, wobbleHz: 1.2, blur: false, glyph: "∿" }),
   L({ id: "wobble-strong", name: "Wobble сильнее", category: "Акцент", kind: "whole", wobble: 1.3, wobbleRot: 1.2, wobbleHz: 1.6, blur: false, glyph: "∿" }),
   L({ id: "float", name: "Плавание", category: "Акцент", kind: "whole", wobble: 1, wobbleRot: 0.4, wobbleHz: 0.4, blur: false, glyph: "∿" }),

@@ -16,6 +16,7 @@ import { flashSelected } from "../automation/flash.ts";
 import { removeBackgroundSelected } from "../automation/removeBg.ts";
 import { applyHit, HITS } from "../automation/hits.ts";
 import { Slider } from "./Slider.tsx";
+import { textReveal, TEXT_REVEALS } from "../automation/textReveal.ts";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
 
@@ -194,14 +195,37 @@ function effectsTiles(): Tile[] {
     instant: true,
     run: c.run,
   }));
-  return [...ai, ...hits, ...create, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
+  // Текст: проявления шторкой + анимации из библиотеки (раздел «Текст»).
+  const text: Tile[] = [
+    ...TEXT_REVEALS.map((r) => ({
+      key: `txt-${r.id}`,
+      name: r.name,
+      desc: r.desc,
+      group: "Текст",
+      swatch: ["#ffffff", "#9f18ec"] as [string, string],
+      thumb: FX_THUMBS[`txt-${r.id}`],
+      instant: true,
+      run: () => textReveal(r.id),
+    })),
+    ...LIBRARY.filter((a) => a.category === "Текст").map((a) => ({
+      key: a.id,
+      name: a.name,
+      desc: `${a.kind === "out" ? "Исчезновение" : a.kind === "both" ? "Появление и исчезновение" : "Появление"} текста — весь слой`,
+      group: "Текст",
+      swatch: ["#ffffff", "#9f18ec"] as [string, string],
+      thumb: FX_THUMBS[a.id],
+      instant: true,
+      run: async () => `«${a.name}» — ${(await animateSelected(a, loadAnimOptions())).changed} клип. Отмена — Ctrl+Z.`,
+    })),
+  ];
+  return [...ai, ...hits, ...create, ...text, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
 }
 
 export function EffectsView() {
   return (
     <RecipeView
       title="Эффекты"
-      groupOrder={["ИИ", "Удары", "Создать", "Ключи", "Стиль", "Картинка", "Свечение", "Виньетка", "Углы", "Движение", "Мои"]}
+      groupOrder={["ИИ", "Удары", "Создать", "Текст", "Ключи", "Стиль", "Картинка", "Свечение", "Виньетка", "Углы", "Движение", "Мои"]}
       tiles={effectsTiles()}
       hints={{
         ИИ: "Выделите картинку или видеоклип и нажмите. Первый раз панель предложит скачать нейросеть (~210 МБ, для видео ещё ffmpeg ~90 МБ).",

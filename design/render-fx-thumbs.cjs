@@ -251,6 +251,100 @@ const drawAll = (W, H, PHOTO, CUTOUT) => {
     draw(ctx);
     return c;
   };
+  // ── Текст ──
+  const word = (ctx, opt = {}) => {
+    const { dx = 0, dy = 0, scale = 1, alpha = 1, blur = 0, clip = 1, clipUp = false, text = "Текст" } = opt;
+    ctx.save();
+    if (clip < 1) {
+      ctx.beginPath();
+      if (clipUp) ctx.rect(0, H * (1 - clip) - 4, W, H);
+      else ctx.rect(0, 0, 40 + (W - 80) * clip, H);
+      ctx.clip();
+    }
+    ctx.globalAlpha = alpha;
+    ctx.filter = blur ? `blur(${blur}px)` : "none";
+    ctx.translate(W / 2 + dx, H / 2 + dy);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "800 34px Inter, Segoe UI, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+    ctx.filter = "none";
+    ctx.globalAlpha = 1;
+  };
+  const arrow = (ctx, x, y, ang) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    ctx.strokeStyle = "#c77dff";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(10, 0);
+    ctx.moveTo(4, -6);
+    ctx.lineTo(10, 0);
+    ctx.lineTo(4, 6);
+    ctx.stroke();
+    ctx.restore();
+  };
+  out["txt-typewriter"] = motion((ctx) => {
+    word(ctx, { text: "Тек" , dx: -14 });
+    ctx.fillStyle = "#c77dff";
+    ctx.fillRect(W / 2 + 22, H / 2 - 17, 4, 34);
+  });
+  out["txt-reveal"] = motion((ctx) => {
+    word(ctx, { alpha: 0.15 });
+    word(ctx, { clip: 0.6 });
+    arrow(ctx, W - 28, H - 18, 0);
+  });
+  out["txt-reveal-up"] = motion((ctx) => {
+    word(ctx, { alpha: 0.15 });
+    word(ctx, { clip: 0.55, clipUp: true });
+    arrow(ctx, W - 22, H - 22, -Math.PI / 2);
+  });
+  out["lib-text-rise"] = motion((ctx) => {
+    word(ctx, { dy: 16, alpha: 0.25 });
+    word(ctx, { dy: 0 });
+    arrow(ctx, 26, H / 2, -Math.PI / 2);
+  });
+  out["lib-text-drop"] = motion((ctx) => {
+    word(ctx, { dy: -16, alpha: 0.25 });
+    word(ctx);
+    arrow(ctx, 26, H / 2, Math.PI / 2);
+  });
+  out["lib-text-slide"] = motion((ctx) => {
+    word(ctx, { dx: -24, alpha: 0.25 });
+    word(ctx);
+    arrow(ctx, 22, H - 18, 0);
+  });
+  out["lib-text-blur-in"] = motion((ctx) => {
+    word(ctx, { blur: 6, scale: 1.1, alpha: 0.6 });
+    word(ctx, { alpha: 0.9 });
+  });
+  out["lib-text-pop"] = motion((ctx) => {
+    word(ctx, { scale: 0.5, alpha: 0.3 });
+    word(ctx, { scale: 1.12 });
+  });
+  out["lib-text-zoom"] = motion((ctx) => {
+    word(ctx, { scale: 1.5, alpha: 0.2, blur: 3 });
+    word(ctx);
+  });
+  out["lib-text-rise-out"] = motion((ctx) => {
+    word(ctx, { dy: -16, alpha: 0.3 });
+    word(ctx, { alpha: 0.8 });
+    arrow(ctx, 26, H / 2, -Math.PI / 2);
+  });
+  out["lib-text-blur-out"] = motion((ctx) => {
+    word(ctx, { alpha: 0.9 });
+    word(ctx, { blur: 6, scale: 0.95, alpha: 0.5, dy: 0 });
+  });
+  out["lib-text-rise-both"] = motion((ctx) => {
+    word(ctx, { dy: 20, alpha: 0.2 });
+    word(ctx, { dy: -20, alpha: 0.2 });
+    word(ctx);
+  });
   out["wobble"] = motion((ctx) => {
     // плавная траектория покачивания + клип
     ctx.strokeStyle = "rgba(255,255,255,0.55)";
