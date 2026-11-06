@@ -38,6 +38,8 @@ export interface AnimParams {
   shake: number;
   /** Для «вход + выход»: выход в другую сторону. */
   through: boolean;
+  /** Баунс: затухающие пружинки, 0…0.8. */
+  bounce?: number;
   /** Покачивание (camera wobble), % кадра; поворот, °; частота, Гц. */
   wobble?: number;
   wobbleRot?: number;

@@ -304,6 +304,44 @@ const drawAll = (W, H, PHOTO, CUTOUT) => {
     word(ctx, { clip: 0.55, clipUp: true });
     arrow(ctx, W - 22, H - 22, -Math.PI / 2);
   });
+  const bounceMarks = (ctx) => {
+    // «пружинка» — затухающая волна под словом
+    ctx.strokeStyle = "#ffd60a";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 60; i++) {
+      const t = i / 60;
+      const x = 30 + t * (W - 60);
+      const y = H - 16 - 10 * Math.exp(-4 * t) * Math.cos(t * 18);
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  };
+  out["lib-bounce-pop"] = motion((ctx) => {
+    word(ctx, { scale: 0.45, alpha: 0.25, dy: -6 });
+    word(ctx, { scale: 1.25, dy: -6 });
+    bounceMarks(ctx);
+  });
+  out["lib-bounce-hard"] = motion((ctx) => {
+    ctx.save();
+    ctx.translate(W / 2, H / 2 - 6);
+    ctx.rotate(-0.15);
+    ctx.translate(-W / 2, -H / 2 + 6);
+    word(ctx, { scale: 1.35, dy: -6 });
+    ctx.restore();
+    bounceMarks(ctx);
+  });
+  out["lib-bounce-up"] = motion((ctx) => {
+    word(ctx, { dy: 14, alpha: 0.25 });
+    word(ctx, { dy: -10, scale: 1.05 });
+    bounceMarks(ctx);
+  });
+  out["lib-bounce-out"] = motion((ctx) => {
+    word(ctx, { scale: 1.25, alpha: 0.35, dy: -6 });
+    word(ctx, { scale: 0.4, dy: -6 });
+    bounceMarks(ctx);
+  });
   out["lib-text-rise"] = motion((ctx) => {
     word(ctx, { dy: 16, alpha: 0.25 });
     word(ctx, { dy: 0 });

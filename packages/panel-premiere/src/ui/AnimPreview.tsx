@@ -18,6 +18,7 @@ export interface PreviewParams {
   curve?: [number, number, number, number] | null;
   blurAmt?: number;
   shake?: number;
+  bounce?: number;
   wobble?: number;
   wobbleHz?: number;
   through?: boolean;
@@ -48,7 +49,7 @@ interface Frame {
 function frameAt(p: PreviewParams, el: number): Frame {
   const custom = p.curve ? easeFn(p.curve) : null;
   const ease = custom ?? (p.easing === "bezier" ? easeInOut : (t: number) => t);
-  const over = custom ? 0 : Math.max(0, p.overshoot ?? 0) / 100;
+  const over = custom ? 0 : Math.max(0, p.overshoot ?? 0) / 100 + Math.max(0, p.bounce ?? 0);
   // Со своим графиком: на входе путь идёт от крайней точки к обычной, на выходе — наоборот (как в движке).
   const toward = (k: number, isOut: boolean) => (custom ? (isOut ? custom(1 - k) : 1 - custom(k)) : towardNormal(isOut ? 1 - k : k, over, ease));
   const dur = Math.max(0.1, p.duration) * 1000;

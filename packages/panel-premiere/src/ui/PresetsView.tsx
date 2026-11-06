@@ -67,6 +67,7 @@ function toPreset(name: string, p: AnimParams, id = "custom"): AnimPreset {
     overshoot: p.overshoot,
     blurAmt: p.blurAmt,
     shake: p.shake,
+    bounce: p.bounce,
     wobble: p.wobble,
     wobbleRot: p.wobbleRot,
     wobbleHz: p.wobbleHz,
@@ -92,6 +93,7 @@ function fromPreset(a: AnimPreset): AnimParams {
     overshoot: a.overshoot ?? 0,
     blurAmt: a.blurAmt ?? 0,
     shake: a.shake ?? 0,
+    bounce: a.bounce ?? 0,
     wobble: a.wobble ?? 0,
     wobbleRot: a.wobbleRot ?? 0,
     wobbleHz: a.wobbleHz ?? 1.2,
@@ -472,6 +474,9 @@ function AnimDetail(props: {
         {has("shake") ? (
           <Slider label="Тряска" value={p.shake} min={0} max={10} step={0.5} unit="% кадра" format={(v) => (v ? v.toFixed(1) : "нет")} onChange={(v) => update({ shake: v })} />
         ) : null}
+        {p.bounce ? (
+          <Slider label="Баунс" value={p.bounce} min={0.1} max={0.8} step={0.05} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => update({ bounce: v })} />
+        ) : null}
         {p.wobble ? (
           <>
             <Slider label="Покачивание" value={p.wobble} min={0.1} max={3} step={0.1} unit="% кадра" format={(v) => v.toFixed(1)} onChange={(v) => update({ wobble: v })} />
@@ -844,6 +849,7 @@ function libTags(a: AnimPreset): string {
   if (a.blurAmt) t.push("размытие");
   if (a.shake) t.push("тряска");
   if (a.wobble) t.push("покачивание");
+  if (a.bounce) t.push("баунс");
   if (a.blur && (a.dx || a.dy || a.rotation || a.scale !== 100)) t.push("блюр");
   return t.join(" · ");
 }

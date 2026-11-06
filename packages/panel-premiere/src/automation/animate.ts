@@ -187,6 +187,7 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
   const over = curve ? 0 : Math.max(0, Math.min(60, preset.overshoot ?? 0)) / 100;
   const frameSec = curve ? await frameSeconds(await project.getActiveSequence()) : 1 / 30;
   const shake = Math.max(0, preset.shake ?? 0) / 100;
+  const bounce = curve ? 0 : Math.max(0, Math.min(0.8, preset.bounce ?? 0));
   let changed = 0;
 
   for (const item of items) {
@@ -249,6 +250,13 @@ export async function animateSelected(preset: AnimPreset, baseOpt: AnimOptions):
             const v = !canOvershoot && typeof k.v === "number" ? Math.max(lo, Math.min(hi, k.v)) : k.v;
             keys.push({ param, seconds: k.t, value: v });
           }
+          continue;
+        }
+        if (canOvershoot && bounce > 0) {
+          // Баунс: крайняя точка → перелёт → недолёт → … → на месте; пружинки затухают и учащаются.
+          const g = [1, -bounce, bounce * bounce * 0.55, -bounce * bounce * bounce * 0.3, 0];
+          const f = [0, 0.42, 0.66, 0.84, 1];
+          g.forEach((gi, i) => keys.push({ param, seconds: s.extremeAt + (s.normalAt - s.extremeAt) * f[i], value: gi === 0 ? normal : lerp(normal, ext, gi) }));
           continue;
         }
         keys.push({ param, seconds: s.normalAt, value: normal });

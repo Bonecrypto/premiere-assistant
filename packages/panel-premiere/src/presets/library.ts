@@ -59,6 +59,10 @@ export const LIBRARY: AnimPreset[] = [
   L({ id: "glitch-jerk", name: "Глитч-рывок", category: "Акцент", kind: "in", shake: 8, blur: true, glyph: "⚡", duration: 0.15, easing: "linear" }),
   L({ id: "handheld", name: "Ручная камера", category: "Акцент", kind: "whole", shake: 0.8, blur: false, glyph: "≈", easing: "linear" }),
   // Текст: короткие мягкие движения для надписей и титров (весь слой — по буквам API не умеет).
+  L({ id: "bounce-pop", name: "Баунс", category: "Текст", kind: "in", scale: 10, bounce: 0.35, duration: 0.35, blur: false, glyph: "✦" }),
+  L({ id: "bounce-hard", name: "Баунс сильный", category: "Текст", kind: "in", scale: 10, rotation: -10, bounce: 0.5, duration: 0.45, blur: false, glyph: "✦" }),
+  L({ id: "bounce-up", name: "Баунс снизу", category: "Текст", kind: "in", dy: 0.12, bounce: 0.3, duration: 0.35, glyph: "↑" }),
+  L({ id: "bounce-out", name: "Баунс-исчезновение", category: "Текст", kind: "out", scale: 10, bounce: 0.3, duration: 0.3, blur: false, glyph: "✦" }),
   L({ id: "text-rise", name: "Подъём", category: "Текст", kind: "in", dy: 0.06, fade: true, duration: 0.5, glyph: "↑" }),
   L({ id: "text-drop", name: "Спуск", category: "Текст", kind: "in", dy: -0.06, fade: true, duration: 0.5, glyph: "↓" }),
   L({ id: "text-slide", name: "Сдвиг слева", category: "Текст", kind: "in", dx: -0.08, fade: true, duration: 0.5, glyph: "→" }),
