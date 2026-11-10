@@ -1,3 +1,4 @@
+import { helperDownMessage } from "./keysLauncher.ts";
 import { HostToolError } from "../hostTools/types.ts";
 import { openKeysClient } from "./keysClient.ts";
 import { decideShots, type Shot } from "./shots.ts";
@@ -103,7 +104,7 @@ export async function analyzeCameras(minShot: number, report: (t: string) => voi
   try {
     client = await openKeysClient(AI_MIN_VERSION);
   } catch {
-    throw new HostToolError("Не запустилась программа в трее — нажмите ещё раз.");
+    throw new HostToolError(helperDownMessage("Не запустилась программа в трее — нажмите ещё раз."));
   }
   client.close();
   const base = client.base!;

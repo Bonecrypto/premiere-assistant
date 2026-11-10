@@ -1,3 +1,4 @@
+import { helperDownMessage } from "./keysLauncher.ts";
 import { HostToolError } from "../hostTools/types.ts";
 import { applyHit } from "./hits.ts";
 import { openKeysClient } from "./keysClient.ts";
@@ -67,7 +68,7 @@ export async function findBeats(report: (t: string) => void = () => {}): Promise
   try {
     client = await openKeysClient(AI_MIN_VERSION);
   } catch {
-    throw new HostToolError("Не запустилась программа в трее — нажмите ещё раз.");
+    throw new HostToolError(helperDownMessage("Не запустилась программа в трее — нажмите ещё раз."));
   }
   client.close();
   const base = client.base!;

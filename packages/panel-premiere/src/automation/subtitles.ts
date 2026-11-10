@@ -1,3 +1,4 @@
+import { helperDownMessage } from "./keysLauncher.ts";
 import { storageGet, storageSet, uxp } from "../env.ts";
 import { HostToolError } from "../hostTools/types.ts";
 import { openKeysClient } from "./keysClient.ts";
@@ -122,7 +123,7 @@ export async function makeSubtitles(opt: SubsOptions, report: (t: string) => voi
   try {
     client = await openKeysClient(AI_MIN_VERSION);
   } catch {
-    throw new HostToolError("Не запустилась программа в трее — нажмите ещё раз.");
+    throw new HostToolError(helperDownMessage("Не запустилась программа в трее — нажмите ещё раз."));
   }
   client.close();
   const base = client.base!;

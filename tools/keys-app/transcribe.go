@@ -20,8 +20,10 @@ import (
 )
 
 const (
-	whisperZipURL   = "https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.0/whisper-bin-x64.zip"
-	whisperModel    = "ggml-large-v3-turbo-q5_0.bin"
+	whisperZipURL = "https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.0/whisper-bin-x64.zip"
+	whisperModel  = "ggml-large-v3-turbo-q5_0.bin"
+	// Mac (Apple Silicon): whisper-cli собирается в CI нашего репозитория (Metal, без зависимостей).
+	whisperMacURL   = "https://github.com/Bonecrypto/premiere-assistant/releases/latest/download/whisper-cli-macos-arm64"
 	whisperModelURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/" + whisperModel
 )
 
@@ -49,6 +51,19 @@ func whisperReady() bool { return exists(whisperCLI()) && exists(whisperModelPat
 
 // setupWhisper — программа (только whisper-cli и нужные DLL из zip) и модель.
 func setupWhisper(stage func(string)) error {
+	if !exists(whisperCLI()) && runtime.GOOS == "darwin" {
+		stage("распознавание речи (whisper.cpp)")
+		b, err := download(whisperMacURL, 10<<20)
+		if err != nil {
+			return fmt.Errorf("не скачался whisper.cpp: %w", err)
+		}
+		if len(b) < 500<<10 {
+			return errors.New("скачался не тот файл whisper.cpp")
+		}
+		if err := writeExecutable(whisperCLI(), b); err != nil {
+			return err
+		}
+	}
 	if !exists(whisperCLI()) {
 		if runtime.GOOS != "windows" {
 			return errors.New("укажите PA_WHISPER_CLI")

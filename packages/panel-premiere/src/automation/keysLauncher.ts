@@ -13,6 +13,15 @@ const EXE_VERSION = "13";
 const EXE_NAME = `PremiereAssistantKeys-v${EXE_VERSION}.exe`;
 const VER_KEY = "keysExeVersion";
 
+/** Где взять помощника для Mac и как его включить (показывается, если он не ответил). */
+export const MAC_HELPER_HINT =
+  "Помощник для Mac не запущен. Один раз: скачайте PremiereAssistantHelper-mac.zip со страницы github.com/Bonecrypto/premiere-assistant/releases/latest, перетащите «Premiere Assistant Helper» в «Программы», откройте его (правый клик → Открыть) и разрешите «Универсальный доступ». Потом нажмите ещё раз.";
+
+/** Текст «помощник не запустился» — на Mac с инструкцией по установке. */
+export function helperDownMessage(win = "Не запустилась программа в трее — нажмите ещё раз."): string {
+  return isMac() ? MAC_HELPER_HINT : win;
+}
+
 function ascii(s: string): ArrayBuffer {
   const b = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0x7f;
@@ -49,8 +58,15 @@ async function ensureExe(u: any, folder: any): Promise<void> {
 
 /** Запустить нажиматель. Возвращает "" если запущен, иначе текст ошибки. */
 export async function launchKeysHelper(): Promise<string> {
-  if (isMac()) return "на Mac эта функция пока недоступна: программа-помощник (ИИ, клавиши) собрана только для Windows";
   const u: any = uxp;
+  if (isMac()) {
+    // Mac: помощник — приложение «Premiere Assistant Helper» (ставится один раз), запускается ссылкой premiereassistant://.
+    if (!u?.shell?.openExternal) return MAC_HELPER_HINT;
+    const r: string = await u.shell
+      .openExternal("premiereassistant://start", "Premiere Assistant запустит своего помощника (клавиши и нейросети на этом Mac).")
+      .catch((e: Error) => e?.message || String(e));
+    return r ? `${MAC_HELPER_HINT} (${r})` : "";
+  }
   if (!u?.storage?.localFileSystem || !u?.shell?.openPath) return "автозапуск недоступен в этой версии Premiere";
   try {
     const folder = await keysFolder(u);

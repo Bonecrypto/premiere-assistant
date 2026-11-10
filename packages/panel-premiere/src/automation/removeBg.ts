@@ -1,3 +1,4 @@
+import { helperDownMessage } from "./keysLauncher.ts";
 import { storageGet, storageSet, uxp } from "../env.ts";
 import { HostToolError } from "../hostTools/types.ts";
 import { openKeysClient } from "./keysClient.ts";
@@ -43,7 +44,7 @@ async function aiBase(): Promise<string> {
   try {
     client = await openKeysClient(AI_MIN_VERSION);
   } catch {
-    throw new HostToolError("Не запустилась программа в трее (она же делает покраску). Нажмите ещё раз; если не поможет — «Авто → Покраска таймлайна» подскажет, что не так.");
+    throw new HostToolError(helperDownMessage("Не запустилась программа в трее (она же делает покраску). Нажмите ещё раз; если не поможет — «Авто → Покраска таймлайна» подскажет, что не так."));
   }
   client.close();
   if (!client.base) throw new HostToolError("Нужна новая программа в трее — нажмите ещё раз, панель запустит её сама.");

@@ -29,6 +29,14 @@ func ffmpegPath() string {
 	if p, err := exec.LookPath("ffmpeg"); err == nil {
 		return p
 	}
+	if runtime.GOOS == "darwin" {
+		// У программ из Finder в PATH нет Homebrew — смотрим его папки сами.
+		for _, p := range []string{"/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"} {
+			if exists(p) {
+				return p
+			}
+		}
+	}
 	return ""
 }
 

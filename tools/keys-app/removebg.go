@@ -52,11 +52,18 @@ func loadModel() error {
 		}
 		defer opts.Destroy()
 		if gpu {
-			// DirectML: без «memory pattern» и последовательно — так требует ONNX Runtime.
-			_ = opts.SetMemPattern(false)
-			_ = opts.SetExecutionMode(ort.ExecutionModeSequential)
-			if err := opts.AppendExecutionProviderDirectML(0); err != nil {
-				return nil, err
+			if runtime.GOOS == "darwin" {
+				// Apple Silicon: CoreML (видеокарта + Neural Engine).
+				if err := opts.AppendExecutionProviderCoreMLV2(map[string]string{"MLComputeUnits": "ALL"}); err != nil {
+					return nil, err
+				}
+			} else {
+				// DirectML: без «memory pattern» и последовательно — так требует ONNX Runtime.
+				_ = opts.SetMemPattern(false)
+				_ = opts.SetExecutionMode(ort.ExecutionModeSequential)
+				if err := opts.AppendExecutionProviderDirectML(0); err != nil {
+					return nil, err
+				}
 			}
 		} else {
 			_ = opts.SetIntraOpNumThreads(max(1, runtime.NumCPU()-1))
@@ -65,7 +72,7 @@ func loadModel() error {
 	}
 	var s *ort.DynamicAdvancedSession
 	gpu := false
-	if usingDML() {
+	if usingDML() || runtime.GOOS == "darwin" {
 		if s, err = open(true); err == nil {
 			gpu = true
 		}

@@ -16,7 +16,8 @@
     "localFileSystem": "request",
     "launchProcess": {
       "schemes": [
-        "https"
+        "https",
+        "premiereassistant"
       ],
       "extensions": [
         ".exe",

@@ -82,8 +82,12 @@ interface ToolDef {
 - Сетевой доступ панели к `localhost` должен быть разрешён в manifest (permissions → network). Проверить формат по документации.
 - Если операцию сделать нельзя — инструмент честно возвращает «не поддерживается API» и предлагает ручной путь.
 
-## Mac
-- Панель (UXP, `.ccx`) работает и на Mac: manifest без ограничений по ОС. Всё, что идёт через программу в трее (клавиши меток/разрез, ИИ: фон, паузы, субтитры, биты, камеры), пока **только Windows** — `isMac()` в `env.ts`, `launchKeysHelper` на Mac сразу отвечает понятным текстом. Для Mac-версии помощника нужно: сборка Go под darwin (arm64+amd64) на macOS-раннере CI, нажатие клавиш через CGEvent (разрешение «Универсальный доступ»), значок в строке меню, ONNX Runtime с CoreML вместо DirectML, ffmpeg/whisper для macOS; без подписи Apple ($99/год) Gatekeeper просит «правый клик → Открыть».
+## Mac (Apple Silicon)
+- Панель (UXP, `.ccx`) — та же; в manifest `launchProcess.schemes` есть `premiereassistant` (нужна переустановка .ccx).
+- **Помощник для Mac** — `tools/keys-app` с `main_darwin.go` (cgo): приложение-агент «Premiere Assistant Helper.app» (`macos/Info.plist`: LSUIElement — без Dock, URL-схема `premiereassistant://`), тот же HTTP 127.0.0.1/::1:8766. Клавиши — CGEvent (`Ctrl` из команд → ⌘, `Alt` → ⌥; коды ANSI), нужно разрешение «Универсальный доступ» (`AXIsProcessTrustedWithOptions` спрашивает при запуске); Premiere ищется по `ps -axco comm` («Adobe Premiere Pro …») и выводится вперёд `open -a`; выход через минуту после закрытия Premiere. ИИ: ONNX Runtime `onnxruntime-osx-arm64` (`libonnxruntime.dylib`) + CoreML (`AppendExecutionProviderCoreMLV2`, MLComputeUnits=ALL); ffmpeg — Homebrew (`/opt/homebrew/bin`) или `ffmpeg-static` b6.0 darwin-arm64; whisper-cli — собирается в CI (`whisper-cli-macos-arm64`, Metal встроен, кэш). Скачанные программы — `writeExecutable` (chmod 755 + ad-hoc codesign).
+- CI: job `mac` (macos-14) после основного релиза: `go vet/test`, сборка .app, ad-hoc подпись, `PremiereAssistantHelper-mac.zip` + whisper-cli в тот же релиз (падение Mac-сборки не мешает обновлению панели).
+- Установка пользователем один раз: zip → «Программы» → правый клик «Открыть» (без подписи Apple; на macOS 15 — «Конфиденциальность и безопасность → Всё равно открыть») → «Универсальный доступ». Обновление помощника — заново скачать zip (ad-hoc подпись меняется — «Универсальный доступ» может потребоваться выдать заново). Панель: `isMac()` (`env.ts`), запуск — `shell.openExternal("premiereassistant://start")`, подсказка `MAC_HELPER_HINT` / `helperDownMessage()`, клавиши в подсказках — ⌘⌥⇧.
+- **Не проверено на настоящем Mac** (здесь нет macOS SDK; проверяет только сборка в CI).
 
 ## Настройка окружения (Windows)
 1. Premiere Pro 25.6+: Preferences → Plugins → **Enable developer mode**.

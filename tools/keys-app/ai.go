@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -40,8 +41,11 @@ func aiDir() string {
 }
 
 func ortLibName() string {
-	if runtime.GOOS == "windows" {
+	switch runtime.GOOS {
+	case "windows":
 		return "onnxruntime.dll"
+	case "darwin":
+		return "libonnxruntime.dylib"
 	}
 	return "libonnxruntime.so"
 }
@@ -70,6 +74,51 @@ const (
 )
 
 func modelPath() string { return filepath.Join(aiDir(), modelFile) }
+
+// Mac (Apple Silicon): статическая сборка ffmpeg из ffmpeg-static (если нет своего в Homebrew).
+const ffmpegMacURL = "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-darwin-arm64.gz"
+
+// installFFmpeg скачивает ffmpeg в папку ai (Windows — из BtbN, Mac — ffmpeg-static).
+func installFFmpeg() error {
+	switch runtime.GOOS {
+	case "windows":
+		exe, err := fetchZipEntry(ffmpegURL, "/bin/ffmpeg.exe", 200<<20)
+		if err != nil {
+			return fmt.Errorf("не скачался ffmpeg: %w", err)
+		}
+		return writeAtomic(filepath.Join(aiDir(), "ffmpeg.exe"), exe)
+	case "darwin":
+		gz, err := download(ffmpegMacURL, 30<<20)
+		if err != nil {
+			return fmt.Errorf("не скачался ffmpeg: %w", err)
+		}
+		zr, err := gzip.NewReader(bytes.NewReader(gz))
+		if err != nil {
+			return fmt.Errorf("ffmpeg: %w", err)
+		}
+		bin, err := io.ReadAll(zr)
+		if err != nil {
+			return fmt.Errorf("ffmpeg: %w", err)
+		}
+		return writeExecutable(filepath.Join(aiDir(), "ffmpeg"), bin)
+	}
+	return errors.New("установите ffmpeg")
+}
+
+// writeExecutable — файл программы: права на запуск, на Mac ещё и подпись «для этого компьютера»
+// (Apple Silicon не запускает неподписанные программы).
+func writeExecutable(path string, data []byte) error {
+	if err := writeAtomic(path, data); err != nil {
+		return err
+	}
+	if err := os.Chmod(path, 0o755); err != nil {
+		return err
+	}
+	if runtime.GOOS == "darwin" {
+		_ = exec.Command("/usr/bin/codesign", "--force", "-s", "-", path).Run()
+	}
+	return nil
+}
 
 func exists(p string) bool {
 	st, err := os.Stat(p)
@@ -172,7 +221,7 @@ func extractRuntime(archive []byte) ([]byte, error) {
 		if err != nil {
 			return nil, errors.New("в архиве нет " + want)
 		}
-		if strings.Contains(h.Name, "/lib/"+want+"."+ortVersion) {
+		if strings.Contains(h.Name, "/lib/"+want+"."+ortVersion) || strings.HasSuffix(h.Name, "/lib/libonnxruntime."+ortVersion+".dylib") {
 			return io.ReadAll(tr)
 		}
 	}
@@ -181,6 +230,10 @@ func extractRuntime(archive []byte) ([]byte, error) {
 func runtimeURL() string {
 	if runtime.GOOS == "windows" {
 		return fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v%s/onnxruntime-win-x64-%s.zip", ortVersion, ortVersion)
+	}
+	if runtime.GOOS == "darwin" {
+		// Apple Silicon (M1…): сборка с CoreML — нейросеть считает видеокарта/Neural Engine.
+		return fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v%s/onnxruntime-osx-arm64-%s.tgz", ortVersion, ortVersion)
 	}
 	return fmt.Sprintf("https://github.com/microsoft/onnxruntime/releases/download/v%s/onnxruntime-linux-x64-%s.tgz", ortVersion, ortVersion)
 }
@@ -238,17 +291,8 @@ func runSetup(video bool) {
 		}
 	}
 	if video && ffmpegPath() == "" {
-		if runtime.GOOS != "windows" {
-			fail(errors.New("установите ffmpeg"))
-			return
-		}
 		stage("ffmpeg (видео)")
-		exe, err := fetchZipEntry(ffmpegURL, "/bin/ffmpeg.exe", 200<<20)
-		if err != nil {
-			fail(fmt.Errorf("не скачался ffmpeg: %w", err))
-			return
-		}
-		if err := writeAtomic(filepath.Join(aiDir(), "ffmpeg.exe"), exe); err != nil {
+		if err := installFFmpeg(); err != nil {
 			fail(err)
 			return
 		}
@@ -280,17 +324,10 @@ func runSetup(video bool) {
 // runFFmpegSetup — только ffmpeg (паузы, биты).
 func runFFmpegSetup() {
 	err := func() error {
-		if runtime.GOOS != "windows" {
-			return errors.New("установите ffmpeg")
-		}
 		setup.Lock()
 		setup.stage = "ffmpeg"
 		setup.Unlock()
-		exe, err := fetchZipEntry(ffmpegURL, "/bin/ffmpeg.exe", 200<<20)
-		if err != nil {
-			return fmt.Errorf("не скачался ffmpeg: %w", err)
-		}
-		return writeAtomic(filepath.Join(aiDir(), "ffmpeg.exe"), exe)
+		return installFFmpeg()
 	}()
 	setup.Lock()
 	if err != nil {
@@ -311,15 +348,8 @@ func runSubsSetup() {
 	}
 	err := func() error {
 		if ffmpegPath() == "" {
-			if runtime.GOOS != "windows" {
-				return errors.New("установите ffmpeg")
-			}
 			stage("ffmpeg")
-			exe, err := fetchZipEntry(ffmpegURL, "/bin/ffmpeg.exe", 200<<20)
-			if err != nil {
-				return fmt.Errorf("не скачался ffmpeg: %w", err)
-			}
-			if err := writeAtomic(filepath.Join(aiDir(), "ffmpeg.exe"), exe); err != nil {
+			if err := installFFmpeg(); err != nil {
 				return err
 			}
 		}
@@ -375,7 +405,7 @@ func handleAI(c net.Conn, method, path string, headers map[string]string, body f
 	switch {
 	case method == "GET" && path == "/ai/status":
 		setup.Lock()
-		st := map[string]any{"ok": true, "ready": aiFullyReady(), "video": aiFullyReady() && ffmpegPath() != "", "ffmpeg": ffmpegPath() != "", "gpu": usingDML(),
+		st := map[string]any{"ok": true, "ready": aiFullyReady(), "video": aiFullyReady() && ffmpegPath() != "", "ffmpeg": ffmpegPath() != "", "gpu": usingDML() || runtime.GOOS == "darwin",
 			"running": setup.running, "stage": setup.stage, "done": setup.done, "total": setup.total, "error": setup.err,
 			"sizeMB": 210, "videoMB": 90, "subs": whisperReady() && ffmpegPath() != "", "subsMB": 580}
 		setup.Unlock()

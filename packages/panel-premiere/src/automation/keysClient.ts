@@ -1,8 +1,8 @@
 import { LABEL_KEYS_COMBOS, parseHelperMessage } from "@pa/core";
 import { getSavedPort } from "../connection.ts";
 import { LABEL_KEYS, type LabelKey } from "./labels.ts";
-import { launchKeysHelper } from "./keysLauncher.ts";
-import { isUXP } from "../env.ts";
+import { launchKeysHelper, MAC_HELPER_HINT } from "./keysLauncher.ts";
+import { isMac, isUXP } from "../env.ts";
 
 /**
  * Связь с помощником для нажатия клавиш в Premiere (автопокраска клипов на таймлайне).
@@ -17,8 +17,12 @@ export function labelCombo(label: LabelKey): string {
 export function comboTitle(combo: string): string {
   return combo
     .split("+")
-    .map((p) => (p === "ctrl" ? "Ctrl" : p === "alt" ? "Alt" : p === "shift" ? "Shift" : p.toUpperCase()))
-    .join("+");
+    .map((p) =>
+      isMac()
+        ? p === "ctrl" ? "⌘" : p === "alt" ? "⌥" : p === "shift" ? "⇧" : p.toUpperCase()
+        : p === "ctrl" ? "Ctrl" : p === "alt" ? "Alt" : p === "shift" ? "Shift" : p.toUpperCase(),
+    )
+    .join(isMac() ? "" : "+");
 }
 
 export interface KeysClient {
@@ -124,9 +128,9 @@ export async function openKeysClient(minVersion = MIN_VERSION): Promise<KeysClie
           "в трее осталась старая версия программы-нажимателя: нажмите её значок (возле часов) → «Выход», затем «Ещё раз».";
         throw new Error("helper");
       }
-      lastKeysDiag = `запустил, но не ответил: ${lastKeysDiag}`;
+      lastKeysDiag = isMac() ? `${MAC_HELPER_HINT} Если уже установлен и не отвечает — откройте его заново из «Программ» (возможно, после обновления нужна новая версия).` : `запустил, но не ответил: ${lastKeysDiag}`;
     } else {
-      lastKeysDiag = `не удалось запустить: ${err}`;
+      lastKeysDiag = isMac() ? err : `не удалось запустить: ${err}`;
     }
   }
   return openWsClient();
