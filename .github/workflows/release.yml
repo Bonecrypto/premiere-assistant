@@ -80,6 +80,9 @@ jobs:
   mac:
     needs: release
     runs-on: macos-latest
+    env:
+      # Чтобы программы запускались и на старых macOS (12+), а не только на версии сборочной машины.
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
     steps:
       - uses: actions/checkout@v5
 
@@ -101,6 +104,7 @@ jobs:
           APP="Premiere Assistant Helper.app"
           mkdir -p "$APP/Contents/MacOS"
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o "$APP/Contents/MacOS/premiere-assistant-helper" .
+          otool -l "$APP/Contents/MacOS/premiere-assistant-helper" | grep -A3 LC_BUILD_VERSION
           sed "s/__VERSION__/$VERSION/g" macos/Info.plist > "$APP/Contents/Info.plist"
           codesign --force --deep -s - "$APP"
           codesign --verify --verbose "$APP"
@@ -111,16 +115,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: whisper-cli-macos-arm64
-          key: whisper-cli-macos-arm64-v1.9.0
+          key: whisper-cli-macos-arm64-v1.9.0-mac12
 
       - name: whisper-cli для Mac (Metal, без внешних библиотек)
         if: steps.wcache.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch v1.9.0 https://github.com/ggml-org/whisper.cpp
-          cmake -S whisper.cpp -B wb -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_SDL2=OFF
+          cmake -S whisper.cpp -B wb -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_SDL2=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
           cmake --build wb --target whisper-cli -j 4
           cp wb/bin/whisper-cli whisper-cli-macos-arm64
           otool -L whisper-cli-macos-arm64
+          otool -l whisper-cli-macos-arm64 | grep -A3 LC_BUILD_VERSION
           codesign --force -s - whisper-cli-macos-arm64
 
       - name: Добавить в релиз
