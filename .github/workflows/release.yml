@@ -79,7 +79,7 @@ jobs:
   # если сборка для Mac упадёт, обновление панели для всех всё равно выйдет.
   mac:
     needs: release
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
 
