@@ -10,6 +10,14 @@ function tryRequire<T = any>(id: string): T | null {
 }
 
 export const uxp = tryRequire<typeof import("uxp")>("uxp");
+
+/** Панель запущена на Mac (программа в трее пока только для Windows). */
+export function isMac(): boolean {
+  const os = tryRequire<any>("os");
+  const pl = String(os?.platform?.() ?? "").toLowerCase();
+  if (pl) return pl === "darwin";
+  return typeof navigator !== "undefined" && /mac/i.test(navigator.platform || navigator.userAgent || "");
+}
 export const isUXP = uxp !== null;
 
 /** Модуль Premiere DOM API или null (в браузере). */

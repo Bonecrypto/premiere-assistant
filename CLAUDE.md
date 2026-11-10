@@ -82,6 +82,9 @@ interface ToolDef {
 - Сетевой доступ панели к `localhost` должен быть разрешён в manifest (permissions → network). Проверить формат по документации.
 - Если операцию сделать нельзя — инструмент честно возвращает «не поддерживается API» и предлагает ручной путь.
 
+## Mac
+- Панель (UXP, `.ccx`) работает и на Mac: manifest без ограничений по ОС. Всё, что идёт через программу в трее (клавиши меток/разрез, ИИ: фон, паузы, субтитры, биты, камеры), пока **только Windows** — `isMac()` в `env.ts`, `launchKeysHelper` на Mac сразу отвечает понятным текстом. Для Mac-версии помощника нужно: сборка Go под darwin (arm64+amd64) на macOS-раннере CI, нажатие клавиш через CGEvent (разрешение «Универсальный доступ»), значок в строке меню, ONNX Runtime с CoreML вместо DirectML, ffmpeg/whisper для macOS; без подписи Apple ($99/год) Gatekeeper просит «правый клик → Открыть».
+
 ## Настройка окружения (Windows)
 1. Premiere Pro 25.6+: Preferences → Plugins → **Enable developer mode**.
 2. Установить **UXP Developer Tool** (через Creative Cloud) — загрузка/перезагрузка/отладка панели.

@@ -1,4 +1,4 @@
-import { storageGet, storageSet, uxp } from "../env.ts";
+import { isMac, storageGet, storageSet, uxp } from "../env.ts";
 import { updateRepo } from "../update/version.ts";
 
 /**
@@ -49,6 +49,7 @@ async function ensureExe(u: any, folder: any): Promise<void> {
 
 /** Запустить нажиматель. Возвращает "" если запущен, иначе текст ошибки. */
 export async function launchKeysHelper(): Promise<string> {
+  if (isMac()) return "на Mac эта функция пока недоступна: программа-помощник (ИИ, клавиши) собрана только для Windows";
   const u: any = uxp;
   if (!u?.storage?.localFileSystem || !u?.shell?.openPath) return "автозапуск недоступен в этой версии Premiere";
   try {
