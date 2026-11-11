@@ -9,7 +9,7 @@ import { easeFn, type Curve } from "../presets/curves.ts";
 const Y_MIN = -0.5;
 const Y_MAX = 1.5;
 
-function bezierPoint(c: Curve, t: number): { x: number; y: number } {
+export function bezierPoint(c: Curve, t: number): { x: number; y: number } {
   const [x1, y1, x2, y2] = c;
   const u = 1 - t;
   return {

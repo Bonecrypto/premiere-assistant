@@ -18,6 +18,7 @@ import {
 import { Button } from "./Button.tsx";
 import { CurveEditor, CurveThumb } from "./CurveEditor.tsx";
 import { Segmented } from "./Segmented.tsx";
+import { CurveGrid } from "./CurveGrid.tsx";
 
 type Status = { tone: "ok" | "error" | "busy"; text: string } | null;
 
@@ -61,6 +62,11 @@ export function GraphView() {
   const [status, setStatus] = useState<Status>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
+  const [mode, setModeState] = useState<"grid" | "editor">(() => (storageGet("graphMode") === "editor" ? "editor" : "grid"));
+  const setMode = (m: "grid" | "editor") => {
+    setModeState(m);
+    storageSet("graphMode", m);
+  };
 
   const setCurve = (c: Curve) => {
     setCurveState(c);
@@ -111,9 +117,46 @@ export function GraphView() {
     ...(user.length ? [{ title: "Мои", items: user }] : []),
   ];
 
+  const modeSwitch = (
+    <Segmented<"grid" | "editor">
+      className="segmented-small graph-mode"
+      items={[
+        { id: "grid", label: "Сетка" },
+        { id: "editor", label: "Редактор" },
+      ]}
+      value={mode}
+      onChange={setMode}
+    />
+  );
+
+  if (mode === "grid") {
+    return (
+      <div className="page">
+        <div className="scroll-inner">
+          {modeSwitch}
+          <CurveGrid opts={opts} onPick={setCurve} />
+          <div className="pv-row pv-row-stack graph-grid-opts">
+            <span className="pv-label">Ключи</span>
+            <Segmented<"0" | "2" | "1">
+              className="segmented-small pv-seg"
+              items={[
+                { id: "0", label: "Мало (плавно)" },
+                { id: "2", label: "Через кадр" },
+                { id: "1", label: "Каждый кадр" },
+              ]}
+              value={String(opts.step) as "0" | "2" | "1"}
+              onChange={(v) => setOpts({ ...opts, step: v === "1" ? 1 : v === "2" ? 2 : 0 })}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="scroll-inner">
+        {modeSwitch}
         <div className="page-title">Графики</div>
         <div className="page-sub">Выделите клипы с ключевыми кадрами и выберите плавность.</div>
 
