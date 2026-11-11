@@ -2,14 +2,11 @@ import { useRef, useState } from "react";
 import { animateSelected } from "../automation/animate.ts";
 import { applyFxPreset, loadFxPresets } from "../automation/fxPresets.ts";
 import { applyRecipe, type FxRecipe } from "../automation/fxRecipes.ts";
-import { applyQuickEase, bakeCurve, unbakeCurve } from "../automation/graph.ts";
-import { CURVE_PRESETS } from "../presets/curves.ts";
 import { storageGet, storageSet } from "../env.ts";
 import { loadAnimOptions } from "../presets/animations.ts";
-import { COLOR_RECIPES, FX_MOTION, FX_RECIPES } from "../presets/fxLibrary.ts";
+import { COLOR_RECIPES, FX_RECIPES } from "../presets/fxLibrary.ts";
 import { LIBRARY } from "../presets/library.ts";
 import { adjustmentLayer, adjustmentWithTransform, blackVideo, colorMatte } from "../automation/quickCreate.ts";
-import { Button } from "./Button.tsx";
 import { FX_THUMBS } from "./fxThumbs.ts";
 import { useFitTiles, useSize } from "./useSize.ts";
 import { flashSelected } from "../automation/flash.ts";
@@ -77,12 +74,6 @@ function recipeTiles(list: FxRecipe[]): Tile[] {
 }
 
 /** Ключи «одним кликом» — для ключей, которые пользователь поставил сам. */
-const KEY_CURVES: Array<{ id: string; name: string; desc: string; swatch: [string, string]; shape?: "launch" | "trampoline"; quick?: "bezier" }> = [
-  { id: "launch", name: "Быстрый вылет", desc: "Пик скорости на старте и плавный спад (+3–6 ключей у начала)", swatch: ["#ff5e3a", "#7a1cf0"], shape: "launch" },
-  { id: "trampoline", name: "Трамплин", desc: "Медленный разгон и вылет на максимальной скорости в конце", swatch: ["#7a1cf0", "#ff5e3a"], shape: "trampoline" },
-  { id: "smooth", name: "Плавно", desc: "Без новых ключей: мягкий старт и остановка (Bezier)", swatch: ["#5a6fe8", "#2d9ee0"], quick: "bezier" },
-  { id: "unbake", name: "Убрать", desc: "Убрать доп. ключи, оставить только ваши", swatch: ["#3a3a44", "#1a1a20"] },
-];
 
 /** «Создать»: элементы на таймлайн одним кликом. */
 const CREATE: Array<{ id: string; name: string; desc: string; run: () => Promise<string> }> = [
@@ -100,21 +91,7 @@ const CREATE: Array<{ id: string; name: string; desc: string; run: () => Promise
 ];
 
 /** Плитки вкладки «Эффекты»: пачки + движение + свои пачки из «Пресеты → Эффекты». */
-function effectsTiles(): Tile[] {
-  const motion: Tile[] = FX_MOTION.map((m) => ({
-    key: m.id,
-    name: m.name,
-    desc: m.desc,
-    group: "Движение",
-    swatch: ["#9f18ec", "#4b0cb4"],
-    thumb: FX_THUMBS[m.id],
-    run: async () => {
-      const preset = LIBRARY.find((a) => a.id === m.anim);
-      if (!preset) throw new Error("Не нашёл анимацию.");
-      const r = await animateSelected(preset, loadAnimOptions());
-      return `«${m.name}» — ${r.changed} клип. Отмена — Ctrl+Z.`;
-    },
-  }));
+function effectsTiles(): { main: Tile[]; text: Tile[] } {
   const mine: Tile[] = loadFxPresets().map((f) => ({
     key: `my-${f.id}`,
     name: f.name,
@@ -125,29 +102,6 @@ function effectsTiles(): Tile[] {
     run: async () => {
       const r = await applyFxPreset(f);
       return `«${f.name}» — ${r.changed} клип. Отмена — Ctrl+Z (2 раза).`;
-    },
-  }));
-  const keys: Tile[] = KEY_CURVES.map((k) => ({
-    key: k.id,
-    name: k.name,
-    desc: k.desc,
-    group: "Ключи",
-    swatch: k.swatch,
-    thumb: FX_THUMBS[k.id],
-    instant: true,
-    run: async () => {
-      if (k.id === "unbake") {
-        const r = await unbakeCurve(true);
-        return `Убрано доп. ключей: ${r.removed}. Ваши ключи остались.`;
-      }
-      if (k.quick) {
-        const r = await applyQuickEase(k.quick, "all");
-        return `«${k.name}»: ключей ${r.keys} у ${r.params} парам. — новых ключей нет. Отмена — Ctrl+Z.`;
-      }
-      const curve = CURVE_PRESETS.find((c) => c.id === (k.shape === "launch" ? "fast-launch" : "trampoline"))!.curve;
-      const r = await bakeCurve(curve, { step: 0, scope: "all", shape: k.shape });
-      const skip = r.skipped.length ? ` Пропущено: ${r.skipped[0]}.` : "";
-      return `«${k.name}»: ${r.segments} отрезк., +${r.keys} ключ. Повторный клик пересчитает, «Убрать» — вернёт как было. Ctrl+Z — отмена.${skip}`;
     },
   }));
   const flash: Tile[] = [
@@ -168,7 +122,7 @@ function effectsTiles(): Tile[] {
       key: "ai-removebg",
       name: "Убрать фон",
       desc: "Нейросеть на компьютере (на видеокарте): вырезает человека/объект с картинки или видео и кладёт над исходником — для «текста за человеком»",
-      group: "ИИ",
+      group: "Картинка",
       swatch: ["#9f18ec", "#22045e"],
       thumb: FX_THUMBS["ai-removebg"],
       instant: true,
@@ -218,20 +172,31 @@ function effectsTiles(): Tile[] {
       run: async () => `«${a.name}» — ${(await animateSelected(a, loadAnimOptions())).changed} клип. Отмена — Ctrl+Z.`,
     })),
   ];
-  return [...ai, ...hits, ...create, ...text, ...keys, ...flash, ...recipeTiles(FX_RECIPES), ...motion, ...mine];
+  return { main: [...ai, ...hits, ...create, ...flash, ...recipeTiles(FX_RECIPES.filter((r) => r.group !== "Виньетка")), ...mine], text };
+}
+
+/** «Движение → Текст»: проявления шторкой + текстовые анимации (баунс, подъём…) — одним кликом. */
+export function TextView() {
+  return (
+    <RecipeView
+      title="Текст"
+      tiles={effectsTiles().text}
+      hints={{ Текст: "Выделите текст (или любой клип) и нажмите — применится сразу. Анимируется весь слой: по буквам Premiere не даёт." }}
+      storeKey="textSelected"
+    />
+  );
 }
 
 export function EffectsView() {
   return (
     <RecipeView
       title="Эффекты"
-      groupOrder={["ИИ", "Удары", "Создать", "Текст", "Ключи", "Стиль", "Картинка", "Свечение", "Виньетка", "Углы", "Движение", "Мои"]}
-      tiles={effectsTiles()}
+      groupOrder={["Удары", "Создать", "Стиль", "Картинка", "Свечение", "Углы", "Мои"]}
+      tiles={effectsTiles().main}
       hints={{
-        ИИ: "Выделите картинку или видеоклип и нажмите. Первый раз панель предложит скачать нейросеть (~210 МБ, для видео ещё ffmpeg ~90 МБ).",
+        Картинка: "«Убрать фон»: выделите картинку или видеоклип — первый раз панель предложит скачать нейросеть (~210 МБ).",
         Удары: "Поставьте плейхед на бит, выделите клипы и нажмите — акцент на 3–8 кадров.",
         Создать: "Под плейхед на свободную дорожку над V1; выделены клипы — на их длину. Adjustment Layer: один раз File → New → Adjustment Layer.",
-        Ключи: "Поставьте 2 ключа (Position, Scale…) в Effect Controls, выделите клип и нажмите — применится сразу.",
         Свечение: "«Контур» и «Неон» — для PNG, текста, логотипов.",
         Мои: "Сохраняются с клипа: «Пресеты → Эффекты → Сохранить с клипа».",
       }}
@@ -279,9 +244,10 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
   const groups = [...(props.groupOrder ?? []).filter((g) => present.has(g)), ...[...present].filter((g) => !props.groupOrder?.includes(g))];
   const [group, setGroup] = useState<string>(() => {
     const g = storageGet(`${props.storeKey}:group`);
-    return g && (present.has(g) || g === ALL) ? g : ALL;
+    return g && present.has(g) ? g : groups[0] ?? ALL;
   });
-  const visible = group === ALL ? groups : [group];
+  // Один раздел на экране (без «Все»): меньше плиток — проще найти, всё без прокрутки.
+  const visible = present.has(group) ? [group] : groups.slice(0, 1);
   const [areaRef, area] = useSize();
   const contentRef = useRef<HTMLDivElement>(null);
   const size = useFitTiles(area, fitTile(area.w, area.h, visible.map((g) => props.tiles.filter((t) => t.group === g).length)), contentRef, [group]);
@@ -301,10 +267,10 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
     <div className="pv">
       <div className="recipe-head">
         <div className="lib-chips recipe-chips">
-          {[ALL, ...groups].map((g) => (
+          {groups.map((g) => (
             <div
               key={g}
-              className={`lib-chip${g === group ? " is-active" : ""}`}
+              className={`lib-chip${g === visible[0] ? " is-active" : ""}`}
               onClick={() => {
                 setGroup(g);
                 storageSet(`${props.storeKey}:group`, g);
@@ -335,9 +301,6 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
         <div ref={contentRef}>
         <div className="recipe-grid">
           {visible.map((g) => [
-            <div key={`label-${g}`} className="recipe-label-cell" style={{ width: size }} title={props.hints[g] ?? g}>
-              {g}
-            </div>,
             ...props.tiles
               .filter((t) => t.group === g)
               .map((t) => (
@@ -348,10 +311,9 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
                   onClick={() => {
                     setSel(t.key);
                     storageSet(props.storeKey, t.key);
-                    if (t.instant) void apply(t);
-                    else setStatus(null);
+                    // Клик — сразу применить (одинаково для всех плиток; Ctrl+Z — отмена).
+                    void apply(t);
                   }}
-                  onDoubleClick={() => !t.instant && void apply(t)}
                   title={`${t.name}: ${t.desc}`}
                 >
                   {t.thumb ? (
@@ -371,17 +333,8 @@ function RecipeView(props: { title: string; tiles: Tile[]; withStrength?: boolea
       </div>
       <div className="pv-footer">
         <span className={`pv-footer-text${status ? ` status-${status.tone}` : ""}`}>
-          {status
-            ? status.text
-            : chosen
-              ? chosen.instant
-                ? `${chosen.name}: ${chosen.desc}`
-                : `${chosen.name}: ${chosen.desc}. Выделите клипы → «Применить» (или двойной клик)`
-              : props.hints[group] ?? "Наведите на плитку — подсказка; клик — выбрать"}
+          {status ? status.text : props.hints[visible[0]] ?? "Выделите клипы и кликните плитку — применится сразу. Отмена — Ctrl+Z."}
         </span>
-        <Button variant="primary" className="pv-apply" onClick={() => void apply()} disabled={!chosen || chosen.instant || status?.tone === "busy"}>
-          Применить
-        </Button>
       </div>
     </div>
   );

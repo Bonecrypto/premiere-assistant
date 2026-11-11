@@ -5,10 +5,11 @@ import type { AnimPreset } from "./animations.ts";
  * Всё делается эффектом Transform (+ Gaussian Blur для размытия) — без сторонних плагинов.
  */
 
-export const LIB_CATEGORIES = ["Вход", "Выход", "Акцент", "Вход + выход", "Текст"] as const;
+export const LIB_CATEGORIES = ["Вход", "Выход", "Акцент", "Вход + выход"] as const;
+/** Пресеты категории «Текст» показываются во вкладке «Движение → Текст», не в библиотеке. */
 export type LibCategory = (typeof LIB_CATEGORIES)[number];
 
-type Def = Partial<AnimPreset> & Pick<AnimPreset, "id" | "name" | "kind"> & { category: LibCategory };
+type Def = Partial<AnimPreset> & Pick<AnimPreset, "id" | "name" | "kind"> & { category: LibCategory | "Текст" };
 
 const L = (d: Def): AnimPreset => ({
   dx: 0,

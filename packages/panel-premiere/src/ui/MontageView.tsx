@@ -243,7 +243,7 @@ export function MontageView() {
             </div>
           </div>
         ) : null}
-        <div className="act-section">Текст</div>
+        <div className="act-section">Монтаж и текст</div>
         <div className="act-grid">
           <Act
             icon="copystyle"
@@ -259,9 +259,6 @@ export function MontageView() {
             }
           />
           <Act icon="pastestyle" grad="indigo" label="Вставить стиль" hint="На все выделенные слои — текст каждого остаётся своим" onClick={() => void run("Вставляю стиль…", () => pasteStyle())} />
-        </div>
-        <div className="act-section">Монтаж</div>
-        <div className="act-grid">
           <Act icon="nest" grad="purple" label="Nest" hint="Собрать выделенное во вложенную секвенцию (эффекты сохраняются)" onClick={() => void run("Собираю Nest…", () => nestSelected())} />
           <Act icon="unnest" grad="indigo" label="Разобрать Nest" hint="Разложить выделенный Nest обратно (эффекты внутренних клипов не переносятся)" onClick={() => void run("Разбираю…", () => unnestSelected())} />
           <Act icon="scissors" grad="pink" label="Разрез" hint="Ctrl+K под плейхедом на выбранных дорожках" onClick={() => void cut(false)} />

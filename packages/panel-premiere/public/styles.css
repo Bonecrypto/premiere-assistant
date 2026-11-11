@@ -3488,3 +3488,13 @@ body,
 .cg-status { flex: 1; font-size: 11px; color: var(--label-2); margin-right: 8px; }
 .graph-mode { margin-bottom: 10px; }
 .graph-grid-opts { margin-top: 10px; }
+/* Переключатель разделов внутри вкладки (Движение: Анимации · Графики · Текст …) */
+.subtabs { padding: 6px 12px 4px 12px; }
+
+/* Компактные плитки «Монтаж»/«Звук» — всё на экране без прокрутки */
+.act-tile { width: 74px; margin: 0 6px 6px 0; padding: 8px 3px 6px 3px; border-radius: 14px; }
+.act-img { width: 30px; height: 30px; margin-bottom: 4px; }
+.act-icon { width: 30px; height: 30px; margin-bottom: 4px; }
+.act-label { font-size: 10px; line-height: 12px; min-height: 24px; }
+.act-section { margin: 4px 2px 5px 2px; }
+.cg-mode { margin-bottom: 8px; }

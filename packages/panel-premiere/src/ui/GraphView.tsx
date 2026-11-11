@@ -135,6 +135,7 @@ export function GraphView() {
         <div className="scroll-inner">
           {modeSwitch}
           <CurveGrid opts={opts} onPick={setCurve} />
+          {storageGet("gridExact") === "1" ? (
           <div className="pv-row pv-row-stack graph-grid-opts">
             <span className="pv-label">Ключи</span>
             <Segmented<"0" | "2" | "1">
@@ -148,6 +149,7 @@ export function GraphView() {
               onChange={(v) => setOpts({ ...opts, step: v === "1" ? 1 : v === "2" ? 2 : 0 })}
             />
           </div>
+          ) : null}
         </div>
       </div>
     );

@@ -743,7 +743,7 @@ function LibraryDetail(props: { setAction(a: { run: () => Promise<string> } | nu
 
   const chosen = LIBRARY.find((a) => a.id === sel) ?? LIBRARY[0];
   const q = query.trim().toLowerCase();
-  const list = LIBRARY.filter(
+  const list = LIBRARY.filter((a) => a.category !== "Текст").filter(
     (a) =>
       (cat === "Все" || (cat === "★" ? favs.includes(a.id) : a.category === cat)) &&
       (!q || a.name.toLowerCase().includes(q) || (a.category ?? "").toLowerCase().includes(q)),

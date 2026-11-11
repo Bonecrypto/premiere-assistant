@@ -39,14 +39,13 @@ function load<T>(key: string, def: T): T {
 
 /** Размер плитки, при котором все элементы помещаются без прокрутки. */
 function fit(w: number, h: number, list: typeof GRAPHICS): number {
-  if (!w || !h) return 84;
-  for (let s = 110; s >= 50; s -= 4) {
+  if (!w || !h) return 96;
+  for (let s = 120; s >= 56; s -= 4) {
     const cols = Math.max(1, Math.floor((w + 6) / (s + 6)));
     const tileH = Math.round((s * 9) / 16) + (s >= 76 ? 22 : 18);
-    const total = GROUPS.reduce((n, g) => n + Math.ceil(list.filter((x) => x.group === g).length / cols) * tileH + 18, 0);
-    if (total <= h) return s;
+    if (Math.ceil(list.length / cols) * tileH + 44 <= h) return s;
   }
-  return 50;
+  return 56;
 }
 
 /** Вкладка «Элементы»: готовая графика (стрелки, подчёркивания, обводки, значки, плашки) одним кликом. */
@@ -58,9 +57,13 @@ export function ElementsView() {
   const [status, setStatus] = useState<Status>(null);
   const [set, setSet] = useState<ElSet>(() => load("elSet", "neon"));
   const list = ofSet(set);
+  const groups = GROUPS.filter((g) => list.some((x) => x.group === g));
+  const [groupSaved, setGroup] = useState<string>(() => load("elGroup", "Стрелки"));
+  const group = groups.includes(groupSaved as (typeof GROUPS)[number]) ? groupSaved : groups[0];
+  const shown = list.filter((x) => x.group === group);
   const [areaRef, area] = useSize();
   const contentRef = useRef<HTMLDivElement>(null);
-  const size = useFitTiles(area, fit(area.w, area.h, list), contentRef, [set]);
+  const size = useFitTiles(area, fit(area.w, area.h, shown), contentRef, [set, group]);
   const save = (k: string, v: unknown) => storageSet(k, JSON.stringify(v));
 
   const insert = async (id: string, name: string) => {
@@ -138,12 +141,23 @@ export function ElementsView() {
       </div>
       <div className="recipe-area" ref={areaRef}>
         <div ref={contentRef}>
-        <div className="recipe-grid">
-          {GROUPS.filter((g) => list.some((x) => x.group === g)).map((g) => [
-            <div key={`label-${g}`} className="recipe-label-cell" style={{ width: size }}>
+        <div className="lib-chips recipe-chips">
+          {groups.map((g) => (
+            <div
+              key={g}
+              className={`lib-chip${g === group ? " is-active" : ""}`}
+              onClick={() => {
+                setGroup(g);
+                save("elGroup", g);
+              }}
+            >
               {g}
-            </div>,
-            ...list.filter((x) => x.group === g).map((x) => (
+            </div>
+          ))}
+        </div>
+        <div className="recipe-grid">
+          {[group].map((g) => [
+            ...shown.map((x) => (
               <div
                 key={x.id}
                 className={`recipe-tile${size < 76 ? " is-small" : ""}`}

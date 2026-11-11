@@ -18,20 +18,36 @@ import { Onboarding } from "./ui/Onboarding.tsx";
 import { AutoView } from "./ui/AutoView.tsx";
 import { GraphView } from "./ui/GraphView.tsx";
 import { TitlesView } from "./ui/TitlesView.tsx";
-import { ColorView, EffectsView } from "./ui/RecipeView.tsx";
+import { ColorView, EffectsView, TextView } from "./ui/RecipeView.tsx";
+import { Segmented } from "./ui/Segmented.tsx";
 import { MontageView, SoundView } from "./ui/MontageView.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
-type Tab = "palette" | "chat" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "titles" | "color" | "sound" | "tasks" | "settings";
+/** Страница панели (раздел). Вкладки шапки — группы страниц (GROUPS). */
+type Tab = "palette" | "chat" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "text" | "titles" | "color" | "sound" | "tasks" | "settings";
+type Group = "chat" | "motion" | "fx" | "graphics" | "edit" | "settings" | "palette";
+
+/** 5 вкладок с подписями; внутри — переключатель разделов. Каждая функция — в одном месте. */
+const GROUPS: Record<"motion" | "fx" | "graphics" | "edit", { label: string; icon: "presets" | "sparkle" | "shapes" | "scissors"; pages: Array<[Tab, string]> }> = {
+  motion: { label: "Движение", icon: "presets", pages: [["presets", "Анимации"], ["graph", "Графики"], ["text", "Текст"]] },
+  fx: { label: "Эффекты", icon: "sparkle", pages: [["effects", "Эффекты"], ["color", "Цвет"]] },
+  graphics: { label: "Графика", icon: "shapes", pages: [["elements", "Элементы"], ["titles", "Титры"]] },
+  edit: { label: "Монтаж", icon: "scissors", pages: [["montage", "Монтаж"], ["auto", "Авто"], ["sound", "Звук"], ["tasks", "Задачи"]] },
+};
+
+function groupOf(t: Tab): Group {
+  for (const [g, def] of Object.entries(GROUPS)) if (def.pages.some(([p]) => p === t)) return g as Group;
+  return t === "settings" || t === "palette" ? t : "chat";
+}
 
 const ONBOARDING_KEY = "onboardingDone";
 const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return (["palette", "auto", "presets", "effects", "elements", "montage", "graph", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
+  return (["auto", "presets", "effects", "elements", "montage", "graph", "text", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
 }
 
 export function App() {
@@ -79,6 +95,16 @@ export function App() {
   const setTab = (t: Tab) => {
     setTabState(t);
     storageSet(TAB_KEY, t === "palette" ? "chat" : t);
+    const g = groupOf(t);
+    if (g in GROUPS) storageSet(`page:${g}`, t);
+  };
+  /** Клик по вкладке шапки — последний открытый раздел этой вкладки. */
+  const openGroup = (g: Group) => {
+    if (g in GROUPS) {
+      const def = GROUPS[g as keyof typeof GROUPS];
+      const last = storageGet(`page:${g}`) as Tab | null;
+      setTab(last && def.pages.some(([p]) => p === last) ? last : def.pages[0][0]);
+    } else setTab(g as Tab);
   };
 
   // Ctrl+K (или Ctrl+Space) — палитра команд, когда панель в фокусе.
@@ -201,23 +227,19 @@ export function App() {
 
   return (
     <div className="app">
-      <TopBar<Tab>
+      <TopBar<Group>
         tabs={[
           { id: "chat", icon: "chat", label: "Чат" },
-          { id: "auto", icon: "bolt", label: "Авто" },
-          { id: "presets", icon: "presets", label: "Пресеты" },
-          { id: "effects", icon: "sparkle", label: "Эффекты" },
-          { id: "elements", icon: "shapes", label: "Элементы" },
-          { id: "montage", icon: "scissors", label: "Монтаж" },
-          { id: "titles", icon: "title", label: "Титры" },
-          { id: "graph", icon: "graph", label: "Графики" },
-          { id: "color", icon: "drop", label: "Цвет" },
-          { id: "sound", icon: "speaker", label: "Звук" },
-          { id: "tasks", icon: "tasks", label: "Задачи", badge: activeTasks },
+          ...(Object.keys(GROUPS) as Array<keyof typeof GROUPS>).map((g) => ({
+            id: g as Group,
+            icon: GROUPS[g].icon,
+            label: GROUPS[g].label,
+            badge: g === "edit" ? activeTasks : undefined,
+          })),
         ]}
         settings={{ id: "settings", icon: "settings", label: "Настройки" }}
-        tab={tab}
-        onTab={setTab}
+        tab={groupOf(tab)}
+        onTab={openGroup}
         search={{ active: tab === "palette", onClick: () => setTab(tab === "palette" ? "chat" : "palette") }}
         action={
           tab === "chat"
@@ -249,7 +271,20 @@ export function App() {
           />
         </>
       ) : null}
+      {groupOf(tab) in GROUPS ? (
+        <div className="subtabs">
+          <Segmented<Tab>
+            className="segmented-small"
+            items={GROUPS[groupOf(tab) as keyof typeof GROUPS].pages
+              .filter(([p]) => p !== "tasks" || state.tasks.length > 0)
+              .map(([id, label]) => ({ id, label }))}
+            value={tab}
+            onChange={setTab}
+          />
+        </div>
+      ) : null}
       {tab === "auto" ? <AutoView /> : null}
+      {tab === "text" ? <TextView /> : null}
       {tab === "presets" ? <PresetsView /> : null}
       {tab === "graph" ? <GraphView /> : null}
       {tab === "titles" ? <TitlesView /> : null}

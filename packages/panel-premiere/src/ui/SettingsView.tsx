@@ -31,6 +31,8 @@ export function SettingsView(props: {
   const valid = Number.isInteger(n) && n > 0 && n < 65536;
   const connected = props.connection === "connected";
   const [accent, setAccent] = useState(savedAccent().id);
+  // Технические настройки (режим, модель) — спрятаны, чтобы не мешать: обычно хватает ключа.
+  const [advanced, setAdvanced] = useState(props.ai?.mode === "helper");
   const accentLabel = ACCENTS.find((a) => a.id === accent)?.label ?? "";
 
   return (
@@ -41,9 +43,18 @@ export function SettingsView(props: {
         footer={
           props.ai?.mode === "helper"
             ? "Через помощника: отдельная программа на компьютере (start-helper.cmd), ключ — в её .env."
-            : "Встроенный режим: ИИ работает прямо из панели, ничего запускать не нужно. Ключ хранится в защищённом хранилище Premiere."
+            : "Ключ нужен только для чата. Все кнопки во вкладках работают и без него."
         }
       >
+        {props.ai && props.ai.mode === "embedded" ? <AiKeyCard ai={props.ai} onSave={props.onSaveAi} compact={!advanced} /> : null}
+        <div className="row" onClick={() => setAdvanced(!advanced)}>
+          <div className="row-main">
+            <div className="row-label">Дополнительно</div>
+          </div>
+          <span className="link-small">{advanced ? "Скрыть" : "Показать"}</span>
+        </div>
+        {advanced ? (
+        <>
         <div className="row">
           <div className="row-main">
             <div className="row-label">Режим</div>
@@ -60,9 +71,10 @@ export function SettingsView(props: {
             />
           ) : null}
         </div>
-        {props.ai && props.ai.mode === "embedded" ? <AiKeyCard ai={props.ai} onSave={props.onSaveAi} /> : null}
         {props.ai ? (
           <Row icon={<IconTile glyph="AI" tone="purple" />} label="Модель" value={props.helper ? props.helper.model : "—"} />
+        ) : null}
+        </>
         ) : null}
       </Section>
 

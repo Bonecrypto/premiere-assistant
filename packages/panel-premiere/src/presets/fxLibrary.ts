@@ -143,7 +143,7 @@ export const FX_RECIPES: FxRecipe[] = [
   R("glow-strong", "Сильное свечение", "Свечение", "Яркий ореол — огни, неон, блики", [vrGlow(60)]),
   R("glow-alpha", "Свечение контура", "Свечение", "Свет по краю PNG, текста, логотипа (Alpha Glow)", [alphaGlow(15, 200)]),
   R("glow-neon", "Неон-контур", "Свечение", "Широкий яркий контур вокруг PNG/текста", [alphaGlow(40, 255)]),
-  R("transform-mb", "Transform + блюр 360", "Движение", "Transform с моушн-блюром: Shutter 360°, без «Use Composition's»", [transformBlur]),
+  R("transform-mb", "Transform + блюр 360", "Картинка", "Transform с моушн-блюром: Shutter 360°, без «Use Composition's»", [transformBlur]),
 ];
 
 /** Вкладка «Эффекты» — движение (готовые анимации из библиотеки «Пресетов»). */
@@ -178,7 +178,7 @@ export const COLOR_RECIPES: FxRecipe[] = [
   R("vivid", "Ярко", "Стиль", "Сочно для соцсетей", [lumetri({ vibrance: 30, saturation: 120, contrast: 10 })]),
   R("faded", "Выцветший", "Стиль", "Мягкий матовый вид", [lumetri({ faded: 45, contrast: -15, saturation: 85 })]),
   R("bw", "Ч/Б", "Стиль", "Чёрно-белое через Lumetri", [lumetri({ saturation: 0, contrast: 25 })]),
-  R("vignette", "Виньетка", "Детали", "Затемнить края", [lumetri({ vignette: -2 })]),
+  ...FX_RECIPES.filter((r) => r.group === "Виньетка"),
   R("tint-mono", "Монохром", "Тинт", "Ч/Б через Tint — тёмное в чёрный, светлое в белый", [tint("#000000", "#ffffff")]),
   R("tint-sepia", "Сепия", "Тинт", "Старое фото: коричневые тени, кремовые света", [tint("#2b1a0a", "#f3dfb0")]),
   R("tint-blue", "Синий", "Тинт", "Холодный дуотон: тёмно-синие тени, голубые света", [tint("#0b1a4a", "#9fdcff")]),
