@@ -3498,3 +3498,19 @@ body,
 .act-label { font-size: 10px; line-height: 12px; min-height: 24px; }
 .act-section { margin: 4px 2px 5px 2px; }
 .cg-mode { margin-bottom: 8px; }
+
+/* ── Вкладка «Пресеты» ── */
+.fav-head { display: flex; flex-direction: row; align-items: center; margin-top: 6px; }
+.fav-tile { position: relative; }
+.fav-blank { display: flex; align-items: center; justify-content: center; background-color: var(--bg-elevated); color: var(--accent); font-size: 18px; }
+.fav-x {
+  position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 9px;
+  background-color: #ff3b30; color: #ffffff; font-size: 10px; text-align: center; line-height: 18px;
+}
+.fav-save { margin: 4px 0 6px 0; display: flex; flex-direction: row; align-items: center; }
+.fav-edit { margin: 2px 0 6px 0; }
+.fav-reset { display: block; margin-top: 4px; }
+.fav-empty { padding: 4px 2px 8px 2px; }
+.fav-status { font-size: 11px; color: var(--label-2); margin-top: 8px; }
+.fav-icon { width: 34px; height: 34px; }
+.fav-tile .recipe-name { white-space: normal; line-height: 13px; min-height: 26px; }

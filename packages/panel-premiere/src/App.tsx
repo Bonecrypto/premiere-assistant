@@ -20,17 +20,19 @@ import { GraphView } from "./ui/GraphView.tsx";
 import { TitlesView } from "./ui/TitlesView.tsx";
 import { ColorView, EffectsView, TextView } from "./ui/RecipeView.tsx";
 import { Segmented } from "./ui/Segmented.tsx";
+import { FavsView } from "./ui/FavsView.tsx";
 import { MontageView, SoundView } from "./ui/MontageView.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
 /** Страница панели (раздел). Вкладки шапки — группы страниц (GROUPS). */
-type Tab = "palette" | "chat" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "text" | "titles" | "color" | "sound" | "tasks" | "settings";
-type Group = "chat" | "motion" | "fx" | "graphics" | "edit" | "settings" | "palette";
+type Tab = "palette" | "chat" | "favs" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "text" | "titles" | "color" | "sound" | "tasks" | "settings";
+type Group = "chat" | "favs" | "motion" | "fx" | "graphics" | "edit" | "settings" | "palette";
 
 /** 5 вкладок с подписями; внутри — переключатель разделов. Каждая функция — в одном месте. */
-const GROUPS: Record<"motion" | "fx" | "graphics" | "edit", { label: string; icon: "presets" | "sparkle" | "shapes" | "scissors"; pages: Array<[Tab, string]> }> = {
+const GROUPS: Record<"favs" | "motion" | "fx" | "graphics" | "edit", { label: string; icon: "star" | "presets" | "sparkle" | "shapes" | "scissors"; pages: Array<[Tab, string]> }> = {
+  favs: { label: "Пресеты", icon: "star", pages: [["favs", "Пресеты"]] },
   motion: { label: "Движение", icon: "presets", pages: [["presets", "Анимации"], ["graph", "Графики"], ["text", "Текст"]] },
   fx: { label: "Эффекты", icon: "sparkle", pages: [["effects", "Эффекты"], ["color", "Цвет"]] },
   graphics: { label: "Графика", icon: "shapes", pages: [["elements", "Элементы"], ["titles", "Титры"]] },
@@ -47,7 +49,7 @@ const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return (["auto", "presets", "effects", "elements", "montage", "graph", "text", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
+  return (["favs", "auto", "presets", "effects", "elements", "montage", "graph", "text", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
 }
 
 export function App() {
@@ -271,7 +273,7 @@ export function App() {
           />
         </>
       ) : null}
-      {groupOf(tab) in GROUPS ? (
+      {groupOf(tab) in GROUPS && GROUPS[groupOf(tab) as keyof typeof GROUPS].pages.length > 1 ? (
         <div className="subtabs">
           <Segmented<Tab>
             className="segmented-small"
@@ -285,6 +287,7 @@ export function App() {
       ) : null}
       {tab === "auto" ? <AutoView /> : null}
       {tab === "text" ? <TextView /> : null}
+      {tab === "favs" ? <FavsView onOpenTab={(t) => setTab(t as Tab)} /> : null}
       {tab === "presets" ? <PresetsView /> : null}
       {tab === "graph" ? <GraphView /> : null}
       {tab === "titles" ? <TitlesView /> : null}

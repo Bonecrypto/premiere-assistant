@@ -33,7 +33,7 @@ function useStatus(): [Status, (busy: string, fn: () => Promise<string>) => Prom
 }
 
 /** Плитка-действие: иконка в цветном квадрате + подпись. */
-function Act(props: { icon: IconName; grad: string; label: string; hint: string; onClick(): void }) {
+export function Act(props: { icon: IconName; grad: string; label: string; hint: string; onClick(): void }) {
   return (
     <div className="act-tile" title={props.hint} onClick={props.onClick}>
       {APP_ICONS[`${props.icon}-${props.grad}`] ? (
