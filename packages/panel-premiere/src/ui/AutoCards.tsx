@@ -55,7 +55,7 @@ export function ProjectBinsCard({ bare }: { bare?: boolean } = {}) {
       <div className="pv-save">
         <TextField
           className="pv-save-input"
-          placeholder="Новая папка, напр. «06 Экспорт» или «02 Аудио/Атмосфера»"
+          placeholder="Новая папка, напр. «06 Exports» или «02 Audio/Ambience»"
           value={add}
           onChange={(v: string) => setAdd(v)}
           onEnter={() => add.trim() && (setTpl([...tpl, add.trim()]), setAdd(""))}

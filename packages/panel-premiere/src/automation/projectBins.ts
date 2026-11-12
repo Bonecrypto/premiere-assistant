@@ -9,6 +9,22 @@ import { ppro } from "./timeline.ts";
  */
 
 export const DEFAULT_BIN_TEMPLATE = [
+  "01 Footage",
+  "01 Footage/Video",
+  "01 Footage/Photo",
+  "02 Audio",
+  "02 Audio/Music",
+  "02 Audio/SFX",
+  "02 Audio/Voice",
+  "03 Graphics",
+  "03 Graphics/Titles",
+  "03 Graphics/PNG",
+  "04 Sequences",
+  "05 Archive",
+];
+
+/** Первый (русский) шаблон — если пользователь его не менял, заменяем на английский. */
+const OLD_RU_TEMPLATE = [
   "01 Материалы",
   "01 Материалы/Видео",
   "01 Материалы/Фото",
@@ -37,7 +53,11 @@ const clean = (s: string) =>
 export function loadBinTemplate(): string[] {
   try {
     const v = JSON.parse(storageGet(TPL_KEY) || "null");
-    if (Array.isArray(v)) return v.map((x) => clean(String(x))).filter(Boolean);
+    if (Array.isArray(v)) {
+      const list = v.map((x) => clean(String(x))).filter(Boolean);
+      if (list.join("|") === OLD_RU_TEMPLATE.join("|")) return [...DEFAULT_BIN_TEMPLATE];
+      return list;
+    }
   } catch {
     /* по умолчанию */
   }
@@ -143,7 +163,7 @@ const CAT_RE: Record<string, RegExp[]> = {
   adjustment: [/графика|graphics/i],
   text: [/титр|текст|title|mogrt/i, /графика|graphics/i],
   sequence: [/секвенц|sequence|таймлайн|timeline/i],
-  other: [/прочее|other|misc/i, /материал|media|исходник/i],
+  other: [/прочее|other|misc/i, /материал|media|footage|исходник/i],
 };
 
 export function templatePathFor(cat: string, template = loadBinTemplate()): string | null {
