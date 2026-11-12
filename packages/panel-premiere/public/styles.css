@@ -3514,3 +3514,12 @@ body,
 .fav-status { font-size: 11px; color: var(--label-2); margin-top: 8px; }
 .fav-icon { width: 34px; height: 34px; }
 .fav-tile .recipe-name { white-space: normal; line-height: 13px; min-height: 26px; }
+
+/* ── Папки проекта ── */
+.bins-auto { margin: 8px 0 6px 0; cursor: pointer; }
+.toggle { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; background-color: var(--bg-elevated); color: var(--label-2); }
+.toggle.is-on { background-color: var(--accent); color: #ffffff; }
+.bins-tpl { margin: 4px 0 6px 0; }
+.bins-row { display: flex; flex-direction: row; align-items: center; height: 24px; border-bottom: 1px solid var(--separator); }
+.bins-name { font-size: 12px; color: var(--label); }
+.bins-reset { display: block; margin-top: 6px; }

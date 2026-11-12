@@ -2,6 +2,7 @@ import { HostToolError } from "../hostTools/types.ts";
 import { classify } from "./classify.ts";
 import type { ColorRules } from "./rules.ts";
 import { ppro } from "./timeline.ts";
+import { ensureFolders, templatePathFor } from "./projectBins.ts";
 
 /**
  * «Разложить проект по папкам»: файлы из корня проекта (то, что ещё не разложено) переносятся
@@ -39,6 +40,10 @@ async function mediaSeconds(clip: any): Promise<number> {
 }
 
 const AUDIO_EXT = /\.(wav|mp3|aif|aiff|m4a|aac|flac|ogg|wma|opus)$/i;
+const PHOTO_EXT = /\.(jpe?g|heic|heif|tiff?|webp|bmp)$/i;
+
+/** Папка для категории: из шаблона «Папки проекта» (вложенная), иначе старое плоское имя. */
+const binFor = (cat: string, legacy: string) => templatePathFor(cat) ?? legacy;
 
 export async function planBins(rules: ColorRules): Promise<{ project: any; root: any; plan: BinPlan }> {
   const p = ppro() as any;
@@ -52,9 +57,9 @@ export async function planBins(rules: ColorRules): Promise<{ project: any; root:
     if (p.FolderItem.cast(item)) continue; // папки не трогаем
     const clip = p.ClipProjectItem.cast(item);
     const name: string = item.name ?? "";
-    let bin: string = BIN_NAMES.other;
+    let bin: string = binFor("other", BIN_NAMES.other);
     if (clip) {
-      if (await clip.isSequence().catch(() => false)) bin = BIN_NAMES.sequence;
+      if (await clip.isSequence().catch(() => false)) bin = binFor("sequence", BIN_NAMES.sequence);
       else {
         const path: string = (await clip.getMediaFilePath().catch(() => "")) || "";
         const isAudio = AUDIO_EXT.test(path);
@@ -69,7 +74,7 @@ export async function planBins(rules: ColorRules): Promise<{ project: any; root:
           },
           rules,
         ).category;
-        bin = BIN_NAMES[cat];
+        bin = cat === "graphics" && PHOTO_EXT.test(path) ? binFor("photo", BIN_NAMES.graphics) : binFor(cat, BIN_NAMES[cat]);
       }
     }
     moves.push({ item, name, bin });
@@ -99,23 +104,8 @@ export async function applyBins(rules: ColorRules): Promise<{ moved: number; bin
   if (plan.moves.length === 0) return { moved: 0, bins: [] };
   const needed = [...new Set(plan.moves.map((m) => m.bin))];
 
-  const findBins = async () => {
-    const map = new Map<string, any>();
-    for (const it of (await root.getItems()) ?? []) {
-      const f = p.FolderItem.cast(it);
-      if (f && needed.includes(it.name)) map.set(it.name, f);
-    }
-    return map;
-  };
-
-  let bins = await findBins();
-  const missing = needed.filter((b) => !bins.has(b));
-  if (missing.length) {
-    run(project, "Ассистент: папки проекта", (c) => {
-      for (const b of missing) c.addAction(root.createBinAction(b, false));
-    });
-    bins = await findBins();
-  }
+  // Папки (в том числе вложенные «02 Аудио/Музыка») — создать недостающие.
+  const { folders: bins } = await ensureFolders(project, needed);
 
   run(project, "Ассистент: разложить по папкам", (c) => {
     for (const m of plan.moves) {

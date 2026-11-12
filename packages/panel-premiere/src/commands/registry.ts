@@ -12,6 +12,7 @@ import { changeLevel, duckMusic, fades } from "../automation/sound.ts";
 import { copyStyle, pasteStyle } from "../automation/textStyle.ts";
 import { addTransitions, type TransitionKind } from "../automation/transitions.ts";
 import { textReveal, TEXT_REVEALS } from "../automation/textReveal.ts";
+import { createProjectBins } from "../automation/projectBins.ts";
 import { GRAPHICS } from "../graphics/elements.ts";
 import { insertGraphic } from "../graphics/insert.ts";
 import { loadAnimOptions } from "../presets/animations.ts";
@@ -77,6 +78,7 @@ export function buildCommands(): Command[] {
   for (const [id, name, hex] of [["red", "красный", "#ff3b30"], ["yellow", "жёлтый", "#ffd60a"], ["blue", "синий", "#0a84ff"], ["pink", "розовый", "#ff4fa3"], ["gray", "серый", "#808080"], ["purple", "фиолетовый", "#9f18ec"]])
     add({ id: `create-${id}`, title: `Создать ${name} фон (Color Matte)`, group: "Создать", keywords: "color matte колор мейт плашка", run: () => colorMatte(hex) });
   for (const r of TEXT_REVEALS) add({ id: `txt-${r.id}`, title: `Текст: ${r.name}`, group: "Текст", keywords: `${r.desc} typewriter печать шторка`, run: () => textReveal(r.id) });
+  add({ id: "proj-bins", title: "Создать папки проекта", group: "Проект", keywords: "bins папки структура материалы аудио графика архив новый проект", run: () => createProjectBins() });
   add({ id: "create-adjust", title: "Положить Adjustment Layer", group: "Создать", keywords: "корректирующий слой", run: adjustmentLayer });
   add({ id: "create-adjust-tf", title: "Adjustment Layer + Transform (блюр 360)", group: "Создать", keywords: "корректирующий motion blur", run: adjustmentWithTransform });
 

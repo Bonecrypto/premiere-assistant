@@ -8,7 +8,7 @@ import { Badge, Button } from "./Button.tsx";
 import { Icon, type IconName } from "./Icon.tsx";
 import { Section } from "./Section.tsx";
 import { TrackNamesCard } from "./TrackNamesCard.tsx";
-import { BinsCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
+import { BinsCard, ProjectBinsCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
 import { TimelineColorWizard } from "./TimelineColorWizard.tsx";
 import { AutoLabelToggle } from "./AutoLabelToggle.tsx";
 
@@ -134,7 +134,12 @@ export function AutoView() {
           {page === "tracks" ? <TrackNamesCard bare /> : null}
           {page === "transitions" ? <TransitionsCard bare /> : null}
           {page === "markers" ? <MarkersCard bare /> : null}
-          {page === "bins" ? <BinsCard bare /> : null}
+          {page === "bins" ? (
+            <>
+              <ProjectBinsCard bare />
+              <BinsCard />
+            </>
+          ) : null}
           {page === "rules" ? (
             <Section
               title="Категории"
@@ -267,7 +272,7 @@ export function AutoView() {
           <BentoTile tone="orange" icon="marker" title="Маркеры" sub="Склейки или интервал" onClick={() => setPage("markers")} />
         </div>
         <div className="bento-row">
-          <BentoTile tone="green" icon="save" title="Папки" sub="Разложить проект" onClick={() => setPage("bins")} />
+          <BentoTile tone="green" icon="save" title="Папки" sub="Создать и разложить" onClick={() => setPage("bins")} />
           <BentoTile tone="purple" icon="settings" title="Правила покраски" sub={`${rules.categories.filter((c) => c.enabled).length} категорий и цвета`} onClick={() => setPage("rules")} />
         </div>
 
@@ -294,7 +299,7 @@ const PAGES: Record<AutoPage, { title: string; subtitle: string }> = {
   tracks: { title: "Дорожки", subtitle: "Голос, Музыка, SFX, Видео, Графика — по тому, что на них лежит." },
   transitions: { title: "Переходы", subtitle: "На все склейки выделенных клипов. Выделите клипы (можно Ctrl+A)." },
   markers: { title: "Маркеры", subtitle: "На каждой склейке или через равные промежутки." },
-  bins: { title: "Папки проекта", subtitle: "Файлы из корня проекта — по папкам. Ваши папки не трогаются." },
+  bins: { title: "Папки проекта", subtitle: "Структура папок одним нажатием и раскладка файлов по ней." },
   rules: { title: "Правила покраски", subtitle: "Цвет и слова-подсказки для каждой категории." },
   diag: { title: "Диагностика цветов", subtitle: "Если цвета встают не те — пришлите скриншот отсюда." },
 };

@@ -8,6 +8,68 @@ import { Button } from "./Button.tsx";
 import { Icon, type IconName } from "./Icon.tsx";
 import { Segmented } from "./Segmented.tsx";
 import { Slider } from "./Slider.tsx";
+import { TextField } from "./TextField.tsx";
+import {
+  createProjectBins,
+  DEFAULT_BIN_TEMPLATE,
+  isAutoBins,
+  loadBinTemplate,
+  saveBinTemplate,
+  setAutoBins,
+} from "../automation/projectBins.ts";
+
+/** «Папки проекта»: шаблон структуры + «Создать папки» одним нажатием + автосоздание в новом проекте. */
+export function ProjectBinsCard({ bare }: { bare?: boolean } = {}) {
+  const [tpl, setTplState] = useState<string[]>(loadBinTemplate);
+  const [auto, setAuto] = useState(isAutoBins);
+  const [add, setAdd] = useState("");
+  const [status, setStatus] = useState<Status>(null);
+  const setTpl = (t: string[]) => {
+    setTplState(t);
+    saveBinTemplate(t);
+  };
+  return (
+    <Card bare={bare} icon="tasks" title="Папки проекта" subtitle="Структура нового проекта одним нажатием" status={status}>
+      <Button variant="primary" className="wide hero-btn" onClick={() => guard(setStatus, () => createProjectBins(tpl))}>
+        Создать папки
+      </Button>
+      <div className="row bins-auto" onClick={() => (setAutoBins(!auto), setAuto(!auto))}>
+        <div className="row-main">
+          <div className="row-label">Автоматически в новом проекте</div>
+          <div className="row-sublabel">Открыли пустой проект — папки появятся сами</div>
+        </div>
+        <span className={`toggle${auto ? " is-on" : ""}`}>{auto ? "Вкл" : "Выкл"}</span>
+      </div>
+      <div className="field-label">Шаблон (подпапка — через «/»)</div>
+      <div className="bins-tpl">
+        {tpl.map((p, i) => (
+          <div key={`${p}-${i}`} className="bins-row" style={{ paddingLeft: 4 + (p.split("/").length - 1) * 16 }}>
+            <span className="bins-name">{p.split("/").pop()}</span>
+            <div className="spacer" />
+            <span className="link-small" title="Убрать из шаблона" onClick={() => setTpl(tpl.filter((_, j) => j !== i))}>
+              ✕
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="pv-save">
+        <TextField
+          className="pv-save-input"
+          placeholder="Новая папка, напр. «06 Экспорт» или «02 Аудио/Атмосфера»"
+          value={add}
+          onChange={(v: string) => setAdd(v)}
+          onEnter={() => add.trim() && (setTpl([...tpl, add.trim()]), setAdd(""))}
+        />
+        <span className="link-small" onClick={() => add.trim() && (setTpl([...tpl, add.trim()]), setAdd(""))}>
+          Добавить
+        </span>
+      </div>
+      <span className="link-small bins-reset" onClick={() => setTpl([...DEFAULT_BIN_TEMPLATE])}>
+        Вернуть стандартный шаблон
+      </span>
+    </Card>
+  );
+}
 
 type Status = { tone: "ok" | "error" | "info"; text: string } | null;
 
