@@ -8,7 +8,7 @@ import { Badge, Button } from "./Button.tsx";
 import { Icon, type IconName } from "./Icon.tsx";
 import { Section } from "./Section.tsx";
 import { TrackNamesCard } from "./TrackNamesCard.tsx";
-import { BinsCard, ProjectBinsCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
+import { BinsCard, StartProjectCard, MarkersCard, TransitionsCard } from "./AutoCards.tsx";
 import { TimelineColorWizard } from "./TimelineColorWizard.tsx";
 import { AutoLabelToggle } from "./AutoLabelToggle.tsx";
 
@@ -136,7 +136,7 @@ export function AutoView() {
           {page === "markers" ? <MarkersCard bare /> : null}
           {page === "bins" ? (
             <>
-              <ProjectBinsCard bare />
+              <StartProjectCard bare />
               <BinsCard />
             </>
           ) : null}
@@ -264,15 +264,15 @@ export function AutoView() {
         </div>
 
         <div className="bento-row">
+          <BentoTile tone="green" icon="save" title="Старт проекта" sub="Папки и дорожки" onClick={() => setPage("bins")} />
           <BentoTile tone="pink" icon="palette" title="Покраска проекта" sub="Файлы в Project по категориям" onClick={() => setPage("project")} />
-          <BentoTile tone="blue" icon="tasks" title="Дорожки" sub="Подписать по содержимому" onClick={() => setPage("tracks")} />
         </div>
         <div className="bento-row">
           <BentoTile tone="indigo" icon="fliph" title="Переходы" sub="На все стыки" onClick={() => setPage("transitions")} />
           <BentoTile tone="orange" icon="marker" title="Маркеры" sub="Склейки или интервал" onClick={() => setPage("markers")} />
         </div>
         <div className="bento-row">
-          <BentoTile tone="green" icon="save" title="Папки" sub="Создать и разложить" onClick={() => setPage("bins")} />
+          <BentoTile tone="blue" icon="tasks" title="Дорожки" sub="Назвать по содержимому" onClick={() => setPage("tracks")} />
           <BentoTile tone="purple" icon="settings" title="Правила покраски" sub={`${rules.categories.filter((c) => c.enabled).length} категорий и цвета`} onClick={() => setPage("rules")} />
         </div>
 
@@ -299,7 +299,7 @@ const PAGES: Record<AutoPage, { title: string; subtitle: string }> = {
   tracks: { title: "Дорожки", subtitle: "Голос, Музыка, SFX, Видео, Графика — по тому, что на них лежит." },
   transitions: { title: "Переходы", subtitle: "На все склейки выделенных клипов. Выделите клипы (можно Ctrl+A)." },
   markers: { title: "Маркеры", subtitle: "На каждой склейке или через равные промежутки." },
-  bins: { title: "Папки проекта", subtitle: "Структура папок одним нажатием и раскладка файлов по ней." },
+  bins: { title: "Старт проекта", subtitle: "Папки проекта и имена дорожек — одним нажатием или автоматически." },
   rules: { title: "Правила покраски", subtitle: "Цвет и слова-подсказки для каждой категории." },
   diag: { title: "Диагностика цветов", subtitle: "Если цвета встают не те — пришлите скриншот отсюда." },
 };

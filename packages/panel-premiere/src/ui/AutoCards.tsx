@@ -17,56 +17,110 @@ import {
   saveBinTemplate,
   setAutoBins,
 } from "../automation/projectBins.ts";
+import {
+  applyTrackTemplate,
+  DEFAULT_TRACK_TEMPLATE,
+  isAutoTracks,
+  loadTrackTemplate,
+  saveTrackTemplate,
+  setAutoTracks,
+  type TrackTemplate,
+} from "../automation/trackTemplate.ts";
 
-/** «Папки проекта»: шаблон структуры + «Создать папки» одним нажатием + автосоздание в новом проекте. */
-export function ProjectBinsCard({ bare }: { bare?: boolean } = {}) {
+/**
+ * «Старт проекта»: одна кнопка — папки проекта + имена дорожек активной секвенции.
+ * Два переключателя «автоматически», шаблоны — под «Настроить» (чтобы не мешали).
+ */
+export function StartProjectCard({ bare }: { bare?: boolean } = {}) {
   const [tpl, setTplState] = useState<string[]>(loadBinTemplate);
-  const [auto, setAuto] = useState(isAutoBins);
+  const [tracks, setTracksState] = useState<TrackTemplate>(loadTrackTemplate);
+  const [autoBins, setAutoBinsState] = useState(isAutoBins);
+  const [autoTracks, setAutoTracksState] = useState(isAutoTracks);
+  const [open, setOpen] = useState(false);
   const [add, setAdd] = useState("");
   const [status, setStatus] = useState<Status>(null);
   const setTpl = (t: string[]) => {
     setTplState(t);
     saveBinTemplate(t);
   };
-  return (
-    <Card bare={bare} icon="tasks" title="Папки проекта" subtitle="Структура нового проекта одним нажатием" status={status}>
-      <Button variant="primary" className="wide hero-btn" onClick={() => guard(setStatus, () => createProjectBins(tpl))}>
-        Создать папки
-      </Button>
-      <div className="row bins-auto" onClick={() => (setAutoBins(!auto), setAuto(!auto))}>
-        <div className="row-main">
-          <div className="row-label">Автоматически в новом проекте</div>
-          <div className="row-sublabel">Открыли пустой проект — папки появятся сами</div>
-        </div>
-        <span className={`toggle${auto ? " is-on" : ""}`}>{auto ? "Вкл" : "Выкл"}</span>
+  const setTracks = (t: TrackTemplate) => {
+    setTracksState(t);
+    saveTrackTemplate(t);
+  };
+  const csv = (list: string[]) => list.join(", ");
+  const parse = (v: string) =>
+    v
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  const prepare = () =>
+    guard(setStatus, async () => {
+      const parts: string[] = [await createProjectBins(tpl)];
+      try {
+        parts.push((await applyTrackTemplate()).text);
+      } catch (err) {
+        parts.push((err as Error)?.message || String(err));
+      }
+      return parts.join(" ");
+    });
+  const Toggle = (props: { label: string; sub: string; on: boolean; set(v: boolean): void }) => (
+    <div className="row bins-auto" onClick={() => props.set(!props.on)}>
+      <div className="row-main">
+        <div className="row-label">{props.label}</div>
+        <div className="row-sublabel">{props.sub}</div>
       </div>
-      <div className="field-label">Шаблон (подпапка — через «/»)</div>
-      <div className="bins-tpl">
-        {tpl.map((p, i) => (
-          <div key={`${p}-${i}`} className="bins-row" style={{ paddingLeft: 4 + (p.split("/").length - 1) * 16 }}>
-            <span className="bins-name">{p.split("/").pop()}</span>
-            <div className="spacer" />
-            <span className="link-small" title="Убрать из шаблона" onClick={() => setTpl(tpl.filter((_, j) => j !== i))}>
-              ✕
+      <span className={`toggle${props.on ? " is-on" : ""}`}>{props.on ? "Вкл" : "Выкл"}</span>
+    </div>
+  );
+  return (
+    <Card bare={bare} icon="tasks" title="Старт проекта" subtitle="Папки и имена дорожек одним нажатием" status={status}>
+      <Button variant="primary" className="wide hero-btn" onClick={prepare}>
+        Подготовить проект
+      </Button>
+      <div className="field-hint auto-hint">Создаст папки ({tpl.filter((x) => !x.includes("/")).length}) и назовёт дорожки открытой секвенции: {csv(tracks.audio.slice(0, 3))}…</div>
+      <Toggle label="Папки — в каждом новом проекте" sub="Открыли пустой проект — папки появятся сами" on={autoBins} set={(v) => (setAutoBins(v), setAutoBinsState(v))} />
+      <Toggle label="Дорожки — в каждой новой секвенции" sub="Только дорожки с именами по умолчанию; ваши не трогаются" on={autoTracks} set={(v) => (setAutoTracks(v), setAutoTracksState(v))} />
+      <span className="link-small bins-reset" onClick={() => setOpen(!open)}>
+        {open ? "Скрыть шаблоны ▴" : "Настроить шаблоны ▾"}
+      </span>
+      {open ? (
+        <>
+          <div className="field-label">Дорожки видео (V1, V2…; последнее — для остальных)</div>
+          <TextField value={csv(tracks.video)} onChange={(v: string) => setTracks({ ...tracks, video: parse(v) })} />
+          <div className="field-label">Дорожки звука (A1, A2…; последнее — для остальных)</div>
+          <TextField value={csv(tracks.audio)} onChange={(v: string) => setTracks({ ...tracks, audio: parse(v) })} />
+          <div className="field-label">Папки (подпапка — через «/»)</div>
+          <div className="bins-tpl">
+            {tpl.map((p, i) => (
+              <div key={`${p}-${i}`} className="bins-row" style={{ paddingLeft: 4 + (p.split("/").length - 1) * 16 }}>
+                <span className="bins-name">{p.split("/").pop()}</span>
+                <div className="spacer" />
+                <span className="link-small" title="Убрать из шаблона" onClick={() => setTpl(tpl.filter((_, j) => j !== i))}>
+                  ✕
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="pv-save">
+            <TextField
+              className="pv-save-input"
+              placeholder="Новая папка, напр. «06 Exports» или «02 Audio/Ambience»"
+              value={add}
+              onChange={(v: string) => setAdd(v)}
+              onEnter={() => add.trim() && (setTpl([...tpl, add.trim()]), setAdd(""))}
+            />
+            <span className="link-small" onClick={() => add.trim() && (setTpl([...tpl, add.trim()]), setAdd(""))}>
+              Добавить
             </span>
           </div>
-        ))}
-      </div>
-      <div className="pv-save">
-        <TextField
-          className="pv-save-input"
-          placeholder="Новая папка, напр. «06 Exports» или «02 Audio/Ambience»"
-          value={add}
-          onChange={(v: string) => setAdd(v)}
-          onEnter={() => add.trim() && (setTpl([...tpl, add.trim()]), setAdd(""))}
-        />
-        <span className="link-small" onClick={() => add.trim() && (setTpl([...tpl, add.trim()]), setAdd(""))}>
-          Добавить
-        </span>
-      </div>
-      <span className="link-small bins-reset" onClick={() => setTpl([...DEFAULT_BIN_TEMPLATE])}>
-        Вернуть стандартный шаблон
-      </span>
+          <span
+            className="link-small bins-reset"
+            onClick={() => (setTpl([...DEFAULT_BIN_TEMPLATE]), setTracks({ video: [...DEFAULT_TRACK_TEMPLATE.video], audio: [...DEFAULT_TRACK_TEMPLATE.audio] }))}
+          >
+            Вернуть стандартные шаблоны
+          </span>
+        </>
+      ) : null}
     </Card>
   );
 }
@@ -223,7 +277,7 @@ export function BinsCard({ bare }: { bare?: boolean } = {}) {
   const [plan, setPlan] = useState<BinPlan | null>(null);
   const [status, setStatus] = useState<Status>(null);
   return (
-    <Card bare={bare} icon="tasks" title="Разложить проект по папкам" subtitle="Видео, Музыка, SFX, Голос, Графика, Секвенции" status={status}>
+    <Card bare={bare} icon="tasks" title="Разложить проект по папкам" subtitle="Файлы из корня — в папки шаблона (Footage, Audio, Graphics…)" status={status}>
       {plan ? (
         <div className="plan">
           {plan.byBin.length === 0 ? (

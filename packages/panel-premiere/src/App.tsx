@@ -22,6 +22,7 @@ import { ColorView, EffectsView, TextView } from "./ui/RecipeView.tsx";
 import { Segmented } from "./ui/Segmented.tsx";
 import { FavsView } from "./ui/FavsView.tsx";
 import { autoCreateIfEmpty } from "./automation/projectBins.ts";
+import { autoNameTracks } from "./automation/trackTemplate.ts";
 import { MontageView, SoundView } from "./ui/MontageView.tsx";
 import { PresetsView } from "./ui/PresetsView.tsx";
 import { SettingsView } from "./ui/SettingsView.tsx";
@@ -168,6 +169,7 @@ export function App() {
         const r = (await tool.run({})) as { activeSequence?: { name: string } | null };
         if (alive) setSequence(r.activeSequence?.name ?? null);
         void autoCreateIfEmpty().catch(() => undefined);
+        void autoNameTracks().catch(() => undefined);
       } catch {
         if (alive) setSequence(null);
       }

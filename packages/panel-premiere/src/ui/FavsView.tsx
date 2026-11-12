@@ -16,7 +16,7 @@ import { useSize } from "./useSize.ts";
 const PIN_KEY = "pinnedCommands";
 /** Рекомендованные: то, что чаще всего нужно при монтаже. */
 const RECOMMENDED = [
-  "proj-bins",
+  "proj-start",
   "fx-transform-mb",
   "create-adjust-tf",
   "anim-lib-bounce-pop",
@@ -63,6 +63,8 @@ function thumbFor(id: string): string | undefined {
     "snd-fades": "fade-purple",
     "snd-duck": "duck-pink",
     "proj-bins": "marker-orange",
+    "proj-start": "marker-orange",
+    "proj-tracks": "level-blue",
   };
   return icon[id] ? `icon:${APP_ICONS[icon[id]]}` : undefined;
 }
