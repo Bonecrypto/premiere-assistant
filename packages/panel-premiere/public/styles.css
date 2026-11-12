@@ -3523,3 +3523,15 @@ body,
 .bins-row { display: flex; flex-direction: row; align-items: center; height: 24px; border-bottom: 1px solid var(--separator); }
 .bins-name { font-size: 12px; color: var(--label); }
 .bins-reset { display: block; margin-top: 6px; }
+
+/* ── Безопасные зоны ── */
+.sz-grid { display: flex; flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
+.sz-tile { width: 108px; margin: 0 6px 8px 0; padding: 6px 4px 6px 4px; border-radius: 12px; background-color: var(--bg-elevated); cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+.sz-tile:hover { background-color: rgba(255, 255, 255, 0.08); }
+.sz-box { height: 100px; display: flex; align-items: center; justify-content: center; }
+.sz-frame { position: relative; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.25); }
+.sz-safe { position: absolute; background-color: #1c1c22; border: 1px solid #34c759; }
+.sz-outline { position: absolute; border: 1px solid rgba(255, 255, 255, 0.7); }
+.sz-line { position: absolute; background-color: rgba(255, 255, 255, 0.6); }
+.sz-actions { display: flex; flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
+.sz-actions .lib-chip { margin-right: 6px; }

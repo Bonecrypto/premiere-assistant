@@ -21,6 +21,7 @@ import { TitlesView } from "./ui/TitlesView.tsx";
 import { ColorView, EffectsView, TextView } from "./ui/RecipeView.tsx";
 import { Segmented } from "./ui/Segmented.tsx";
 import { FavsView } from "./ui/FavsView.tsx";
+import { SafeZonesView } from "./ui/SafeZonesView.tsx";
 import { autoCreateIfEmpty } from "./automation/projectBins.ts";
 import { autoNameTracks } from "./automation/trackTemplate.ts";
 import { MontageView, SoundView } from "./ui/MontageView.tsx";
@@ -29,7 +30,7 @@ import { SettingsView } from "./ui/SettingsView.tsx";
 import { TasksView } from "./ui/TasksView.tsx";
 
 /** Страница панели (раздел). Вкладки шапки — группы страниц (GROUPS). */
-type Tab = "palette" | "chat" | "favs" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "text" | "titles" | "color" | "sound" | "tasks" | "settings";
+type Tab = "palette" | "chat" | "favs" | "safe" | "auto" | "presets" | "effects" | "elements" | "montage" | "graph" | "text" | "titles" | "color" | "sound" | "tasks" | "settings";
 type Group = "chat" | "favs" | "motion" | "fx" | "graphics" | "edit" | "settings" | "palette";
 
 /** 5 вкладок с подписями; внутри — переключатель разделов. Каждая функция — в одном месте. */
@@ -37,7 +38,7 @@ const GROUPS: Record<"favs" | "motion" | "fx" | "graphics" | "edit", { label: st
   favs: { label: "Пресеты", icon: "star", pages: [["favs", "Пресеты"]] },
   motion: { label: "Движение", icon: "presets", pages: [["presets", "Анимации"], ["graph", "Графики"], ["text", "Текст"]] },
   fx: { label: "Эффекты", icon: "sparkle", pages: [["effects", "Эффекты"], ["color", "Цвет"]] },
-  graphics: { label: "Графика", icon: "shapes", pages: [["elements", "Элементы"], ["titles", "Титры"]] },
+  graphics: { label: "Графика", icon: "shapes", pages: [["elements", "Элементы"], ["titles", "Титры"], ["safe", "Зоны"]] },
   edit: { label: "Монтаж", icon: "scissors", pages: [["montage", "Монтаж"], ["auto", "Авто"], ["sound", "Звук"], ["tasks", "Задачи"]] },
 };
 
@@ -51,7 +52,7 @@ const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return (["favs", "auto", "presets", "effects", "elements", "montage", "graph", "text", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
+  return (["favs", "safe", "auto", "presets", "effects", "elements", "montage", "graph", "text", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
 }
 
 export function App() {
@@ -291,6 +292,7 @@ export function App() {
       ) : null}
       {tab === "auto" ? <AutoView /> : null}
       {tab === "text" ? <TextView /> : null}
+      {tab === "safe" ? <SafeZonesView /> : null}
       {tab === "favs" ? <FavsView onOpenTab={(t) => setTab(t as Tab)} /> : null}
       {tab === "presets" ? <PresetsView /> : null}
       {tab === "graph" ? <GraphView /> : null}

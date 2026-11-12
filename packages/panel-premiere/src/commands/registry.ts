@@ -13,6 +13,7 @@ import { copyStyle, pasteStyle } from "../automation/textStyle.ts";
 import { addTransitions, type TransitionKind } from "../automation/transitions.ts";
 import { textReveal, TEXT_REVEALS } from "../automation/textReveal.ts";
 import { createProjectBins } from "../automation/projectBins.ts";
+import { insertSafeZone, SAFE_ZONES, toggleSafeZones } from "../graphics/safeZones.ts";
 import { applyTrackTemplate } from "../automation/trackTemplate.ts";
 import { GRAPHICS } from "../graphics/elements.ts";
 import { insertGraphic } from "../graphics/insert.ts";
@@ -79,6 +80,9 @@ export function buildCommands(): Command[] {
   for (const [id, name, hex] of [["red", "красный", "#ff3b30"], ["yellow", "жёлтый", "#ffd60a"], ["blue", "синий", "#0a84ff"], ["pink", "розовый", "#ff4fa3"], ["gray", "серый", "#808080"], ["purple", "фиолетовый", "#9f18ec"]])
     add({ id: `create-${id}`, title: `Создать ${name} фон (Color Matte)`, group: "Создать", keywords: "color matte колор мейт плашка", run: () => colorMatte(hex) });
   for (const r of TEXT_REVEALS) add({ id: `txt-${r.id}`, title: `Текст: ${r.name}`, group: "Текст", keywords: `${r.desc} typewriter печать шторка`, run: () => textReveal(r.id) });
+  for (const z of SAFE_ZONES) add({ id: `safe-${z.id}`, title: `Безопасная зона: ${z.name}`, group: "Оверлеи", keywords: `safe zone danger оверлей ${z.note}`, run: () => insertSafeZone(z.id) });
+  add({ id: "safe-hide", title: "Спрятать оверлеи зон (перед экспортом)", group: "Оверлеи", keywords: "safe zone выключить экспорт", run: () => toggleSafeZones(false) });
+  add({ id: "safe-show", title: "Показать оверлеи зон", group: "Оверлеи", keywords: "safe zone включить", run: () => toggleSafeZones(true) });
   add({ id: "proj-start", title: "Подготовить проект (папки + дорожки)", group: "Проект", keywords: "старт новый проект папки bins дорожки треки названия voice music sfx", run: async () => `${await createProjectBins()} ${(await applyTrackTemplate()).text}` });
   add({ id: "proj-tracks", title: "Назвать дорожки по шаблону", group: "Проект", keywords: "дорожки треки названия voice music sfx video graphics", run: async () => (await applyTrackTemplate()).text });
   add({ id: "proj-bins", title: "Создать папки проекта", group: "Проект", keywords: "bins папки структура материалы аудио графика архив новый проект", run: () => createProjectBins() });
