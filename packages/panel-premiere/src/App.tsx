@@ -11,7 +11,7 @@ import { getHostTool } from "./hostTools/index.ts";
 import { initialState, reducer } from "./state.ts";
 import { ChatView, QuickBar } from "./ui/ChatView.tsx";
 import { Composer } from "./ui/Composer.tsx";
-import { TopBar, health } from "./ui/Header.tsx";
+import { health } from "./ui/Header.tsx";
 import { StatusBar } from "./ui/StatusBar.tsx";
 import { checkForUpdate, type UpdateInfo } from "./update/updater.ts";
 import { Onboarding } from "./ui/Onboarding.tsx";
@@ -20,6 +20,9 @@ import { GraphView } from "./ui/GraphView.tsx";
 import { TitlesView } from "./ui/TitlesView.tsx";
 import { ColorView, EffectsView, TextView } from "./ui/RecipeView.tsx";
 import { Segmented } from "./ui/Segmented.tsx";
+import { Rail, type RailItem } from "./ui/Rail.tsx";
+import { useSize } from "./ui/useSize.ts";
+import { Icon } from "./ui/Icon.tsx";
 import { FavsView } from "./ui/FavsView.tsx";
 import { SafeZonesView } from "./ui/SafeZonesView.tsx";
 import { autoCreateIfEmpty } from "./automation/projectBins.ts";
@@ -34,12 +37,12 @@ type Tab = "palette" | "chat" | "favs" | "safe" | "auto" | "presets" | "effects"
 type Group = "chat" | "favs" | "motion" | "fx" | "graphics" | "edit" | "settings" | "palette";
 
 /** 5 вкладок с подписями; внутри — переключатель разделов. Каждая функция — в одном месте. */
-const GROUPS: Record<"favs" | "motion" | "fx" | "graphics" | "edit", { label: string; icon: "star" | "presets" | "sparkle" | "shapes" | "scissors"; pages: Array<[Tab, string]> }> = {
-  favs: { label: "Пресеты", icon: "star", pages: [["favs", "Пресеты"]] },
-  motion: { label: "Движение", icon: "presets", pages: [["presets", "Анимации"], ["graph", "Графики"], ["text", "Текст"]] },
-  fx: { label: "Эффекты", icon: "sparkle", pages: [["effects", "Эффекты"], ["color", "Цвет"]] },
-  graphics: { label: "Графика", icon: "shapes", pages: [["elements", "Элементы"], ["titles", "Титры"], ["safe", "Зоны"]] },
-  edit: { label: "Монтаж", icon: "scissors", pages: [["montage", "Монтаж"], ["auto", "Авто"], ["sound", "Звук"], ["tasks", "Задачи"]] },
+const GROUPS: Record<"favs" | "motion" | "fx" | "graphics" | "edit", { label: string; icon: string; tone: string; pages: Array<[Tab, string]> }> = {
+  favs: { label: "Пресеты", icon: "star", tone: "cyan", pages: [["favs", "Пресеты"]] },
+  motion: { label: "Движение", icon: "graph", tone: "blue", pages: [["presets", "Анимации"], ["graph", "Графики"], ["text", "Текст"]] },
+  fx: { label: "Эффекты", icon: "sparkle", tone: "pink", pages: [["effects", "Эффекты"], ["color", "Цвет"]] },
+  graphics: { label: "Графика", icon: "shapes", tone: "violet", pages: [["elements", "Элементы"], ["titles", "Титры"], ["safe", "Зоны"]] },
+  edit: { label: "Монтаж", icon: "scissors", tone: "green", pages: [["montage", "Монтаж"], ["auto", "Авто"], ["sound", "Звук"], ["tasks", "Задачи"]] },
 };
 
 function groupOf(t: Tab): Group {
@@ -52,13 +55,14 @@ const TAB_KEY = "activeTab";
 
 function savedTab(): Tab {
   const t = storageGet(TAB_KEY);
-  return (["favs", "safe", "auto", "presets", "effects", "elements", "montage", "graph", "text", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") ? (t as Tab) : "chat";
+  return (["favs", "safe", "auto", "presets", "effects", "elements", "montage", "graph", "text", "titles", "color", "sound", "tasks", "settings"] as string[]).includes(t ?? "") || t === "chat" ? ((t as Tab) ?? "favs") : "favs";
 }
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [port, setPort] = useState(getSavedPort);
   const [tab, setTabState] = useState<Tab>(savedTab);
+  const [appRef, appSize] = useSize();
   const [onboarding, setOnboarding] = useState(() => storageGet(ONBOARDING_KEY) !== "1");
   const [draft, setDraft] = useState<string | null>(null);
   const [sequence, setSequence] = useState<string | null>(null);
@@ -233,27 +237,37 @@ export function App() {
   }
 
   return (
-    <div className="app">
-      <TopBar<Group>
-        tabs={[
-          { id: "chat", icon: "chat", label: "Чат" },
-          ...(Object.keys(GROUPS) as Array<keyof typeof GROUPS>).map((g) => ({
-            id: g as Group,
-            icon: GROUPS[g].icon,
-            label: GROUPS[g].label,
-            badge: g === "edit" ? activeTasks : undefined,
-          })),
-        ]}
-        settings={{ id: "settings", icon: "settings", label: "Настройки" }}
-        tab={groupOf(tab)}
-        onTab={openGroup}
-        search={{ active: tab === "palette", onClick: () => setTab(tab === "palette" ? "chat" : "palette") }}
-        action={
-          tab === "chat"
-            ? { icon: "compose", title: "Новый чат", onClick: newChat, disabled: state.busy || state.items.length === 0 }
-            : undefined
-        }
+    <div className="app app-shell" ref={appRef}>
+      <Rail<Group>
+        wide={appSize.w >= 560}
+        main={(Object.keys(GROUPS) as Array<keyof typeof GROUPS>).map((g) => ({
+          id: g as Group,
+          label: GROUPS[g].label,
+          icon: GROUPS[g].icon,
+          tone: GROUPS[g].tone,
+          badge: g === "edit" ? activeTasks : undefined,
+        }))}
+        more={[
+          { id: "chat", label: "Чат с ИИ", icon: "chat", tone: "orange" },
+          { id: "settings", label: "Настройки", icon: "settings", tone: "gray" },
+        ] as RailItem<Group>[]}
+        active={groupOf(tab)}
+        onSelect={openGroup}
+        searchActive={tab === "palette"}
+        onSearch={() => setTab(tab === "palette" ? "favs" : "palette")}
       />
+      <div className="app-main">
+      <div className="page-head">
+        <span className="page-head-title">
+          {tab === "palette" ? "Поиск" : tab === "settings" ? "Настройки" : tab === "chat" ? "Чат с ИИ" : GROUPS[groupOf(tab) as keyof typeof GROUPS]?.label ?? ""}
+        </span>
+        <div className="spacer" />
+        {tab === "chat" ? (
+          <div className={`icon-btn${state.busy || state.items.length === 0 ? " is-disabled" : ""}`} title="Новый чат" onClick={() => !(state.busy || state.items.length === 0) && newChat()}>
+            <Icon name="compose" size={15} />
+          </div>
+        ) : null}
+      </div>
 
       {tab === "chat" ? (
         <>
@@ -327,6 +341,7 @@ export function App() {
         update={update}
         onUpdateClick={() => setTab("settings")}
       />
+      </div>
     </div>
   );
 }

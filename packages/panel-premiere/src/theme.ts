@@ -15,6 +15,14 @@ export interface Accent {
 
 export const ACCENTS: Accent[] = [
   {
+    id: "sky",
+    label: "Небесный",
+    color: "#1e90ff",
+    gradient: "linear-gradient(135deg, #38bdf8 0%, #1e90ff 55%, #2563eb 100%)",
+    soft: "rgba(56, 189, 248, 0.18)",
+    text: "#7dd3fc",
+  },
+  {
     id: "violet",
     label: "Фиолетовый",
     color: "#7a1cf0",

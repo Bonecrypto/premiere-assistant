@@ -3535,3 +3535,83 @@ body,
 .sz-line { position: absolute; background-color: rgba(255, 255, 255, 0.6); }
 .sz-actions { display: flex; flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
 .sz-actions .lib-chip { margin-right: 6px; }
+
+/* ═════════════ Стиль «Ethena OS»: боковая навигация с тонированными иконками ═════════════
+ * Почти чёрный фон, тонкие рамки, небесный акцент. Главные разделы слева, редкие — под «Ещё». */
+:root {
+  --bg: #08090c;
+  --bg-elevated: #111318;
+  --bg-elevated-2: #191c23;
+  --separator: rgba(255, 255, 255, 0.06);
+  --label: #eceef3;
+  --label-2: rgba(214, 220, 232, 0.58);
+  --label-3: rgba(214, 220, 232, 0.32);
+}
+.app.app-shell { flex-direction: row; }
+.app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100%; overflow: hidden; }
+
+.rail {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 6px 8px 6px;
+  border-right: 1px solid var(--separator);
+  background-color: #0b0c10;
+  overflow-y: auto;
+}
+.rail.is-wide { width: 176px; padding: 12px 10px 8px 10px; }
+.rail-brand { display: flex; flex-direction: row; align-items: center; justify-content: center; margin: 2px 0 12px 0; }
+.rail.is-wide .rail-brand { justify-content: flex-start; padding-left: 4px; }
+.rail-brand-name { margin-left: 8px; font-size: 15px; font-weight: 700; color: var(--label); letter-spacing: -0.2px; }
+.rail-row {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 4px;
+  margin-bottom: 4px;
+  border-radius: 11px;
+  cursor: pointer;
+}
+.rail.is-wide .rail-row { justify-content: flex-start; padding: 5px 6px; }
+.rail-row:hover { background-color: rgba(255, 255, 255, 0.04); }
+.rail-tile {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.rail-icon { width: 17px; height: 17px; }
+.rail-label { margin-left: 10px; font-size: 13px; color: var(--label-2); }
+.rail-row.is-active .rail-label { color: var(--label); font-weight: 600; }
+.rail-muted { color: var(--label-3); }
+.rail-search { margin-bottom: 10px; }
+.rail-badge {
+  position: absolute; top: 1px; right: 2px; min-width: 14px; height: 14px; border-radius: 7px;
+  background-color: var(--accent); color: #fff; font-size: 9px; line-height: 14px; text-align: center; padding: 0 3px;
+}
+.rail-more { display: flex; flex-direction: row; align-items: center; justify-content: center; padding: 8px 4px 6px 4px; margin-top: 4px; border-top: 1px solid var(--separator); cursor: pointer; }
+.rail.is-wide .rail-more { justify-content: space-between; padding: 10px 8px 6px 8px; }
+.rail-more-label { font-size: 10px; letter-spacing: 1.4px; color: var(--label-3); font-weight: 600; }
+.rail-more-chev { font-size: 10px; color: var(--label-3); }
+
+.page-head { display: flex; flex-direction: row; align-items: center; padding: 12px 14px 4px 14px; }
+.page-head-title { font-size: 19px; font-weight: 700; color: var(--label); letter-spacing: -0.3px; }
+.subtabs { padding: 6px 12px 4px 12px; }
+
+/* Карточки и плитки — тоньше и темнее, как в Ethena */
+.hero-card, .recipe-tile, .act-tile, .sz-tile, .bento-tile, .bento-list, .act-settings {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--separator);
+}
+.recipe-tile.is-active, .act-tile:hover, .recipe-tile:hover { border-color: rgba(56, 189, 248, 0.35); }
+.lib-chip { background-color: var(--bg-elevated); border: 1px solid var(--separator); }
+.lib-chip.is-active { background-color: var(--accent); border-color: var(--accent); color: #ffffff; }
+.segmented { background-color: var(--bg-elevated); border: 1px solid var(--separator); }
